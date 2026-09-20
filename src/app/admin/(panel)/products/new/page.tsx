@@ -43,6 +43,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
       }}
       categories={categories}
       brands={listBrands()}
+      cars={[]}
       thumbs={{}}
       currencySymbol={site.currencySymbol}
     />

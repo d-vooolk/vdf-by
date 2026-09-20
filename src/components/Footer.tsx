@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ContactButtons } from "@/components/ContactButtons";
 import { INFO_PAGES } from "@/components/Header";
 import { HeadlightIcon, PhoneIcon } from "@/components/icons";
+import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
 
 export function Footer() {
   const site = getSite();
   const categories = getRootCategories();
+  const hasCars = getCarTree().length > 0;
   // Тот же список, что в панели справа и на карточках товаров: ссылки на
   // мессенджеры собираются в одном месте — src/lib/contacts.ts.
   const channels = getChannels(site);
@@ -36,6 +38,16 @@ export function Footer() {
         <nav aria-label="Каталог">
           <h2 className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Каталог</h2>
           <ul className="space-y-2 text-sm">
+            {hasCars && (
+              <li>
+                <Link
+                  href="/podbor/"
+                  className="text-brand-500 transition-colors hover:text-brand-900"
+                >
+                  Подбор по авто
+                </Link>
+              </li>
+            )}
             {categories.map((category) => (
               <li key={category.id}>
                 <Link

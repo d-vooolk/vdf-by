@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 import {
+  carPathsForProduct,
+  fetchCarImages,
+  setProductCars,
+} from "@/lib/cars";
+import {
   categoryPaths,
   categorySubtreePaths,
   getChildCategories,
@@ -108,6 +113,7 @@ export async function logoutAction(): Promise<void> {
 export async function saveProductAction(
   input: unknown,
   previousId?: string,
+  carIds: string[] = [],
 ): Promise<FormState> {
   await requireAdmin();
 
@@ -116,17 +122,32 @@ export async function saveProductAction(
   const before = previousId ? getProductRaw(previousId) : null;
   // Считаем до сохранения: после него дерево разделов уже другое.
   const beforePaths = before ? categoryPaths(before.categoryId) : [];
+  const beforeCarPaths = previousId ? carPathsForProduct(previousId) : [];
 
   const result = saveProduct(input, previousId);
   if (!result.ok) return toState(result);
 
-  const product = input as { slug: string; categoryId: string };
+  const product = input as { id: string; slug: string; categoryId: string };
+
+  // Привязки к машинам — после товара: у нового товара строки в products
+  // до этого момента ещё нет, а внешний ключ на неё ссылается.
+  setProductCars(product.id, Array.isArray(carIds) ? carIds : []);
+  // Логотип марки и фото поколения забираем к себе, если их ещё нет.
+  // Сохранение товара из-за этого не падает — см. fetchCarImages.
+  await fetchCarImages(carIds);
+
   invalidateCatalog();
 
-  revalidateProduct(product.slug, categoryPaths(product.categoryId), {
-    slug: before?.slug,
-    categoryPaths: beforePaths,
-  });
+  revalidateProduct(
+    product.slug,
+    categoryPaths(product.categoryId),
+    {
+      slug: before?.slug,
+      categoryPaths: beforePaths,
+      carPaths: beforeCarPaths,
+    },
+    carPathsForProduct(product.id),
+  );
 
   return ok();
 }
@@ -150,9 +171,12 @@ export async function deleteProductAction(id: string): Promise<FormState> {
   if (!product) return fail(["Товар не найден"]);
 
   const paths = categoryPaths(product.categoryId);
+  // До удаления: привязки уходят вместе с товаром (ON DELETE CASCADE), и
+  // после него узнать, какие страницы подбора он занимал, уже негде.
+  const carPaths = carPathsForProduct(id);
   deleteProduct(id);
   invalidateCatalog();
-  revalidateProduct(product.slug, paths);
+  revalidateProduct(product.slug, paths, { carPaths });
 
   redirect("/admin/products/");
 }
@@ -178,6 +202,7 @@ export async function deleteProductsAction(ids: string[]): Promise<FormState> {
     .map((product) => ({
       slug: product.slug,
       paths: categoryPaths(product.categoryId),
+      carPaths: carPathsForProduct(product.id),
     }));
 
   if (!affected.length) return fail(["Товары не найдены"]);
@@ -185,7 +210,9 @@ export async function deleteProductsAction(ids: string[]): Promise<FormState> {
   deleteProducts(ids);
   invalidateCatalog();
 
-  for (const entry of affected) revalidateProduct(entry.slug, entry.paths);
+  for (const entry of affected) {
+    revalidateProduct(entry.slug, entry.paths, { carPaths: entry.carPaths });
+  }
 
   return ok();
 }

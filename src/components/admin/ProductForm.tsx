@@ -9,6 +9,7 @@ import {
   generateSkuAction,
   saveProductAction,
 } from "@/app/admin/actions";
+import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import { OptionGroupsEditor } from "@/components/admin/OptionGroupsEditor";
 import {
@@ -20,8 +21,10 @@ import {
   Suggest,
 } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import type { ProductCar } from "@/lib/car-types";
+import { formatPrice } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
-import { toSlug } from "@/lib/slug";
+import { toSlug } from "@/lib/slug.mjs";
 
 /**
  * Карточка товара.
@@ -47,6 +50,12 @@ interface ProductFormProps {
   }>;
   /** Бренды, которые уже есть в каталоге — для подсказки в поле бренда. */
   brands: string[];
+  /**
+   * Машины, к которым товар уже привязан. Живут отдельной таблицей, а не
+   * полем товара: связь многие-ко-многим, и по ней строятся страницы
+   * подбора.
+   */
+  cars: ProductCar[];
   /** Пусто при создании: у нового товара ещё нет прежнего кода. */
   previousId?: string;
   /** Готовые ссылки на миниатюры уже выбранных фото. */
@@ -58,6 +67,7 @@ export function ProductForm({
   product: initial,
   categories,
   brands,
+  cars: initialCars,
   previousId,
   thumbs,
   currencySymbol,
@@ -65,6 +75,7 @@ export function ProductForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState<Product>(initial);
+  const [cars, setCars] = useState<ProductCar[]>(initialCars);
   const [problems, setProblems] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -86,7 +97,11 @@ export function ProductForm({
   const save = () => {
     setProblems([]);
     startTransition(async () => {
-      const result = await saveProductAction(clean(draft), previousId);
+      const result = await saveProductAction(
+        clean(draft),
+        previousId,
+        cars.map((car) => car.generationId),
+      );
       if (!result.ok) {
         setProblems(result.problems);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -249,6 +264,28 @@ export function ProductForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            label={`Себестоимость, ${currencySymbol}`}
+            hint="Только для вас — на сайте не показывается"
+          >
+            <NumberInput
+              value={draft.costPrice ?? null}
+              onChange={(costPrice) => patch({ costPrice })}
+              placeholder="не задана"
+            />
+          </Field>
+
+          <div className="sm:col-span-2">
+            <Margin
+              price={draft.price}
+              cost={draft.costPrice ?? null}
+              currencySymbol={currencySymbol}
+              hasOptions={draft.optionGroups.length > 0}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Кнопка стоит под полем, а не внутри Field: Field — это
               <label>, а в нём может быть только одно поле ввода, иначе
               непонятно, к чему относится подпись, и щелчок по ней попадает
@@ -285,6 +322,18 @@ export function ProductForm({
             </button>
           </div>
 
+          <Field
+            label="Складской номер"
+            hint="Где лежит на складе. Только для вас — на сайте не показывается"
+          >
+            <input
+              value={draft.storageCode ?? ""}
+              onChange={(event) => patch({ storageCode: event.target.value })}
+              className="field"
+              placeholder="А-12-3"
+            />
+          </Field>
+
           <Field label="Плашка на карточке" hint="«Хит», «Новинка», «Распродажа»">
             <input
               value={draft.badge ?? ""}
@@ -293,9 +342,13 @@ export function ProductForm({
             />
           </Field>
 
-          {/* Остаток — единственное поле формы, которого нет на витрине.
-              Покупателю его не показываем намеренно: «осталось 2 шт.» живёт
-              своей жизнью и врёт после первого же заказа по телефону. */}
+          {/* Остаток, себестоимость и складской номер на витрину не выходят
+              намеренно. Первое — потому что «осталось 2 шт.» живёт своей
+              жизнью и врёт после первого же заказа по телефону, остальные
+              два — потому что это внутренний учёт. Вырезаны они не в
+              шаблоне, а в снимке каталога (src/lib/catalog.ts): страница
+              товара отдаёт весь объект клиентскому компоненту, и из
+              шаблона их всё равно было бы видно в исходном коде. */}
           <Field
             label="Остаток на складе"
             hint="Только для вас — на сайте не показывается. Пусто = не считаем"
@@ -421,6 +474,20 @@ export function ProductForm({
           thumbs={thumbs}
           currencySymbol={currencySymbol}
           basePrice={draft.price}
+        />
+      </Section>
+
+      {/* ------------------------ Автомобили ------------------------- */}
+      <Section
+        title="Подходит к автомобилям"
+        note="Товар появится на страницах подбора этих машин, а на его странице встанут ссылки на них. Необязательно: без привязок товар живёт в каталоге как обычно."
+      >
+        <CarFitmentEditor
+          value={cars}
+          onChange={(next) => {
+            setCars(next);
+            setSaved(false);
+          }}
         />
       </Section>
 
@@ -578,6 +645,60 @@ function SpecsEditor({
 
 /* ------------------------------------------------------------------ */
 
+function formatPercent(value: number): string {
+  return `${value.toFixed(1).replace(".", ",")}%`;
+}
+
+function Margin({
+  price,
+  cost,
+  currencySymbol,
+  hasOptions,
+}: {
+  price: number;
+  cost: number | null;
+  currencySymbol: string;
+  hasOptions: boolean;
+}) {
+  if (cost === null) {
+    return (
+      <p className="flex h-full items-center text-xs text-brand-400">
+        Заполните себестоимость — рядом посчитается прибыль и маржа.
+      </p>
+    );
+  }
+
+  const profit = price - cost;
+  const margin = price > 0 ? (profit / price) * 100 : 0;
+  const markup = cost > 0 ? (profit / cost) * 100 : null;
+  const good = profit > 0;
+
+  return (
+    <div
+      className={`flex h-full flex-col justify-center rounded-xl border px-4 py-3 ${
+        good
+          ? "border-green-200 bg-green-50 text-green-900"
+          : "border-red-200 bg-red-50 text-red-900"
+      }`}
+    >
+      <p className="text-sm font-semibold">
+        {good ? "Прибыль" : "Убыток"} {formatPrice(Math.abs(profit), currencySymbol)}
+        <span className="ml-2 font-normal opacity-80">
+          маржа {formatPercent(margin)}
+          {markup !== null && ` · наценка ${formatPercent(markup)}`}
+        </span>
+      </p>
+      <p className="mt-1 text-xs opacity-70">
+        {hasOptions
+          ? "Считается от базовой цены. У опций свои цены — там маржа другая."
+          : "Разница между ценой продажи и себестоимостью."}
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
 function Checkbox({
   checked,
   onChange,
@@ -635,6 +756,8 @@ function clean(product: Product): Product {
     // null и undefined схема принимает одинаково, но в JSON товара лишний
     // ключ со значением null оставлять незачем.
     stockQty: product.stockQty ?? undefined,
+    costPrice: product.costPrice ?? undefined,
+    storageCode: trimmed(product.storageCode),
     featured: product.featured ? true : undefined,
     specs: product.specs.filter((spec) => spec.name.trim() && spec.value.trim()),
     tags: product.tags.map((tag) => tag.trim()).filter(Boolean),

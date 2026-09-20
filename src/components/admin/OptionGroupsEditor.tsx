@@ -6,7 +6,7 @@ import { ImagePicker } from "@/components/admin/ImagePicker";
 import { NumberInput } from "@/components/admin/form-parts";
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
 import type { OptionGroup, OptionValue } from "@/lib/schema";
-import { toSlug } from "@/lib/slug";
+import { toSlug } from "@/lib/slug.mjs";
 
 /**
  * Редактор опций товара — цоколь H7/H11/HB4 со своими ценами и галереями.

@@ -20,6 +20,7 @@ import { absoluteUrl } from "./seo";
 const SHARED = [
   "/", // блок «Выбирают чаще всего»
   "/catalog", // плитка разделов со счётчиками товаров
+  "/podbor", // список марок, к которым что-то подходит
   "/sitemap.xml",
   "/variants.json", // прайс, по которому корзина сверяет цены
   "/search-index.json", // индекс поиска
@@ -54,16 +55,23 @@ function announce(paths: string[]): void {
  * `previous` — адреса, по которым товар был доступен до правки. Если поменяли
  * slug или перенесли товар в другой раздел, старую страницу тоже надо
  * пересобрать, иначе она останется висеть с прежним содержимым.
+ *
+ * `carPaths` — страницы подбора, на которых товар стоит сейчас; в
+ * `previous.carPaths` те, на которых он стоял до правки. Снятая привязка
+ * задевает ровно те же страницы, что и поставленная, только с другой
+ * стороны: товар должен с них пропасть.
  */
 export function revalidateProduct(
   slug: string,
   categoryPaths: string[],
-  previous?: { slug?: string; categoryPaths?: string[] },
+  previous?: { slug?: string; categoryPaths?: string[]; carPaths?: string[] },
+  carPaths: string[] = [],
 ): void {
   const paths = new Set(SHARED);
 
   paths.add(`/product/${slug}`);
   for (const path of categoryPaths) paths.add(trim(path));
+  for (const path of carPaths) paths.add(trim(path));
 
   if (previous?.slug && previous.slug !== slug) {
     paths.add(`/product/${previous.slug}`);
@@ -71,13 +79,14 @@ export function revalidateProduct(
   // Раздел у товара сменился: старая страница раздела и страница его
   // родителя тоже пересобираются — там поменялись состав и счётчик.
   for (const path of previous?.categoryPaths ?? []) paths.add(trim(path));
+  for (const path of previous?.carPaths ?? []) paths.add(trim(path));
 
   revalidateAll(paths);
 
-  // Поисковикам сообщаем только про сам товар и его разделы: главная и
-  // каталог меняются от каждой правки, и звать на них краулера по десять
-  // раз в день — это шум, за который IndexNow перестаёт слушать.
-  announce([`/product/${slug}/`, ...categoryPaths]);
+  // Поисковикам сообщаем только про сам товар, его разделы и машины:
+  // главная и каталог меняются от каждой правки, и звать на них краулера
+  // по десять раз в день — это шум, за который IndexNow перестаёт слушать.
+  announce([`/product/${slug}/`, ...categoryPaths, ...carPaths]);
 }
 
 /**

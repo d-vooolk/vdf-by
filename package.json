@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "import": "node scripts/import-data.mjs",
+    "import-cars": "node scripts/import-cars.mjs",
     "admin": "node scripts/admin.mjs",
     "backup": "node scripts/backup.mjs",
     "icons": "node scripts/make-icons.mjs",

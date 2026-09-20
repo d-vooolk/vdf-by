@@ -127,6 +127,67 @@ export const MIGRATIONS = [
       created_at INTEGER NOT NULL
     );
   `,
+
+  /* 4 — подбор по автомобилю */ `
+    -- Справочник марок, моделей и поколений. Заливается один раз из
+    -- data/cars-catalog.json (npm run import-cars) и дальше только читается:
+    -- владелец магазина его не правит, он правит привязки товаров.
+    --
+    -- id везде внешний, из донора справочника. Так повторный импорт
+    -- обновляет строки на месте и не рвёт привязки товаров.
+    CREATE TABLE car_marks (
+      id         TEXT PRIMARY KEY,
+      slug       TEXT NOT NULL UNIQUE,
+      name       TEXT NOT NULL,
+      year_from  INTEGER,
+      year_to    INTEGER,
+      -- Путь картинки в таблице images. Пусто — иконку ещё не забирали:
+      -- логотипы и фото тянутся по требованию, когда марку впервые
+      -- привязали к товару, а не все девять тысяч разом.
+      logo       TEXT NOT NULL DEFAULT '',
+      logo_src   TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE car_models (
+      id        TEXT PRIMARY KEY,
+      mark_id   TEXT NOT NULL REFERENCES car_marks(id) ON DELETE CASCADE,
+      slug      TEXT NOT NULL,
+      name      TEXT NOT NULL,
+      year_from INTEGER,
+      year_to   INTEGER
+    );
+
+    CREATE UNIQUE INDEX car_models_slug ON car_models(mark_id, slug);
+    CREATE INDEX car_models_by_mark ON car_models(mark_id, name);
+
+    CREATE TABLE car_generations (
+      id        TEXT PRIMARY KEY,
+      model_id  TEXT NOT NULL REFERENCES car_models(id) ON DELETE CASCADE,
+      slug      TEXT NOT NULL,
+      name      TEXT NOT NULL,
+      year_from INTEGER,
+      year_to   INTEGER,
+      photo     TEXT NOT NULL DEFAULT '',
+      photo_src TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE UNIQUE INDEX car_generations_slug ON car_generations(model_id, slug);
+    CREATE INDEX car_generations_by_model ON car_generations(model_id, year_from DESC);
+
+    -- Товар подходит к поколению автомобиля. Связь многие-ко-многим: одна
+    -- лампа встаёт в десяток машин, в одну машину идёт десяток товаров.
+    --
+    -- ON DELETE CASCADE с обеих сторон: удалили товар — привязки не нужны,
+    -- пропало поколение из справочника — привязка вела бы в никуда, а по
+    -- ней строятся страницы подбора.
+    CREATE TABLE product_cars (
+      product_id    TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      generation_id TEXT NOT NULL REFERENCES car_generations(id) ON DELETE CASCADE,
+      PRIMARY KEY (product_id, generation_id)
+    );
+
+    CREATE INDEX product_cars_by_generation ON product_cars(generation_id);
+  `,
 ];
 
 /**

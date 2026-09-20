@@ -4,6 +4,7 @@ import { CartBadge } from "@/components/CartBadge";
 import { ChevronDownIcon, PhoneIcon } from "@/components/icons";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SearchBox } from "@/components/SearchBox";
+import { getCarTree } from "@/lib/cars";
 import {
   categoryUrl,
   getCategoryCounts,
@@ -26,6 +27,12 @@ export function Header() {
   // Меню строится по дереву: раздел верхнего уровня и его подразделы.
   // Считаем один раз здесь — и мобильное меню, и полоса категорий на
   // десктопе показывают одно и то же.
+  // Подбор по машине появляется в меню, только когда в нём что-то есть:
+  // пункт, ведущий на пустую страницу, хуже отсутствующего.
+  const carsLink = getCarTree().length
+    ? [{ href: "/podbor/", label: "Подбор по авто" }]
+    : [];
+
   const categoryLinks = getRootCategories().map((category) => ({
     href: categoryUrl(category),
     label: category.menuName ?? category.name,
@@ -57,7 +64,7 @@ export function Header() {
 
       <div className="container-page flex h-16 items-center gap-3 lg:h-[4.5rem] lg:gap-6">
         <MobileMenu
-          categories={categoryLinks}
+          categories={[...carsLink, ...categoryLinks]}
           pages={INFO_PAGES}
           phone={site.phone}
           phoneHref={site.phoneHref}
@@ -125,6 +132,15 @@ export function Header() {
           >
             Весь каталог
           </Link>
+          {carsLink.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="flex shrink-0 items-center rounded-control px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-brand-900 transition-colors hover:bg-brand-50"
+            >
+              {link.label}
+            </Link>
+          ))}
           {categoryLinks.map((link) =>
             link.children.length === 0 ? (
               <Link

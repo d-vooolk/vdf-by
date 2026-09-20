@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ProductCars } from "@/components/ProductCars";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductPurchase } from "@/components/ProductPurchase";
@@ -14,6 +15,7 @@ import {
   getRelatedProducts,
   getSite,
 } from "@/lib/catalog";
+import { getProductCars } from "@/lib/cars";
 import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickImages } from "@/lib/images";
@@ -94,6 +96,7 @@ export default async function ProductPage({ params }: PageProps) {
   const site = getSite();
   const category = getCategoryById(product.categoryId);
   const related = getRelatedProducts(product);
+  const cars = getProductCars(product.id);
 
   // В клиентский компонент уходят записи манифеста только для фото этого
   // товара — включая галереи всех опций, чтобы переключение цоколя работало
@@ -200,6 +203,7 @@ export default async function ProductPage({ params }: PageProps) {
             </dl>
           </section>
         )}
+        <ProductCars cars={cars} />
       </div>
 
       {/* ------------------------- Похожие товары ----------------------- */}

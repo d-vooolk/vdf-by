@@ -95,12 +95,15 @@ function load(): Catalog {
       JSON.parse(row.data),
       `товар №${index + 1} (таблица products)`,
     );
-    // Складской остаток на витрину не выходит вообще — ни в текст, ни в
+    // Складской учёт на витрину не выходит вообще — ни в текст, ни в
     // разметку. Одного «не выводим его в шаблоне» тут мало: страница товара
-    // отдаёт весь объект в клиентский компонент, и число уехало бы в
-    // исходный код страницы, где его видно любому. Админка читает товары в
-    // обход этого снимка (src/lib/store.ts), так что учёт не страдает.
+    // отдаёт весь объект в клиентский компонент, и остаток, себестоимость и
+    // складской номер уехали бы в исходный код страницы, где их видно
+    // любому. Админка читает товары в обход этого снимка
+    // (src/lib/store.ts), так что учёт не страдает.
     delete product.stockQty;
+    delete product.costPrice;
+    delete product.storageCode;
     return product;
   });
 
@@ -272,16 +275,20 @@ export function getCategoryCounts(): Record<string, number> {
   return counts;
 }
 
-/** Уникальные бренды категории — для фильтра. */
-export function getBrands(categoryId?: string): string[] {
-  const products = categoryId
-    ? getProductsInCategory(categoryId)
-    : getProducts();
+/** Уникальные бренды произвольной выборки — для фильтра над ней. */
+export function brandsOf(products: Product[]): string[] {
   const brands = new Set<string>();
   for (const product of products) {
     if (product.brand) brands.add(product.brand);
   }
   return [...brands].sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+/** Уникальные бренды категории — для фильтра. */
+export function getBrands(categoryId?: string): string[] {
+  return brandsOf(
+    categoryId ? getProductsInCategory(categoryId) : getProducts(),
+  );
 }
 
 /**

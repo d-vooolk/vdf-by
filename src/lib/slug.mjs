@@ -2,14 +2,20 @@
  * Перевод названия в адрес страницы: «Линза Hella 3R» -> «linza-hella-3r».
  *
  * Нужен, чтобы адрес не приходилось придумывать руками. Правило одно и то же
- * и на форме товара, и на форме раздела — иначе одинаковые названия давали бы
- * разные адреса в зависимости от того, где их завели.
+ * и на форме товара, и на форме раздела, и у справочника автомобилей — иначе
+ * одинаковые названия давали бы разные адреса в зависимости от того, где их
+ * завели.
  *
  * Таблица под белорусско-русский обиход: «щ» -> «sch», «й» -> «y», мягкий и
  * твёрдый знаки выбрасываются. Стандарта здесь нет, важнее предсказуемость.
+ *
+ * Файл на чистом JavaScript, потому что его читают двое: приложение и
+ * консольный скрипт импорта справочника автомобилей, которому TypeScript
+ * недоступен. Типы для вызывающего кода описаны в JSDoc.
  */
 
-const MAP: Record<string, string> = {
+/** @type {Record<string, string>} */
+const MAP = {
   а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh",
   з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o",
   п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c",
@@ -19,8 +25,12 @@ const MAP: Record<string, string> = {
   і: "i", ў: "u", ґ: "g",
 };
 
-export function toSlug(value: string): string {
-  return value
+/**
+ * @param {string} value
+ * @returns {string}
+ */
+export function toSlug(value) {
+  return String(value)
     .toLowerCase()
     .split("")
     .map((char) => (char in MAP ? MAP[char] : char))
@@ -35,7 +45,10 @@ export function toSlug(value: string): string {
 /**
  * Код (id) отличается от адреса только тем, что его не жалко сделать длиннее:
  * он не показывается покупателю. Но правила символов те же.
+ *
+ * @param {string} value
+ * @returns {string}
  */
-export function toId(value: string): string {
+export function toId(value) {
   return toSlug(value);
 }

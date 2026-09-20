@@ -15,7 +15,7 @@ import {
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import { pluralize } from "@/lib/format";
 import type { Category } from "@/lib/schema";
-import { toSlug } from "@/lib/slug";
+import { toSlug } from "@/lib/slug.mjs";
 
 /** Раздел каталога: название, адрес, тексты и картинка на плитке. */
 

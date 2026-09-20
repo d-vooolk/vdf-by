@@ -321,30 +321,6 @@
       backdrop-blur;
   }
 
-  /* --------------------------------------------------------------- */
-  /* Бегущая строка                                                   */
-  /* --------------------------------------------------------------- */
-
-  /* Края растворяются в фоне: строка выглядит бесконечной, а не обрезанной
-     по границе блока. */
-  .marquee {
-    overflow: hidden;
-    mask-image: linear-gradient(
-      to right,
-      transparent,
-      black 5rem,
-      black calc(100% - 5rem),
-      transparent
-    );
-  }
-
-  /* Внутри дорожки список повторён дважды. Сдвиг ровно на половину ширины
-     возвращает её в исходное положение — стык незаметен. */
-  .marquee-track {
-    display: flex;
-    width: max-content;
-  }
-
   .grid-hint::after {
     content: "";
     position: absolute;
@@ -417,12 +393,6 @@
   }
 }
 
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   /* Первый экран: анимация по загрузке, прокрутки там ещё не было. */
   .rise {
@@ -445,16 +415,6 @@
     animation: float-chip 4.5s ease-in-out infinite alternate;
   }
 
-  .marquee-track {
-    animation: marquee 42s linear infinite;
-  }
-
-  /* Убрать бегущую строку из-под курсора: если человек хочет прочитать
-     конкретный пункт, он на него наводится. */
-  .marquee:hover .marquee-track {
-    animation-play-state: paused;
-  }
-
   .sweep {
     background-image: linear-gradient(
       90deg,
@@ -468,14 +428,3 @@
   }
 }
 
-/*
- * При запрете движения общее правило в базовом слое обнуляет длительности,
- * и бегущая строка застыла бы на середине сдвига. Здесь возвращаем её в
- * начало явно: список читается статичным, без обрезанного первого пункта.
- */
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none !important;
-    transform: none !important;
-  }
-}

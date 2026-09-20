@@ -94,6 +94,15 @@ export function ProductRow({
         {error && <p className="mt-0.5 text-xs text-red-600">{error}</p>}
       </div>
 
+      {product.storageCode && (
+        <span
+          title="Складской номер — виден только в админке"
+          className="tnum shrink-0 rounded-md bg-brand-100 px-2 py-1 text-xs font-medium text-brand-600"
+        >
+          {product.storageCode}
+        </span>
+      )}
+
       <InlineNumber
         value={product.price}
         suffix={currencySymbol}

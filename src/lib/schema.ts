@@ -89,6 +89,8 @@ export const productSchema = z.strictObject({
    * null — учёт по этому товару не ведётся (не то же самое, что ноль).
    */
   stockQty: z.number().int().nonnegative().nullable().optional(),
+  costPrice: money.nullable().optional(),
+  storageCode: z.string().min(1).optional(),
   badge: z.string().optional(),
   featured: z.boolean().optional(),
   unit: z.string().optional(),

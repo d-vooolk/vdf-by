@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CarPicker, type PickerMark } from "@/components/CarPicker";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
@@ -11,9 +12,12 @@ import {
   ShieldIcon,
   TruckIcon,
 } from "@/components/icons";
+import { years } from "@/lib/car-types";
+import { getCarTree } from "@/lib/cars";
+import { pickUrl } from "@/lib/image-types";
+import { getImage } from "@/lib/images";
 import {
   getFeaturedProducts,
-  getProducts,
   getRootCategories,
   getSite,
 } from "@/lib/catalog";
@@ -30,48 +34,34 @@ export function generateMetadata(): Metadata {
 
 const ICONS = [TruckIcon, ShieldIcon, CheckIcon, PhoneIcon];
 
-/**
- * Короткие обозначения из каталога для бегущей строки: H7, HB4, D2S, 5000K.
- *
- * Берём из настоящих опций товаров, а не из захардкоженного списка — иначе
- * строка начнёт врать в тот день, когда ассортимент сменится.
- *
- * Отбор по форме, а не по названию группы («Цоколь», «Цветовая
- * температура»): названия групп владелец магазина правит в админке, и
- * привязка к ним сломалась бы от переименования. Форма же устойчива —
- * обозначение цоколя или температуры это всегда короткая метка с цифрой и
- * латиницей, а «Чёрный», «Дорестайлинг» и «Пара (левое + правое)» под неё
- * не подходят.
- */
-function catalogSpecs(): string[] {
-  const specs = new Set<string>();
-
-  for (const product of getProducts()) {
-    for (const group of product.optionGroups) {
-      for (const value of group.values) {
-        // «5000K — белый» → «5000K»: в строке нужен только сам код.
-        const label = value.label.split("—")[0].trim();
-        if (label.length <= 6 && /\d/.test(label) && /^[A-Za-z0-9./"″-]+$/.test(label)) {
-          specs.add(label);
-        }
-      }
-    }
-  }
-
-  // numeric: true, иначе строковое сравнение ставит H11 перед H4 —
-  // «1» меньше «4» посимвольно. Человек ждёт H4, H7, H11.
-  return [...specs].sort((a, b) => a.localeCompare(b, "ru", { numeric: true }));
-}
-
 export default function HomePage() {
   const site = getSite();
   const categories = getRootCategories();
   const featured = getFeaturedProducts(8);
-  const specs = catalogSpecs();
-  // Бегущая строка: сначала разделы, потом обозначения. Список повторяется
-  // дважды внутри дорожки — так стык при зацикливании незаметен.
-  const ticker = [...categories.map((category) => category.name), ...specs];
+  const marks = getCarTree();
+  const currentYear = new Date().getFullYear();
 
+  // Дерево для выбора машины уезжает в разметку главной, поэтому ключи
+  // короткие, а годы посчитаны здесь: считать их в браузере значило бы
+  // тащить туда же текущую дату и правила подписи.
+  const pickerTree: PickerMark[] = marks.map((mark) => ({
+    s: mark.slug,
+    n: mark.name,
+    // Ссылку на логотип считаем здесь: манифест картинок серверный, в
+    // браузер он целиком не уезжает.
+    ...(mark.logo
+      ? { l: pickUrl(getImage(mark.logo), 48) ?? undefined }
+      : {}),
+    m: mark.models.map((model) => ({
+      s: model.slug,
+      n: model.name,
+      g: model.generations.map((generation) => ({
+        s: generation.slug,
+        n: generation.name,
+        y: years(generation, currentYear),
+      })),
+    })),
+  }));
   return (
     <>
       <JsonLd data={organizationJsonLd()} />
@@ -95,11 +85,11 @@ export default function HomePage() {
         шапке они есть на каждой странице сайта.
       */}
       <section className="beam grid-hint relative overflow-hidden border-b border-brand-100">
-        <div className="container-page grid gap-12 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-8 lg:py-20">
+        <div className="container-page grid gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-8 lg:py-14">
           <div className="rise">
             {/* h1 на главной — под самый частотный запрос. Текст менять
                 нельзя, а подать его крупнее можно. */}
-            <h1 className="text-[2.5rem] leading-[1.05] font-semibold text-brand-900 sm:text-5xl lg:text-[3.75rem]">
+            <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[3rem]">
               Автосвет в Минске:{" "}
               <span className="relative inline-block whitespace-nowrap">
                 линзы
@@ -118,13 +108,13 @@ export default function HomePage() {
               , стёкла фар и лампы
             </h1>
 
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-brand-500 sm:text-lg">
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-brand-500">
               Би-ЛЕД и би-ксеноновые модули, стёкла на замену помутневшим,
               лампы во всех популярных цоколях. Проверяем каждый комплект на
               стенде перед отправкой.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/catalog/" className="btn-primary">
                 Смотреть каталог
                 <ChevronRightIcon className="h-4 w-4" />
@@ -135,7 +125,7 @@ export default function HomePage() {
               </a>
             </div>
 
-            <dl className="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-brand-100 pt-7">
+            <dl className="mt-7 grid max-w-lg grid-cols-3 gap-6 border-t border-brand-100 pt-6">
               <div>
                 <dt className="text-xs text-brand-400">Доставка по Минску</dt>
                 <dd className="mt-1 text-[15px] font-semibold text-brand-900">
@@ -160,11 +150,11 @@ export default function HomePage() {
           {/* Линза. Блок чисто декоративный: ничего, чего нет в тексте
               слева, он не сообщает, поэтому от скринридера скрыт целиком.
 
-              На мобильных его нет вместе с бегущей строкой под ним: круг с
-              плашками «би-ЛЕД» и «5000K» занимал там почти весь первый
-              экран, а каталог уезжал за нижний край. */}
+              На мобильных его нет: круг с плашками «би-ЛЕД» и «5000K»
+              занимал там почти весь первый экран, а каталог уезжал за
+              нижний край. */}
           <div
-            className="rise relative mx-auto hidden w-full max-w-[24rem] lg:block lg:max-w-[30rem]"
+            className="rise relative mx-auto hidden w-full max-w-[20rem] lg:block lg:max-w-[24rem]"
             style={{ animationDelay: "120ms" }}
             aria-hidden="true"
           >
@@ -191,38 +181,34 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Бегущая строка: чем торгуем, настоящими словами из каталога.
-            Заодно это те самые запросы, по которым магазин ищут. */}
-        <div className="marquee hidden border-t border-brand-100 bg-white/50 py-3.5 lg:block">
-          <div className="marquee-track">
-            {/* Два одинаковых прогона: второй подставляется под первый, и
-                сдвиг дорожки на половину ширины выглядит бесшовным. */}
-            {[0, 1].map((pass) => (
-              <ul
-                key={pass}
-                className="flex shrink-0 items-center"
-                // Второй прогон — технический дубль ради бесшовного стыка.
-                // Скринридеру он не нужен: иначе весь список зачитывается
-                // дважды подряд.
-                aria-hidden={pass === 1 || undefined}
-              >
-                {ticker.map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-center gap-8 px-4 text-sm font-medium whitespace-nowrap text-brand-400"
-                  >
-                    {item}
-                    <span
-                      aria-hidden="true"
-                      className="h-1 w-1 rounded-full bg-accent-400"
-                    />
-                  </li>
-                ))}
-              </ul>
-            ))}
-          </div>
-        </div>
       </section>
+
+      {/* ---------------------- Подбор по машине ------------------------ */}
+      {/*
+        Секции нет, пока ни один товар не привязан к машине: три пустых
+        выпадающих списка под первым экраном — это не «скоро заполним», это
+        сломанный сайт в глазах посетителя.
+      */}
+      {marks.length > 0 && (
+        <section className="border-b border-brand-100 bg-brand-50/50 py-12">
+          <div className="container-page">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-2xl font-semibold text-brand-900 sm:text-3xl">
+                Поиск по автомобилю
+              </h2>
+              <Link
+                href="/podbor/"
+                className="group hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-700 sm:flex"
+              >
+                Все марки
+                <ChevronRightIcon className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+              </Link>
+            </div>
+
+            <CarPicker tree={pickerTree} />
+          </div>
+        </section>
+      )}
 
       {/* --------------------------- Категории -------------------------- */}
       <section className="container-page py-20">
