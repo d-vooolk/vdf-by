@@ -149,7 +149,7 @@ export const siteSchema = z.strictObject({
   legalName: z.string().min(1),
   tagline: z.string().min(1),
   description: z.string().min(1),
-  url: z.string().url("url сайта должен быть полным, вида https://auto-svet.by"),
+  url: z.string().url("url сайта должен быть полным, вида https://vdf.by"),
   locale: z.string().min(1),
   currency: z.string().min(1),
   currencySymbol: z.string().min(1),

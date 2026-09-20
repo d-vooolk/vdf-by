@@ -79,7 +79,7 @@ try {
   console.error(
     `Сайт не отвечает на ${BASE}\n` +
       "Запустите его в соседнем окне: npm run build && npm start\n" +
-      "Другой адрес задаётся так: SITE_URL=https://auto-svet.by npm run verify",
+      "Другой адрес задаётся так: SITE_URL=https://vdf.by npm run verify",
   );
   process.exit(1);
 }

@@ -22,7 +22,7 @@ import { buildMetadata, organizationJsonLd } from "@/lib/seo";
 export function generateMetadata(): Metadata {
   const site = getSite();
   return buildMetadata({
-    title: `${site.name} — автосвет в Минске: линзы, стёкла фар, лампы`,
+    title: "Автосвет в Минске: линзы, стёкла фар, лампы",
     description: site.description,
     path: "/",
   });

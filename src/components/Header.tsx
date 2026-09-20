@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { CartBadge } from "@/components/CartBadge";
-import { ChevronDownIcon, HeadlightIcon, PhoneIcon } from "@/components/icons";
+import { ChevronDownIcon, PhoneIcon } from "@/components/icons";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SearchBox } from "@/components/SearchBox";
 import {
@@ -66,20 +66,16 @@ export function Header() {
 
         <Link
           href="/"
-          className="group flex shrink-0 items-center gap-2.5"
+          className="flex shrink-0 items-center transition-opacity hover:opacity-80"
           aria-label={`${site.name} — на главную`}
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-control bg-brand-900 text-accent-400 transition-colors duration-200 group-hover:bg-brand-700">
-            <HeadlightIcon className="h-5 w-5" />
-          </span>
-          <span className="hidden sm:block">
-            <span className="block text-[15px] leading-tight font-semibold tracking-tight text-brand-900">
-              {site.name}
-            </span>
-            <span className="block text-[11px] leading-tight text-brand-400">
-              автосвет в Минске
-            </span>
-          </span>
+          <img
+            src="/brand/logo.png"
+            alt={site.name}
+            width={600}
+            height={100}
+            className="h-5 w-auto sm:h-6 lg:h-7"
+          />
         </Link>
 
         <div className="min-w-0 flex-1">
