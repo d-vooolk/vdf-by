@@ -103,7 +103,7 @@ export const useCart = create<CartState>()(
       clear: () => set({ items: [] }),
     }),
     {
-      name: "autosvet-cart-v1",
+      name: "vdf-cart-v1",
       version: 1,
       partialize: (state) => ({ items: state.items }),
     },
