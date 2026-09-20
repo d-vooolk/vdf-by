@@ -8,7 +8,7 @@
  *
  *   pm2 start ecosystem.config.cjs
  *   pm2 save            # чтобы поднялся после перезагрузки
- *   pm2 logs autosvet
+ *   pm2 logs vdf
  *
  * Расширение .cjs обязательно: в package.json нет "type": "module", но PM2
  * читает конфиг как CommonJS, а Node в свежих версиях уже спорит с .js без
@@ -17,8 +17,8 @@
 module.exports = {
   apps: [
     {
-      name: "autosvet",
-      cwd: "/var/www/auto-svet.by",
+      name: "vdf",
+      cwd: "/var/www/vdf.by",
 
       // Вызываем next напрямую, а не через `npm start`: иначе между PM2 и
       // сервером висит лишний процесс npm, и сигнал остановки доходит до

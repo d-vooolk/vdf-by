@@ -28,7 +28,7 @@ export { hashPassword, verifyPassword };
  * из него нельзя собрать рабочую куку и зайти под чужой сессией.
  */
 
-const COOKIE = "autosvet_admin";
+const COOKIE = "vdf_admin";
 const SESSION_DAYS = 30;
 const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000;
 

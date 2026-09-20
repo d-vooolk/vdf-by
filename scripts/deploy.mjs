@@ -18,8 +18,8 @@
  *
  *   DEPLOY_HOST    217.12.37.199
  *   DEPLOY_USER    root
- *   DEPLOY_PATH    /var/www/auto-svet.by
- *   DEPLOY_KEY     ~/.ssh/autosvet_deploy
+ *   DEPLOY_PATH    /var/www/vdf.by
+ *   DEPLOY_KEY     ~/.ssh/vdf_deploy
  *   DEPLOY_BRANCH  main
  *   DEPLOY_SSH     ssh            (если нужен конкретный клиент)
  *
@@ -37,10 +37,10 @@ import { env } from "../src/lib/env.mjs";
 
 const HOST = env("DEPLOY_HOST", "217.12.37.199");
 const USER = env("DEPLOY_USER", "root");
-const APP_PATH = env("DEPLOY_PATH", "/var/www/auto-svet.by");
+const APP_PATH = env("DEPLOY_PATH", "/var/www/vdf.by");
 const BRANCH = env("DEPLOY_BRANCH", "main");
 const SSH = env("DEPLOY_SSH", "ssh");
-const KEY = env("DEPLOY_KEY", path.join(os.homedir(), ".ssh", "autosvet_deploy"));
+const KEY = env("DEPLOY_KEY", path.join(os.homedir(), ".ssh", "vdf_deploy"));
 
 const force = process.argv.includes("--force");
 const localFlag = process.argv.includes("--local");
@@ -186,7 +186,7 @@ if (result.status !== 0) {
   fail(
     `Деплой прерван, код ${result.status}. Сайт при этом работает на прежней сборке:\n` +
       "  сборка идёт до перезапуска, и при её падении процесс не трогается.\n\n" +
-      `  Логи: ${SSH} -i ${KEY} ${USER}@${HOST} 'pm2 logs autosvet --lines 50 --nostream'`,
+      `  Логи: ${SSH} -i ${KEY} ${USER}@${HOST} 'pm2 logs vdf --lines 50 --nostream'`,
   );
 }
 

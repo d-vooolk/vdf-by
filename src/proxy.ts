@@ -11,7 +11,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * безопасности.
  */
 
-const COOKIE = "autosvet_admin";
+const COOKIE = "vdf_admin";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
