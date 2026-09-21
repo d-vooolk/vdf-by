@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { trackOrder } from "@/lib/analytics";
 
 /**
  * Быстрый заказ со страницы товара: имя и телефон, больше ничего.
@@ -131,6 +132,25 @@ export function QuickOrder({
         } | null;
         throw new Error(body?.error ?? `сервер ответил ${response.status}`);
       }
+
+      const accepted = (await response.json().catch(() => null)) as {
+        id?: number;
+      } | null;
+
+      trackOrder({
+        id: accepted?.id ?? 0,
+        total: item.price * qty,
+        currency,
+        source: "quick",
+        items: [
+          {
+            id: item.sku ?? item.productId,
+            name: item.title,
+            price: item.price,
+            qty,
+          },
+        ],
+      });
 
       setStatus("done");
     } catch (error) {

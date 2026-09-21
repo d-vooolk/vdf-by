@@ -12,6 +12,7 @@ import {
   SpinnerIcon,
   TruckIcon,
 } from "@/components/icons";
+import { trackOrder } from "@/lib/analytics";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { DeliveryMethod } from "@/lib/schema";
 import { cartTotal, useCart, useHydrated } from "@/store/cart";
@@ -212,6 +213,23 @@ export function CartCheckout({
       if (!response.ok) {
         throw new Error(`сервер ответил ${response.status}`);
       }
+
+      const accepted = (await response.json().catch(() => null)) as {
+        id?: number;
+      } | null;
+
+      trackOrder({
+        id: accepted?.id ?? 0,
+        total,
+        currency,
+        source: "cart",
+        items: items.map((line) => ({
+          id: line.sku ?? line.productId,
+          name: line.title,
+          price: line.price,
+          qty: line.qty,
+        })),
+      });
 
       clear();
       router.push("/order/success/");

@@ -1,3 +1,4 @@
+import { Analytics } from "@/components/Analytics";
 import { FloatingContacts } from "@/components/FloatingContacts";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -37,6 +38,7 @@ export default function ShopLayout({
       </main>
       <Footer />
       <FloatingContacts channels={channels} />
+      <Analytics />
     </div>
   );
 }
