@@ -2,7 +2,6 @@ import { getCategoryById, getProducts } from "@/lib/catalog";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { normalize, type SearchEntry } from "@/lib/search";
-import { firstParagraph } from "@/lib/text";
 import { hasAnyInStock, priceRange } from "@/lib/variant";
 
 /**
@@ -15,6 +14,19 @@ import { hasAnyInStock, priceRange } from "@/lib/variant";
  */
 export const dynamic = "force-static";
 
+function dedupeWords(text: string): string {
+  const seen = new Set<string>();
+  const words: string[] = [];
+
+  for (const word of text.split(" ")) {
+    if (!word || seen.has(word)) continue;
+    seen.add(word);
+    words.push(word);
+  }
+
+  return words.join(" ");
+}
+
 export function GET() {
   const entries: SearchEntry[] = getProducts().map((product) => {
     const category = getCategoryById(product.categoryId);
@@ -26,14 +38,14 @@ export function GET() {
     const entry = getImage(product.images[0]);
 
     // Всё, по чему имеет смысл искать, склеивается в одну строку: название,
-    // бренд, категория, первый абзац описания, характеристики и подписи
-    // опций (цоколя!).
+    // бренд, категория, описание целиком, характеристики и подписи опций
+    // (цоколя!).
     const haystack = [
       product.title,
       product.brand ?? "",
       category?.name ?? "",
       parent?.name ?? "",
-      firstParagraph(product.description),
+      product.description ?? "",
       product.specs.map((spec) => `${spec.name} ${spec.value}`).join(" "),
       product.optionGroups
         .flatMap((group) => group.values.map((value) => value.label))
@@ -49,7 +61,7 @@ export function GET() {
       p: priceRange(product).min,
       a: hasAnyInStock(product) ? 1 : 0,
       ...(entry ? { i: pickUrl(entry, 96) ?? undefined } : {}),
-      q: normalize(haystack),
+      q: dedupeWords(normalize(haystack)),
     };
   });
 
