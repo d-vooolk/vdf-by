@@ -192,6 +192,12 @@ revalidatePath('/', 'layout')                // сброс всего + клие
 
 - `next dev` пишет в `.next/dev`, `next build` — в `.next`; их можно запускать
   одновременно. Лок-файл не даёт поднять два `next dev` на одном проекте.
+- Сгенерированные типы роутов (`.next/dev/types/validator.ts`,
+  `.next/types/validator.ts`) входят в `tsconfig` и **не чистятся сами**.
+  После переименования сегмента (`[sub]` → `[branch]`) сборка падает на
+  `Cannot find module '…/[sub]/page.js'`, хотя в `src/` этого пути уже нет.
+  Лечится `rm -rf .next/dev/types` (или всего `.next/dev`) — код править не
+  нужно.
 - Из вывода `next build` убраны `size` и `First Load JS` — мерить вес через
   Lighthouse или наш `npm run weight`.
 - В `next.config.ts` при `next dev` в `process.argv` **нет** `'dev'`; проверять

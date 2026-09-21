@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ImagePlaceholder, Picture } from "@/components/Picture";
 import {
+  CARS_ROOT,
   generationUrl,
   markUrl,
   modelUrl,
@@ -29,14 +30,16 @@ import { getImage } from "@/lib/images";
 
 export function MarkTile({
   mark,
+  base = CARS_ROOT,
   priority = false,
 }: {
   mark: FitMark;
+  base?: string;
   priority?: boolean;
 }) {
   return (
     <Link
-      href={markUrl(mark.slug)}
+      href={markUrl(mark.slug, base)}
       className="group card card-link flex flex-col items-center gap-2 px-3 py-4 text-center"
     >
       <span className="flex h-12 w-12 items-center justify-center">
@@ -65,9 +68,11 @@ export function MarkTile({
 
 export function MarkGrid({
   marks,
+  base = CARS_ROOT,
   priorityCount = 0,
 }: {
   marks: FitMark[];
+  base?: string;
   priorityCount?: number;
 }) {
   if (!marks.length) return null;
@@ -76,7 +81,53 @@ export function MarkGrid({
     <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
       {marks.map((mark, position) => (
         <li key={mark.id}>
-          <MarkTile mark={mark} priority={position < priorityCount} />
+          <MarkTile
+            mark={mark}
+            base={base}
+            priority={position < priorityCount}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function MarkChips({
+  marks,
+  base = CARS_ROOT,
+  priorityCount = 0,
+}: {
+  marks: FitMark[];
+  base?: string;
+  priorityCount?: number;
+}) {
+  if (!marks.length) return null;
+
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {marks.map((mark, position) => (
+        <li key={mark.id}>
+          <Link
+            href={markUrl(mark.slug, base)}
+            className="group card card-link flex items-center gap-2 py-1.5 pr-3 pl-2"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center">
+              {mark.logo ? (
+                <Picture
+                  entry={getImage(mark.logo)}
+                  alt=""
+                  sizes="28px"
+                  priority={position < priorityCount}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <ImagePlaceholder className="h-full w-full rounded-md" />
+              )}
+            </span>
+            <span className="text-sm font-semibold text-brand-900 transition-colors group-hover:text-brand-600">
+              {mark.name}
+            </span>
+          </Link>
         </li>
       ))}
     </ul>
@@ -87,7 +138,13 @@ export function MarkGrid({
  * Модели — списком, а не плитками: у модели нет своей картинки, и плитка с
  * заглушкой вместо фото выглядит сломанной, а не лаконичной.
  */
-export function ModelList({ mark }: { mark: FitMark }) {
+export function ModelList({
+  mark,
+  base = CARS_ROOT,
+}: {
+  mark: FitMark;
+  base?: string;
+}) {
   if (!mark.models.length) return null;
 
   return (
@@ -95,7 +152,7 @@ export function ModelList({ mark }: { mark: FitMark }) {
       {mark.models.map((model) => (
         <li key={model.id}>
           <Link
-            href={modelUrl(mark.slug, model.slug)}
+            href={modelUrl(mark.slug, model.slug, base)}
             className="card card-link flex items-center justify-between gap-3 px-4 py-3"
           >
             <span className="text-[15px] font-semibold text-brand-900">
@@ -121,19 +178,21 @@ export function GenerationTile({
   model,
   generation,
   currentYear,
+  base = CARS_ROOT,
   priority = false,
 }: {
   mark: FitMark;
   model: FitModel;
   generation: FitGeneration;
   currentYear: number;
+  base?: string;
   priority?: boolean;
 }) {
   const period = years(generation, currentYear);
 
   return (
     <Link
-      href={generationUrl(mark.slug, model.slug, generation.slug)}
+      href={generationUrl(mark.slug, model.slug, generation.slug, base)}
       className="group card card-link flex flex-col overflow-hidden"
     >
       <span className="relative block aspect-[16/10] overflow-hidden bg-white">
@@ -162,11 +221,13 @@ export function GenerationGrid({
   mark,
   model,
   currentYear,
+  base = CARS_ROOT,
   priorityCount = 0,
 }: {
   mark: FitMark;
   model: FitModel;
   currentYear: number;
+  base?: string;
   priorityCount?: number;
 }) {
   if (!model.generations.length) return null;
@@ -180,10 +241,64 @@ export function GenerationGrid({
             model={model}
             generation={generation}
             currentYear={currentYear}
+            base={base}
             priority={position < priorityCount}
           />
         </li>
       ))}
+    </ul>
+  );
+}
+
+export function GenerationList({
+  mark,
+  model,
+  currentYear,
+  base = CARS_ROOT,
+  priorityCount = 0,
+}: {
+  mark: FitMark;
+  model: FitModel;
+  currentYear: number;
+  base?: string;
+  priorityCount?: number;
+}) {
+  if (!model.generations.length) return null;
+
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {model.generations.map((generation, position) => {
+        const period = years(generation, currentYear);
+
+        return (
+          <li key={generation.id}>
+            <Link
+              href={generationUrl(mark.slug, model.slug, generation.slug, base)}
+              className="group card card-link flex items-center gap-3 p-2"
+            >
+              <span className="block w-20 shrink-0 overflow-hidden rounded-lg bg-white">
+                <Picture
+                  entry={getImage(generation.photo)}
+                  alt=""
+                  sizes="80px"
+                  priority={position < priorityCount}
+                  className="aspect-[16/10] h-auto w-full object-contain"
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[15px] leading-snug font-semibold text-brand-900 transition-colors group-hover:text-brand-600">
+                  {generation.name}
+                </span>
+                {period && (
+                  <span className="mt-0.5 block text-xs text-brand-400">
+                    {period}
+                  </span>
+                )}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

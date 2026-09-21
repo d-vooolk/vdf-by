@@ -188,6 +188,26 @@ export const MIGRATIONS = [
 
     CREATE INDEX product_cars_by_generation ON product_cars(generation_id);
   `,
+
+  /* 5 — одно описание товара вместо короткого и полного */ `
+    UPDATE products
+       SET data = json_set(data, '$.description',
+             CASE
+               WHEN COALESCE(json_extract(data, '$.description'), '') = ''
+                 THEN json_extract(data, '$.excerpt')
+               WHEN instr(json_extract(data, '$.description'),
+                          json_extract(data, '$.excerpt')) = 1
+                 THEN json_extract(data, '$.description')
+               ELSE json_extract(data, '$.excerpt') || char(10) || char(10) ||
+                    json_extract(data, '$.description')
+             END)
+     WHERE COALESCE(json_extract(data, '$.excerpt'), '') <> '';
+
+    UPDATE products
+       SET data = json_remove(data, '$.excerpt', '$.tags')
+     WHERE json_extract(data, '$.excerpt') IS NOT NULL
+        OR json_extract(data, '$.tags') IS NOT NULL;
+  `,
 ];
 
 /**

@@ -70,6 +70,7 @@ export default function CategoriesPage() {
                   </Link>
                   <p className="truncate text-xs text-brand-400">
                     {details ? categoryUrl(details) : `/catalog/${category.slug}/`}
+                    {category.carFitment ? " · подбор по авто" : ""}
                     {details?.excerpt ? ` · ${details.excerpt}` : ""}
                   </p>
                 </div>

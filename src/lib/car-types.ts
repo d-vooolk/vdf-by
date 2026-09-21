@@ -69,20 +69,29 @@ export interface ProductCar {
 
 export const CARS_ROOT = "/podbor/";
 
-export function markUrl(markSlug: string): string {
-  return `${CARS_ROOT}${markSlug}/`;
+export function carsRoot(categorySlug?: string): string {
+  return categorySlug ? `/catalog/${categorySlug}/` : CARS_ROOT;
 }
 
-export function modelUrl(markSlug: string, modelSlug: string): string {
-  return `${CARS_ROOT}${markSlug}/${modelSlug}/`;
+export function markUrl(markSlug: string, base: string = CARS_ROOT): string {
+  return `${base}${markSlug}/`;
+}
+
+export function modelUrl(
+  markSlug: string,
+  modelSlug: string,
+  base: string = CARS_ROOT,
+): string {
+  return `${base}${markSlug}/${modelSlug}/`;
 }
 
 export function generationUrl(
   markSlug: string,
   modelSlug: string,
   generationSlug: string,
+  base: string = CARS_ROOT,
 ): string {
-  return `${CARS_ROOT}${markSlug}/${modelSlug}/${generationSlug}/`;
+  return `${base}${markSlug}/${modelSlug}/${generationSlug}/`;
 }
 
 /* ------------------------------------------------------------------ */

@@ -3,12 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
+import { CarProducts } from "@/components/CarProducts";
 import { JsonLd } from "@/components/JsonLd";
-import { Picture } from "@/components/Picture";
-import { ProductCard } from "@/components/ProductCard";
 import {
   carName,
+  carsRoot,
   generationUrl,
   markUrl,
   modelUrl,
@@ -20,19 +19,19 @@ import {
   findModel,
   getCarTree,
   getProductsForGeneration,
+  groupByCategory,
 } from "@/lib/cars";
-import { brandsOf, getSite } from "@/lib/catalog";
+import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
-import { getImage } from "@/lib/images";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
+import { priceRange } from "@/lib/variant";
 
 /**
  * Автосвет для конкретного поколения — то, ради чего весь подбор и сделан.
  *
  * Именно этот адрес отвечает на запрос «стекло фары гольф 7» и ему подобные,
  * поэтому здесь есть всё, что такому запросу нужно: название машины с
- * годами в заголовке, её фотография, товары и ссылки на соседние поколения.
+ * годами в заголовке, товары и ссылки на соседние поколения.
  *
  * Страницы создаются только под существующие привязки (generateStaticParams
  * идёт по дереву живых связей), поэтому пустой эта страница быть не может.
@@ -72,22 +71,28 @@ export async function generateMetadata({
   const { mark, model, generation } = found;
   const site = getSite();
   const products = getProductsForGeneration(generation.id);
+  const groups = groupByCategory(products);
   const cheapest = products.length
     ? Math.min(...products.map((product) => priceRange(product).min))
     : 0;
   const period = years(generation, new Date().getFullYear());
   const title = carName(mark, model, generation);
 
+  const what = groups.length
+    ? `Что подходит к ${title}${period ? ` ${period}` : ""}: ${groups
+        .map((group) => group.category.name)
+        .join(", ")}`
+    : `Линзы, стёкла фар и лампы для ${title}${period ? ` ${period}` : ""}`;
+
   return buildMetadata({
     title: `Автосвет для ${title}${period ? ` (${period})` : ""}`,
     description: sentences(
-      `Линзы, стёкла фар и лампы для ${title}${period ? ` ${period}` : ""}`,
+      what,
       products.length > 0 &&
         `${pluralize(products.length, "позиция", "позиции", "позиций")}, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
       "Проверяем каждый комплект на стенде. Доставка по Минску и Беларуси",
     ),
     path: generationUrl(mark.slug, model.slug, generation.slug),
-    image: generation.photo || undefined,
   });
 }
 
@@ -100,6 +105,7 @@ export default async function GenerationPage({ params }: PageProps) {
   const { mark, model, generation } = found;
   const site = getSite();
   const products = getProductsForGeneration(generation.id);
+  const groups = groupByCategory(products);
   const currentYear = new Date().getFullYear();
   const period = years(generation, currentYear);
   const title = carName(mark, model, generation);
@@ -107,14 +113,6 @@ export default async function GenerationPage({ params }: PageProps) {
   const siblings = model.generations.filter(
     (item) => item.id !== generation.id,
   );
-
-  const items: CatalogItem[] = products.map((product, position) => ({
-    id: product.id,
-    brand: product.brand ?? "",
-    price: priceRange(product).min,
-    inStock: hasAnyInStock(product),
-    order: position,
-  }));
 
   return (
     <div className="container-page pb-16">
@@ -133,49 +131,34 @@ export default async function GenerationPage({ params }: PageProps) {
         )}
       />
 
-      <header className="mb-8 grid gap-6 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div>
-          <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-            Автосвет для {title}
-          </h1>
-          {period && (
-            <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
-          )}
-          <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-            {pluralize(products.length, "позиция", "позиции", "позиций")},
-            которые встают на эту машину без доработок. Не уверены в цоколе —
-            позвоните, подскажем по VIN.
-          </p>
-        </div>
-
-        {generation.photo && (
-          <div className="w-full max-w-[18rem] justify-self-start sm:justify-self-end">
-            <Picture
-              entry={getImage(generation.photo)}
-              alt={title}
-              sizes="(max-width: 640px) 90vw, 288px"
-              priority
-              className="h-auto w-full object-contain"
-            />
-          </div>
+      <header className="mb-8">
+        <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
+          Автосвет для {title}
+        </h1>
+        {period && (
+          <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
         )}
+        <p className="mt-2.5 max-w-2xl text-base text-brand-500">
+          {pluralize(products.length, "позиция", "позиции", "позиций")}
+          {groups.length > 1 &&
+            ` в ${pluralize(groups.length, "разделе", "разделах", "разделах")}`}
+          {" "}— всё встаёт на эту машину без доработок. Не уверены в цоколе —
+          позвоните, подскажем по VIN.
+        </p>
       </header>
 
-      <CatalogControls
-        items={items}
-        titles={products.map((product) => product.title)}
-        brands={brandsOf(products)}
+      <CarProducts
+        groups={groups}
         currencySymbol={site.currencySymbol}
-      >
-        {products.map((product, position) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            currencySymbol={site.currencySymbol}
-            priority={position < 3}
-          />
-        ))}
-      </CatalogControls>
+        linkFor={(group) =>
+          generationUrl(
+            mark.slug,
+            model.slug,
+            generation.slug,
+            carsRoot(group.category.slug),
+          )
+        }
+      />
 
       {siblings.length > 0 && (
         <nav className="mt-14" aria-label={`Другие поколения ${model.name}`}>

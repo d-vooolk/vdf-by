@@ -1,7 +1,14 @@
 import type { MetadataRoute } from "next";
 
-import { generationUrl, markUrl, modelUrl } from "@/lib/car-types";
-import { getCarPageDates, getCarTree } from "@/lib/cars";
+import {
+  CARS_ROOT,
+  carsRoot,
+  generationUrl,
+  markUrl,
+  modelUrl,
+  type FitMark,
+} from "@/lib/car-types";
+import { fitmentCategories, getCarPageDates, getCarTree } from "@/lib/cars";
 import {
   categoryUrl,
   getCategories,
@@ -86,38 +93,58 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const cars = getCarTree();
 
-  const carEntries = cars.flatMap((mark) => {
-    const markEntry = {
-      url: absoluteUrl(markUrl(mark.slug)),
-      lastModified: dateFor(markUrl(mark.slug)),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    };
-
-    const inner = mark.models.flatMap((model) => [
-      {
-        url: absoluteUrl(modelUrl(mark.slug, model.slug)),
-        lastModified: dateFor(modelUrl(mark.slug, model.slug)),
+  const carEntries = (tree: FitMark[], base: string) =>
+    tree.flatMap((mark) => {
+      const markEntry = {
+        url: absoluteUrl(markUrl(mark.slug, base)),
+        lastModified: dateFor(markUrl(mark.slug, base)),
         changeFrequency: "weekly" as const,
         priority: 0.7,
-      },
-      ...model.generations.map((generation) => {
-        const url = generationUrl(mark.slug, model.slug, generation.slug);
-        const images = imagesFor(generation.photo ? [generation.photo] : []);
-        return {
-          url: absoluteUrl(url),
-          lastModified: dateFor(url),
-          changeFrequency: "weekly" as const,
-          // Страница поколения — конец воронки подбора и самая точная
-          // страница под запрос вида «стекло фары гольф 7».
-          priority: 0.8,
-          ...(images.length ? { images } : {}),
-        };
-      }),
-    ]);
+      };
 
-    return [markEntry, ...inner];
-  });
+      const inner = mark.models.flatMap((model) => {
+        const modelPath = modelUrl(mark.slug, model.slug, base);
+        const photos = imagesFor(
+          model.generations
+            .map((generation) => generation.photo)
+            .filter(Boolean),
+        );
+
+        return [
+          {
+            url: absoluteUrl(modelPath),
+            lastModified: dateFor(modelPath),
+            changeFrequency: "weekly" as const,
+            priority: 0.7,
+            ...(photos.length ? { images: photos } : {}),
+          },
+          ...model.generations.map((generation) => {
+            const url = generationUrl(
+              mark.slug,
+              model.slug,
+              generation.slug,
+              base,
+            );
+            return {
+              url: absoluteUrl(url),
+              lastModified: dateFor(url),
+              changeFrequency: "weekly" as const,
+              // Страница поколения — конец воронки подбора и самая точная
+              // страница под запрос вида «стекло фары гольф 7».
+              priority: 0.8,
+            };
+          }),
+        ];
+      });
+
+      return [markEntry, ...inner];
+    });
+
+  const podborEntries = carEntries(cars, CARS_ROOT);
+
+  const branchEntries = fitmentCategories().flatMap((category) =>
+    carEntries(getCarTree(category.id), carsRoot(category.slug)),
+  );
 
   return [
     {
@@ -151,7 +178,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
           },
         ]
       : []),
-    ...carEntries,
+    ...podborEntries,
+    ...branchEntries,
     {
       url: absoluteUrl("/delivery/"),
       lastModified: settings,

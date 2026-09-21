@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import {
+  CategoryMarkView,
+  categoryMarkMetadata,
+} from "@/components/CategoryCarView";
 import { CategoryView, categoryMetadata } from "@/components/CategoryView";
+import { markParams, resolveMark } from "@/lib/car-branch";
 import { getCategories, getCategoryById, getCategoryBySlug } from "@/lib/catalog";
 import { findRedirect } from "@/lib/redirects";
 
@@ -15,21 +20,23 @@ import { findRedirect } from "@/lib/redirects";
  */
 
 export function generateStaticParams() {
-  return getCategories()
+  const subs = getCategories()
     .filter((category) => category.parentId)
     .map((category) => ({
       category: getCategoryById(category.parentId!)?.slug ?? "",
-      sub: category.slug,
+      branch: category.slug,
     }))
     .filter((params) => params.category);
+
+  return [...subs, ...markParams()];
 }
 
 interface PageProps {
-  params: Promise<{ category: string; sub: string }>;
+  params: Promise<{ category: string; branch: string }>;
 }
 
 /** Подраздел вместе с проверкой, что он лежит именно в этом родителе. */
-function resolve(parentSlug: string, slug: string) {
+function resolveSub(parentSlug: string, slug: string) {
   const category = getCategoryBySlug(slug);
   if (!category?.parentId) return undefined;
   const parent = getCategoryById(category.parentId);
@@ -39,20 +46,26 @@ function resolve(parentSlug: string, slug: string) {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { category: parentSlug, sub } = await params;
-  const category = resolve(parentSlug, sub);
-  return category ? categoryMetadata(category) : {};
+  const { category: parentSlug, branch } = await params;
+
+  const sub = resolveSub(parentSlug, branch);
+  if (sub) return categoryMetadata(sub);
+
+  const mark = resolveMark(parentSlug, branch);
+  return mark ? categoryMarkMetadata(mark) : {};
 }
 
-export default async function SubCategoryPage({ params }: PageProps) {
-  const { category: parentSlug, sub } = await params;
-  const category = resolve(parentSlug, sub);
-  if (!category) {
-    // Переименовали родителя или сам подраздел — адрес поменялся целиком.
-    const target = findRedirect(`/catalog/${parentSlug}/${sub}/`);
-    if (target) permanentRedirect(target);
-    notFound();
-  }
+export default async function CategoryBranchPage({ params }: PageProps) {
+  const { category: parentSlug, branch } = await params;
 
-  return <CategoryView category={category} />;
+  const sub = resolveSub(parentSlug, branch);
+  if (sub) return <CategoryView category={sub} />;
+
+  const mark = resolveMark(parentSlug, branch);
+  if (mark) return <CategoryMarkView {...mark} />;
+
+  // Переименовали родителя или сам подраздел — адрес поменялся целиком.
+  const target = findRedirect(`/catalog/${parentSlug}/${branch}/`);
+  if (target) permanentRedirect(target);
+  notFound();
 }

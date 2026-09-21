@@ -422,7 +422,7 @@ export function productJsonLd(product: Product, category?: Category) {
     "@type": "Product",
     name: product.title,
     description: clampDescription(
-      product.excerpt ?? product.description ?? product.title,
+      product.description ?? product.title,
       300,
     ),
     ...(images.length ? { image: images } : {}),

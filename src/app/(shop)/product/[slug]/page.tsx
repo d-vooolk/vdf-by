@@ -15,12 +15,14 @@ import {
   getRelatedProducts,
   getSite,
 } from "@/lib/catalog";
+import { carsRoot } from "@/lib/car-types";
 import { getProductCars } from "@/lib/cars";
 import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickImages } from "@/lib/images";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd, sentences } from "@/lib/seo";
+import { firstParagraph } from "@/lib/text";
 import { allProductImages, priceRange } from "@/lib/variant";
 
 export function generateStaticParams() {
@@ -52,7 +54,7 @@ export async function generateMetadata({
     description:
       product.seoDescription ??
       sentences(
-        product.excerpt ?? product.title,
+        firstParagraph(product.description) || product.title,
         priceLabel,
         category && `${category.name} с доставкой по Минску и Беларуси`,
         "Оплата при получении",
@@ -96,7 +98,7 @@ export default async function ProductPage({ params }: PageProps) {
   const site = getSite();
   const category = getCategoryById(product.categoryId);
   const related = getRelatedProducts(product);
-  const cars = getProductCars(product.id);
+  const cars = category?.carFitment ? getProductCars(product.id) : [];
 
   // В клиентский компонент уходят записи манифеста только для фото этого
   // товара — включая галереи всех опций, чтобы переключение цоколя работало
@@ -165,20 +167,21 @@ export default async function ProductPage({ params }: PageProps) {
 
       {/* -------------------- Описание и характеристики ------------------ */}
       <div className="mt-14 grid gap-10 border-t border-brand-100 pt-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
-        {/* Короткое описание — первым абзацем перед полным, а не под
-            заголовком, как раньше. Под заголовком оно отодвигало от первого
-            экрана галерею, цену и кнопку заказа — то, за чем на страницу
-            товара и приходят. В поиске от переноса ничего не изменилось:
-            в описание страницы excerpt попадает через generateMetadata,
-            а не из этого места вёрстки. */}
-        {(product.excerpt || product.description) && (
+        {/* Описание под галереей, а не над ней: под заголовком оно
+            отодвигало от первого экрана галерею, цену и кнопку заказа — то,
+            за чем на страницу товара и приходят. В поиске от этого ничего не
+            меняется: в описание страницы первый абзац попадает через
+            generateMetadata, а не из этого места вёрстки. */}
+        {product.description && (
           <section className="prose-shop">
             <h2 className="mb-4 text-xl font-semibold text-brand-900">Описание</h2>
-            {product.excerpt && (
-              <p className="text-base text-brand-900">{product.excerpt}</p>
-            )}
-            {product.description?.split("\n\n").map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
+            {product.description.split("\n\n").map((paragraph, index) => (
+              <p
+                key={index}
+                className={index === 0 ? "text-base text-brand-900" : undefined}
+              >
+                {paragraph}
+              </p>
             ))}
           </section>
         )}
@@ -203,7 +206,7 @@ export default async function ProductPage({ params }: PageProps) {
             </dl>
           </section>
         )}
-        <ProductCars cars={cars} />
+        <ProductCars cars={cars} base={carsRoot(category?.slug)} />
       </div>
 
       {/* ------------------------- Похожие товары ----------------------- */}

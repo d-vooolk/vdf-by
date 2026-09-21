@@ -205,6 +205,71 @@ console.log("\nТовар /product/osram-night-breaker-200/");
   check("все цоколя в HTML", missing.length === 0, missing.join(", ") || "все");
 }
 
+/* ------------------------ Подбор по автомобилю ----------------------- */
+
+console.log("\nПодбор по автомобилю");
+{
+  const sitemap = await read("/sitemap.xml");
+  const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+    (match) => new URL(match[1]).pathname,
+  );
+
+  const hubs = paths.filter((path) =>
+    /^\/podbor\/[^/]+\/[^/]+\/[^/]+\/$/.test(path),
+  );
+  const branches = paths.filter((path) =>
+    /^\/catalog\/[^/]+\/[^/]+\/[^/]+\/[^/]+\/$/.test(path),
+  );
+
+  if (!hubs.length && !branches.length) {
+    console.log("  — ни один товар не привязан к машине, проверять нечего");
+  } else {
+    for (const path of [hubs[0], branches[0]].filter(Boolean)) {
+      const html = await read(path);
+      const h = head(html);
+      const canonical = attr(h, /rel="canonical" href="([^"]+)"/);
+      const blocks = jsonLd(html);
+
+      check(`${path} — ровно один <h1>`, (html.match(/<h1/g) ?? []).length === 1);
+      check(`${path} — canonical на себя`, canonical.endsWith(path), canonical);
+      check(
+        `${path} — есть description`,
+        attr(h, /name="description" content="([^"]{50,})"/).length > 0,
+      );
+      check(
+        `${path} — товары в HTML без JS`,
+        (html.match(/<article/g) ?? []).length > 0,
+      );
+      check(
+        `${path} — разметка ItemList`,
+        blocks.some((block) => block["@type"] === "ItemList"),
+      );
+      check(
+        `${path} — разметка BreadcrumbList`,
+        blocks.some((block) => block["@type"] === "BreadcrumbList"),
+      );
+    }
+
+    if (hubs[0] && branches.length) {
+      const hub = await read(hubs[0]);
+      check(
+        "страница машины ведёт в ветку раздела",
+        /href="\/catalog\/[^"]+\/[^"]+\/[^"]+\/[^"]+\/"/.test(hub),
+      );
+    }
+
+    const sample = [...hubs.slice(0, 3), ...branches.slice(0, 3)];
+    const codes = await Promise.all(
+      sample.map(async (path) => (await fetch(BASE + path)).status),
+    );
+    check(
+      "адреса подбора из sitemap отвечают 200",
+      codes.every((code) => code === 200),
+      `проверено ${codes.length}`,
+    );
+  }
+}
+
 /* ---------------------------- Служебное ----------------------------- */
 
 console.log("\nСлужебные файлы");

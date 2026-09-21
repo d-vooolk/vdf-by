@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import {
   carPathsForProduct,
   fetchCarImages,
+  isCarFitmentCategory,
   setProductCars,
 } from "@/lib/cars";
 import {
@@ -131,10 +132,13 @@ export async function saveProductAction(
 
   // Привязки к машинам — после товара: у нового товара строки в products
   // до этого момента ещё нет, а внешний ключ на неё ссылается.
-  setProductCars(product.id, Array.isArray(carIds) ? carIds : []);
-  // Логотип марки и фото поколения забираем к себе, если их ещё нет.
-  // Сохранение товара из-за этого не падает — см. fetchCarImages.
-  await fetchCarImages(carIds);
+  if (isCarFitmentCategory(product.categoryId)) {
+    const ids = Array.isArray(carIds) ? carIds : [];
+    setProductCars(product.id, ids);
+    // Логотип марки и фото поколения забираем к себе, если их ещё нет.
+    // Сохранение товара из-за этого не падает — см. fetchCarImages.
+    await fetchCarImages(ids);
+  }
 
   invalidateCatalog();
 

@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-import { generationUrl, years, type ProductCar } from "@/lib/car-types";
+import {
+  CARS_ROOT,
+  generationUrl,
+  years,
+  type ProductCar,
+} from "@/lib/car-types";
 
 /**
  * «Подходит к автомобилям» на странице товара.
@@ -26,7 +31,13 @@ interface Group {
   generations: ProductCar[];
 }
 
-export function ProductCars({ cars }: { cars: ProductCar[] }) {
+export function ProductCars({
+  cars,
+  base = CARS_ROOT,
+}: {
+  cars: ProductCar[];
+  base?: string;
+}) {
   if (!cars.length) return null;
 
   const groups: Group[] = [];
@@ -69,6 +80,7 @@ export function ProductCars({ cars }: { cars: ProductCar[] }) {
                         car.markSlug,
                         car.modelSlug,
                         car.generationSlug,
+                        base,
                       )}
                       className="inline-flex items-baseline gap-1.5 rounded-lg border border-brand-200 px-2.5 py-1 text-xs text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-50"
                     >

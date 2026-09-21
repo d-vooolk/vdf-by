@@ -28,6 +28,15 @@ const SHARED = [
   "/yml.xml", // фид для Яндекса, Onliner и Kufar
 ];
 
+const CAR_TEMPLATES = [
+  "/podbor/[mark]",
+  "/podbor/[mark]/[model]",
+  "/podbor/[mark]/[model]/[generation]",
+  "/catalog/[category]/[branch]",
+  "/catalog/[category]/[branch]/[model]",
+  "/catalog/[category]/[branch]/[model]/[generation]",
+];
+
 function revalidateAll(paths: Iterable<string>): void {
   for (const path of paths) revalidatePath(path);
 }
@@ -106,6 +115,7 @@ export function revalidateCategory(
   // Название и порядок раздела стоят в меню, а оно в общем макете —
   // страницы товаров тоже надо пересобрать.
   revalidatePath("/product/[slug]", "page");
+  for (const template of CAR_TEMPLATES) revalidatePath(template, "page");
   revalidateAll(all);
 
   announce(paths);

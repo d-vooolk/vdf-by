@@ -359,9 +359,13 @@ function checkParent(
     }
 
     const parent = db
-      .prepare("SELECT id, parent_id FROM categories WHERE id = ?")
+      .prepare(
+        `SELECT id, parent_id,
+                json_extract(data, '$.carFitment') AS carFitment
+           FROM categories WHERE id = ?`,
+      )
       .get(category.parentId) as
-      | { id: string; parent_id: string | null }
+      | { id: string; parent_id: string | null; carFitment: number | null }
       | undefined;
 
     if (!parent) {
@@ -371,6 +375,12 @@ function checkParent(
     if (parent.parent_id) {
       problems.push(
         "Подраздел нельзя вложить в другой подраздел — уровня всего два",
+      );
+    }
+    if (parent.carFitment) {
+      problems.push(
+        `Раздел «${parent.id}» связан с автомобилями, и второй сегмент его адреса занят маркой машины. ` +
+          "Подраздела у него быть не может — сначала снимите привязку к авто.",
       );
     }
 
@@ -392,6 +402,33 @@ function checkParent(
         "У раздела есть свои подразделы — его нельзя сделать подразделом",
       );
     }
+  }
+
+  return problems;
+}
+
+function checkCarFitment(category: Category, previousId?: string): string[] {
+  if (!category.carFitment) return [];
+
+  const problems: string[] = [];
+
+  if (category.parentId) {
+    problems.push(
+      "Связать с автомобилями можно только раздел верхнего уровня: у подраздела " +
+        "страницы подбора ушли бы на пятый уровень вложенности, а поиск такие адреса почти не обходит.",
+    );
+  }
+
+  const { n: children } = getDb()
+    .prepare("SELECT COUNT(*) AS n FROM categories WHERE parent_id = ?")
+    .get(previousId ?? category.id) as { n: number };
+
+  if (children > 0) {
+    problems.push(
+      `У раздела ${pluralize(children, "подраздел", "подраздела", "подразделов")}. ` +
+        "Второй сегмент адреса не может быть одновременно подразделом и маркой машины — " +
+        "перенесите подразделы или снимите привязку к авто.",
+    );
   }
 
   return problems;
@@ -434,6 +471,7 @@ export function saveCategory(
   }
 
   problems.push(...checkParent(category, previousId, adoptProducts));
+  problems.push(...checkCarFitment(category, previousId));
 
   if (problems.length) return { ok: false, problems };
 
@@ -690,6 +728,7 @@ export interface CategoryBrief {
   /** Товаров непосредственно в этом разделе, без подразделов. */
   count: number;
   children: number;
+  carFitment: boolean;
 }
 
 /**
@@ -702,11 +741,18 @@ export function listCategoriesBrief(): CategoryBrief[] {
     .prepare(
       `SELECT c.id, c.name, c.slug, c.parent_id AS parentId,
               (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS count,
-              (SELECT COUNT(*) FROM categories k WHERE k.parent_id = c.id) AS children
+              (SELECT COUNT(*) FROM categories k WHERE k.parent_id = c.id) AS children,
+              COALESCE(json_extract(c.data, '$.carFitment'), 0) AS carFitment
          FROM categories c
         ORDER BY c.sort_order, c.name`,
     )
-    .all() as CategoryBrief[];
+    .all()
+    .map((row) => {
+      const entry = row as Omit<CategoryBrief, "carFitment"> & {
+        carFitment: number;
+      };
+      return { ...entry, carFitment: Boolean(entry.carFitment) };
+    });
 
   const roots = rows.filter((row) => !row.parentId);
   return roots.flatMap((root) => [

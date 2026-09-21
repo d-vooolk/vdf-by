@@ -22,7 +22,7 @@ import {
 } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, pluralize } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
 import { toSlug } from "@/lib/slug.mjs";
 
@@ -47,6 +47,7 @@ interface ProductFormProps {
     name: string;
     parentId: string | null;
     children: number;
+    carFitment: boolean;
   }>;
   /** Бренды, которые уже есть в каталоге — для подсказки в поле бренда. */
   brands: string[];
@@ -93,6 +94,10 @@ export function ProductForm({
    * складывается понятная структура, а не свалка из тысячи файлов.
    */
   const folder = `${draft.categoryId || "misc"}/${draft.id || "new"}`;
+
+  const category = categories.find((entry) => entry.id === draft.categoryId);
+  const carFitment = category?.carFitment ?? false;
+  const categoryName = category?.name ?? draft.categoryId;
 
   const save = () => {
     setProblems([]);
@@ -234,7 +239,29 @@ export function ProductForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
-            label={`Цена, ${currencySymbol}`}
+            label={`Себестоимость, ${currencySymbol}`}
+            hint="Только для вас — на сайте не показывается"
+          >
+            <NumberInput
+              value={draft.costPrice ?? null}
+              onChange={(costPrice) => patch({ costPrice })}
+              placeholder="не задана"
+            />
+          </Field>
+
+          <div className="sm:col-span-2">
+            <Margin
+              price={draft.price}
+              cost={draft.costPrice ?? null}
+              currencySymbol={currencySymbol}
+              hasOptions={draft.optionGroups.length > 0}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            label={`Цена розницы, ${currencySymbol}`}
             required
             hint="Если есть опции со своими ценами — запасная"
           >
@@ -261,28 +288,6 @@ export function ProductForm({
               placeholder="шт."
             />
           </Field>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field
-            label={`Себестоимость, ${currencySymbol}`}
-            hint="Только для вас — на сайте не показывается"
-          >
-            <NumberInput
-              value={draft.costPrice ?? null}
-              onChange={(costPrice) => patch({ costPrice })}
-              placeholder="не задана"
-            />
-          </Field>
-
-          <div className="sm:col-span-2">
-            <Margin
-              price={draft.price}
-              cost={draft.costPrice ?? null}
-              currencySymbol={currencySymbol}
-              hasOptions={draft.optionGroups.length > 0}
-            />
-          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -417,24 +422,15 @@ export function ProductForm({
       </Section>
 
       {/* --------------------------- Тексты -------------------------- */}
-      <Section title="Описание">
-        <Field
-          label="Короткое описание"
-          hint="Одна-две фразы. Идут перед полным описанием и в выдаче поиска"
-        >
-          <textarea
-            value={draft.excerpt ?? ""}
-            onChange={(event) => patch({ excerpt: event.target.value })}
-            rows={2}
-            className="field resize-y"
-          />
-        </Field>
-
-        <Field label="Полное описание" hint="Пустая строка разбивает текст на абзацы">
+      <Section
+        title="Описание"
+        note="Пустая строка разбивает текст на абзацы. Первый абзац особенный: он идёт в выдачу поиска и в поисковый индекс сайта — начните с одной-двух фраз о главном."
+      >
+        <Field label="Описание">
           <textarea
             value={draft.description ?? ""}
             onChange={(event) => patch({ description: event.target.value })}
-            rows={8}
+            rows={10}
             className="field resize-y"
           />
         </Field>
@@ -478,42 +474,38 @@ export function ProductForm({
       </Section>
 
       {/* ------------------------ Автомобили ------------------------- */}
-      <Section
-        title="Подходит к автомобилям"
-        note="Товар появится на страницах подбора этих машин, а на его странице встанут ссылки на них. Необязательно: без привязок товар живёт в каталоге как обычно."
-      >
-        <CarFitmentEditor
-          value={cars}
-          onChange={(next) => {
-            setCars(next);
-            setSaved(false);
-          }}
-        />
-      </Section>
+      {carFitment ? (
+        <Section
+          title="Подходит к автомобилям"
+          note="Товар появится на страницах подбора этих машин, а на его странице встанут ссылки на них. Необязательно: без привязок товар живёт в каталоге как обычно."
+        >
+          <CarFitmentEditor
+            value={cars}
+            onChange={(next) => {
+              setCars(next);
+              setSaved(false);
+            }}
+          />
+        </Section>
+      ) : (
+        cars.length > 0 && (
+          <Section title="Подходит к автомобилям">
+            <p className="text-sm text-brand-500">
+              Раздел «{categoryName}» не подбирается по автомобилю. Машины у
+              этого товара сохранены —{" "}
+              {pluralize(cars.length, "привязка", "привязки", "привязок")}, — но
+              на витрине их нет и править их здесь нельзя. Включите у раздела
+              подбор по автомобилю, и они вернутся.
+            </p>
+          </Section>
+        )
+      )}
 
       {/* --------------------------- Поиск --------------------------- */}
       <Section
         title="Поиск и SEO"
         note="Заголовки можно не заполнять — тогда они соберутся из названия и описания."
       >
-        <Field
-          label="Поисковые слова"
-          hint="Через запятую. Не показываются, но по ним ищут: «лампы h7, осрам, ближний свет»"
-        >
-          <input
-            value={draft.tags.join(", ")}
-            onChange={(event) =>
-              patch({
-                tags: event.target.value
-                  .split(",")
-                  .map((tag) => tag.trim())
-                  .filter(Boolean),
-              })
-            }
-            className="field"
-          />
-        </Field>
-
         <Field label="Заголовок для поиска" hint="До 60 символов">
           <input
             value={draft.seoTitle ?? ""}
@@ -748,7 +740,6 @@ function clean(product: Product): Product {
     unit: trimmed(product.unit),
     sku: trimmed(product.sku),
     badge: trimmed(product.badge),
-    excerpt: trimmed(product.excerpt),
     description: trimmed(product.description),
     seoTitle: trimmed(product.seoTitle),
     seoDescription: trimmed(product.seoDescription),
@@ -760,6 +751,5 @@ function clean(product: Product): Product {
     storageCode: trimmed(product.storageCode),
     featured: product.featured ? true : undefined,
     specs: product.specs.filter((spec) => spec.name.trim() && spec.value.trim()),
-    tags: product.tags.map((tag) => tag.trim()).filter(Boolean),
   };
 }

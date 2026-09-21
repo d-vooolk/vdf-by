@@ -31,6 +31,10 @@ export function deepTrim<T>(value: T): T {
   return value;
 }
 
+export function firstParagraph(text: string | undefined): string {
+  return (text ?? "").split(/\n\s*\n/)[0]?.trim() ?? "";
+}
+
 function isPlainObject(value: object): boolean {
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;

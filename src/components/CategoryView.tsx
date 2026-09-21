@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { MarkChips } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
+import { carsRoot } from "@/lib/car-types";
+import { getCarTree } from "@/lib/cars";
 import {
   categoryTrail,
   categoryUrl,
@@ -39,18 +42,24 @@ export function categoryMetadata(category: Category): Metadata {
   const site = getSite();
   const products = getProductsInCategory(category.id);
   const children = getChildCategories(category.id);
+  const marks = category.carFitment ? getCarTree(category.id) : [];
   const cheapest = products.length
     ? Math.min(...products.map((product) => priceRange(product).min))
     : 0;
 
   return buildMetadata({
-    title: category.seoTitle ?? `${category.name} купить в Минске — ${site.name}`,
+    title: category.seoTitle ?? `${category.name} купить в Минске`,
     description:
       category.seoDescription ??
       sentences(
         category.excerpt ?? category.name,
         children.length > 0 &&
           `Разделы: ${children.map((child) => child.name).join(", ")}`,
+        marks.length > 0 &&
+          `Подбор по автомобилю: ${marks
+            .slice(0, 8)
+            .map((mark) => mark.name)
+            .join(", ")}`,
         products.length > 0 &&
           `${pluralize(products.length, "позиция", "позиции", "позиций")} в наличии, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
         "Доставка по Минску и Беларуси, оплата при получении",
@@ -69,6 +78,7 @@ export function CategoryView({ category }: { category: Category }) {
   // и без них его страница была бы пустой в разметке ItemList.
   const products = getProductsInCategory(category.id);
   const brands = getBrands(category.id);
+  const marks = category.carFitment ? getCarTree(category.id) : [];
 
   const items: CatalogItem[] = products.map((product, position) => ({
     id: product.id,
@@ -105,6 +115,26 @@ export function CategoryView({ category }: { category: Category }) {
           aria-label={`Подразделы раздела «${category.name}»`}
         >
           <CategoryGrid categories={children} priorityCount={4} />
+        </nav>
+      )}
+
+      {marks.length > 0 && (
+        <nav
+          className="mb-10"
+          aria-label={`Подбор ${category.name.toLowerCase()} по автомобилю`}
+        >
+          <h2 className="mb-3 text-lg font-semibold text-brand-900">
+            Подбор по автомобилю
+          </h2>
+          <p className="mb-4 max-w-2xl text-sm text-brand-500">
+            Выберите марку — дальше модель и поколение. В подборе останется
+            только то, что встаёт на вашу машину без доработок.
+          </p>
+          <MarkChips
+            marks={marks}
+            base={carsRoot(category.slug)}
+            priorityCount={12}
+          />
         </nav>
       )}
 

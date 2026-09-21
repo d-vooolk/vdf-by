@@ -2,11 +2,13 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import { getProducts } from "./catalog";
+import { getCategories, getProducts } from "./catalog";
 import { bumpCatalogVersion, catalogVersion, getDb } from "./db";
 import { processImage } from "./image-pipeline.mjs";
 import type { ImageEntry } from "./image-types";
 import {
+  CARS_ROOT,
+  carsRoot,
   generationUrl,
   markUrl,
   modelUrl,
@@ -19,7 +21,7 @@ import {
   type ProductCar,
 } from "./car-types";
 import { getImage, saveImage } from "./images";
-import type { Product } from "./schema";
+import type { Category, Product } from "./schema";
 
 /**
  * Подбор автосвета по автомобилю.
@@ -59,8 +61,29 @@ interface TreeRow {
   updatedAt: number;
 }
 
-let treeCache: FitMark[] | null = null;
+const treeCache = new Map<string, FitMark[]>();
 let treeVersion = -1;
+
+export function fitmentCategories(): Category[] {
+  return getCategories().filter((category) => category.carFitment);
+}
+
+export function isCarFitmentCategory(categoryId: string): boolean {
+  return Boolean(
+    getDb()
+      .prepare(
+        `SELECT 1 AS yes FROM categories
+          WHERE id = ? AND COALESCE(json_extract(data, '$.carFitment'), 0) = 1`,
+      )
+      .get(categoryId),
+  );
+}
+
+function scopeIds(categoryId?: string): string[] {
+  const flagged = fitmentCategories().map((category) => category.id);
+  if (categoryId === undefined) return flagged;
+  return flagged.includes(categoryId) ? [categoryId] : [];
+}
 
 /**
  * Дерево «марка → модель → поколение» из живых привязок.
@@ -68,9 +91,22 @@ let treeVersion = -1;
  * Пересобирается вместе с каталогом: привязки правятся только вместе с
  * товаром, а сохранение товара двигает счётчик версий.
  */
-export function getCarTree(): FitMark[] {
+export function getCarTree(categoryId?: string): FitMark[] {
   const version = catalogVersion();
-  if (treeCache && treeVersion === version) return treeCache;
+  if (treeVersion !== version) {
+    treeCache.clear();
+    treeVersion = version;
+  }
+
+  const key = categoryId ?? "";
+  const cached = treeCache.get(key);
+  if (cached) return cached;
+
+  const scope = scopeIds(categoryId);
+  if (!scope.length) {
+    treeCache.set(key, []);
+    return [];
+  }
 
   const rows = getDb()
     .prepare(
@@ -87,10 +123,11 @@ export function getCarTree(): FitMark[] {
          JOIN car_generations g ON g.id = pc.generation_id
          JOIN car_models      m ON m.id = g.model_id
          JOIN car_marks       k ON k.id = m.mark_id
+        WHERE p.category_id IN (${scope.map(() => "?").join(",")})
         GROUP BY g.id
         ORDER BY k.name, m.name, g.year_from DESC, g.name`,
     )
-    .all() as TreeRow[];
+    .all(...scope) as TreeRow[];
 
   const marks = new Map<string, FitMark>();
   const models = new Map<string, FitModel>();
@@ -145,13 +182,16 @@ export function getCarTree(): FitMark[] {
     mark.productCount += row.products;
   }
 
-  treeCache = [...marks.values()];
-  treeVersion = version;
-  return treeCache;
+  const tree = [...marks.values()];
+  treeCache.set(key, tree);
+  return tree;
 }
 
-export function findMark(slug: string): FitMark | undefined {
-  return getCarTree().find((mark) => mark.slug === slug);
+export function findMark(
+  slug: string,
+  categoryId?: string,
+): FitMark | undefined {
+  return getCarTree(categoryId).find((mark) => mark.slug === slug);
 }
 
 export function findModel(mark: FitMark, slug: string): FitModel | undefined {
@@ -165,8 +205,23 @@ export function findGeneration(
   return model.generations.find((generation) => generation.slug === slug);
 }
 
+function inScope(categoryId?: string): (product: Product) => boolean {
+  const scope = new Set(scopeIds(categoryId));
+  return (product) => scope.has(product.categoryId);
+}
+
+function productsByIds(ids: Set<string>, categoryId?: string): Product[] {
+  const allowed = inScope(categoryId);
+  return getProducts().filter(
+    (product) => ids.has(product.id) && allowed(product),
+  );
+}
+
 /** Товары, подходящие к поколению, — в том же порядке, что и в каталоге. */
-export function getProductsForGeneration(generationId: string): Product[] {
+export function getProductsForGeneration(
+  generationId: string,
+  categoryId?: string,
+): Product[] {
   const ids = new Set(
     (
       getDb()
@@ -174,11 +229,14 @@ export function getProductsForGeneration(generationId: string): Product[] {
         .all(generationId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
   );
-  return getProducts().filter((product) => ids.has(product.id));
+  return productsByIds(ids, categoryId);
 }
 
 /** Товары всех поколений модели — для страницы модели. */
-export function getProductsForModel(modelId: string): Product[] {
+export function getProductsForModel(
+  modelId: string,
+  categoryId?: string,
+): Product[] {
   const ids = new Set(
     (
       getDb()
@@ -191,11 +249,14 @@ export function getProductsForModel(modelId: string): Product[] {
         .all(modelId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
   );
-  return getProducts().filter((product) => ids.has(product.id));
+  return productsByIds(ids, categoryId);
 }
 
 /** Все товары марки — для страницы марки, где поколение ещё не выбрано. */
-export function getProductsForMark(markId: string): Product[] {
+export function getProductsForMark(
+  markId: string,
+  categoryId?: string,
+): Product[] {
   const ids = new Set(
     (
       getDb()
@@ -209,7 +270,25 @@ export function getProductsForMark(markId: string): Product[] {
         .all(markId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
   );
-  return getProducts().filter((product) => ids.has(product.id));
+  return productsByIds(ids, categoryId);
+}
+
+export interface CarCategoryGroup {
+  category: Category;
+  products: Product[];
+}
+
+export function groupByCategory(products: Product[]): CarCategoryGroup[] {
+  const groups: CarCategoryGroup[] = [];
+
+  for (const category of getCategories()) {
+    const inCategory = products.filter(
+      (product) => product.categoryId === category.id,
+    );
+    if (inCategory.length) groups.push({ category, products: inCategory });
+  }
+
+  return groups;
 }
 
 /**
@@ -244,33 +323,65 @@ export function getProductCars(productId: string): ProductCar[] {
  */
 export function carPathsForProduct(productId: string): string[] {
   const paths = new Set<string>();
+  const row = getDb()
+    .prepare(
+      `SELECT c.slug AS slug
+         FROM products p JOIN categories c ON c.id = p.category_id
+        WHERE p.id = ?
+          AND COALESCE(json_extract(c.data, '$.carFitment'), 0) = 1`,
+    )
+    .get(productId) as { slug: string } | undefined;
+
+  const bases = [CARS_ROOT, ...(row ? [carsRoot(row.slug)] : [])];
+
   for (const car of getProductCars(productId)) {
-    paths.add(markUrl(car.markSlug));
-    paths.add(modelUrl(car.markSlug, car.modelSlug));
-    paths.add(generationUrl(car.markSlug, car.modelSlug, car.generationSlug));
+    for (const base of bases) {
+      paths.add(markUrl(car.markSlug, base));
+      paths.add(modelUrl(car.markSlug, car.modelSlug, base));
+      paths.add(
+        generationUrl(car.markSlug, car.modelSlug, car.generationSlug, base),
+      );
+    }
   }
+
   return [...paths];
+}
+
+function collectCarDates(
+  dates: Map<string, Date>,
+  tree: FitMark[],
+  base: string,
+): void {
+  for (const mark of tree) {
+    let markAt = 0;
+    for (const model of mark.models) {
+      let modelAt = 0;
+      for (const generation of model.generations) {
+        dates.set(
+          generationUrl(mark.slug, model.slug, generation.slug, base),
+          new Date(generation.updatedAt),
+        );
+        modelAt = Math.max(modelAt, generation.updatedAt);
+      }
+      dates.set(modelUrl(mark.slug, model.slug, base), new Date(modelAt));
+      markAt = Math.max(markAt, modelAt);
+    }
+    dates.set(markUrl(mark.slug, base), new Date(markAt));
+  }
 }
 
 /** Даты правки страниц подбора — для честного lastmod в sitemap.xml. */
 export function getCarPageDates(): Map<string, Date> {
   const dates = new Map<string, Date>();
 
-  for (const mark of getCarTree()) {
-    let markAt = 0;
-    for (const model of mark.models) {
-      let modelAt = 0;
-      for (const generation of model.generations) {
-        dates.set(
-          generationUrl(mark.slug, model.slug, generation.slug),
-          new Date(generation.updatedAt),
-        );
-        modelAt = Math.max(modelAt, generation.updatedAt);
-      }
-      dates.set(modelUrl(mark.slug, model.slug), new Date(modelAt));
-      markAt = Math.max(markAt, modelAt);
-    }
-    dates.set(markUrl(mark.slug), new Date(markAt));
+  collectCarDates(dates, getCarTree(), CARS_ROOT);
+
+  for (const category of fitmentCategories()) {
+    collectCarDates(
+      dates,
+      getCarTree(category.id),
+      carsRoot(category.slug),
+    );
   }
 
   return dates;

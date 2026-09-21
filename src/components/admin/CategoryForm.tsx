@@ -81,6 +81,14 @@ export function CategoryForm({
   )?.slug;
   const parentPrefix = parentSlug ? `/catalog/${parentSlug}/` : "/catalog/";
 
+  const carFitmentBlocker = draft.parentId
+    ? "Только для разделов верхнего уровня: у подраздела страницы подбора ушли бы на пятый уровень вложенности, а такие адреса поиск почти не обходит."
+    : hasOwnChildren
+      ? `У раздела ${pluralize(childCount, "подраздел", "подраздела", "подразделов")} — второй сегмент адреса уже занят ими, маркой машины он быть не может.`
+      : null;
+  const carFitmentAllowed = carFitmentBlocker === null;
+  const carFitmentExample = `/catalog/${draft.slug || "razdel"}/bmw/3-seriya/e90/`;
+
   const patch = (changes: Partial<Category>) => {
     setDraft((current) => ({ ...current, ...changes }));
     setSaved(false);
@@ -201,7 +209,10 @@ export function CategoryForm({
           <select
             value={draft.parentId ?? ""}
             onChange={(event) =>
-              patch({ parentId: event.target.value || undefined })
+              patch({
+                parentId: event.target.value || undefined,
+                ...(event.target.value ? { carFitment: undefined } : {}),
+              })
             }
             disabled={hasOwnChildren}
             className="field w-full disabled:bg-brand-50 disabled:text-brand-400 sm:w-80"
@@ -239,6 +250,46 @@ export function CategoryForm({
               </span>
             </span>
           </label>
+        )}
+      </Section>
+
+      <Section
+        title="Связь с автомобилями"
+        note="У раздела появляются вложенные страницы подбора, а у его товаров — поле «Подходит к автомобилям»."
+      >
+        <label
+          className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+            carFitmentAllowed
+              ? "cursor-pointer border-brand-200 hover:bg-brand-50"
+              : "border-brand-100 bg-brand-50 text-brand-400"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={draft.carFitment ?? false}
+            disabled={!carFitmentAllowed}
+            onChange={(event) =>
+              patch({ carFitment: event.target.checked || undefined })
+            }
+            className="mt-0.5 h-4 w-4 rounded border-brand-200 text-brand-700 focus:ring-brand-600"
+          />
+          <span>
+            <span className="font-medium text-brand-900">
+              Товары этого раздела подбираются по автомобилю
+            </span>
+            <span className="mt-1 block text-xs">
+              {carFitmentBlocker ??
+                `Появятся страницы вида ${carFitmentExample}. В карточке товара
+                 откроется выбор марки, модели и поколения.`}
+            </span>
+          </span>
+        </label>
+
+        {draft.carFitment && (
+          <p className="text-xs leading-relaxed text-brand-400">
+            Привязки товаров сохраняются даже со снятой галочкой: снимете —
+            машины пропадут с витрины и из формы, вернёте — встанут на место.
+          </p>
         )}
       </Section>
 

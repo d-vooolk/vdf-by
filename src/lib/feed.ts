@@ -98,7 +98,7 @@ export function feedOffers(): FeedOffer[] {
           ? `${product.title}, ${variant.label}`
           : product.title,
         description: plainText(
-          product.description ?? product.excerpt ?? product.title,
+          product.description ?? product.title,
           3000,
         ),
         url: variantUrl(product, selection),

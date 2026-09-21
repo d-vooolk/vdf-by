@@ -2,6 +2,7 @@ import { getCategoryById, getProducts } from "@/lib/catalog";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { normalize, type SearchEntry } from "@/lib/search";
+import { firstParagraph } from "@/lib/text";
 import { hasAnyInStock, priceRange } from "@/lib/variant";
 
 /**
@@ -25,14 +26,14 @@ export function GET() {
     const entry = getImage(product.images[0]);
 
     // Всё, по чему имеет смысл искать, склеивается в одну строку: название,
-    // бренд, категория, теги, характеристики и подписи опций (цоколя!).
+    // бренд, категория, первый абзац описания, характеристики и подписи
+    // опций (цоколя!).
     const haystack = [
       product.title,
       product.brand ?? "",
       category?.name ?? "",
       parent?.name ?? "",
-      product.excerpt ?? "",
-      product.tags.join(" "),
+      firstParagraph(product.description),
       product.specs.map((spec) => `${spec.name} ${spec.value}`).join(" "),
       product.optionGroups
         .flatMap((group) => group.values.map((value) => value.label))

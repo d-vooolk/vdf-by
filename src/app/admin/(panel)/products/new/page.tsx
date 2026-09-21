@@ -16,7 +16,6 @@ const BLANK: Product = {
   images: [],
   specs: [],
   optionGroups: [],
-  tags: [],
 };
 
 interface PageProps {
