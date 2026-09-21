@@ -30,6 +30,7 @@ set -euo pipefail
 APP="${DEPLOY_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 PM2_APP="vdf"
 PORT=3011
+PUBLIC_HOST="vdf.by"
 
 # ------------------------------------------------------------------
 # Деплой идёт в три шага, и каждый следующий выполняется из копии в /tmp.
@@ -155,6 +156,25 @@ if [ "$admin" = "307" ] || [ "$admin" = "302" ]; then
 else
   echo "    ВНИМАНИЕ: /admin/ отвечает $admin вместо редиректа на вход!"
   exit 1
+fi
+
+# Проверка снаружи, через публичный адрес и с проверкой сертификата.
+#
+# Всё выше стучится на localhost:3011 и поэтому не заметит ровно той
+# поломки, которая однажды и случилась: приложение работает, nginx отвечает,
+# а публичный HTTPS отдаёт чужой сертификат — и сайт пропадает из поиска,
+# потому что canonical и sitemap ведут на https.
+echo "==> Проверяю публичный адрес"
+public=$(curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' \
+  --max-time 15 "https://$PUBLIC_HOST/" 2>/dev/null || echo "нет")
+if [ "$public" = "200 0" ]; then
+    echo "    https://$PUBLIC_HOST/ отвечает 200, сертификат валиден"
+else
+    echo "    ВНИМАНИЕ: https://$PUBLIC_HOST/ — «$public» вместо «200 0»!"
+    echo "    Сайт работает, но для поисковиков он недоступен: canonical,"
+    echo "    robots.txt и sitemap.xml ведут на https."
+    echo "    Починка: certbot --nginx -d $PUBLIC_HOST -d www.$PUBLIC_HOST"
+    echo "             nginx -t && systemctl reload nginx"
 fi
 
 echo "==> Готово. Сайт обновлён."
