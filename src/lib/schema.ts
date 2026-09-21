@@ -40,6 +40,11 @@ export const specSchema = z.strictObject({
   value: z.string().min(1),
 });
 
+export const faqItemSchema = z.strictObject({
+  q: z.string().min(1),
+  a: z.string().min(1),
+});
+
 /**
  * Значение опции: конкретный цоколь, сторона, цветовая температура.
  *
@@ -99,6 +104,7 @@ export const productSchema = z.strictObject({
   description: z.string().optional(),
   specs: z.array(specSchema).default([]),
   optionGroups: z.array(optionGroupSchema).default([]),
+  faq: z.array(faqItemSchema).optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
 });
@@ -122,6 +128,7 @@ export const categorySchema = z.strictObject({
   carFitment: z.boolean().optional(),
   excerpt: z.string().optional(),
   description: z.string().optional(),
+  faq: z.array(faqItemSchema).optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
   image: imagePath.optional(),
@@ -194,6 +201,7 @@ export const siteSchema = z.strictObject({
 });
 
 export type Spec = z.infer<typeof specSchema>;
+export type FaqItem = z.infer<typeof faqItemSchema>;
 export type OptionValue = z.infer<typeof optionValueSchema>;
 export type OptionGroup = z.infer<typeof optionGroupSchema>;
 export type Product = z.infer<typeof productSchema>;

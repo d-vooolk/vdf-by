@@ -10,6 +10,7 @@ import {
   saveProductAction,
 } from "@/app/admin/actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
+import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import { OptionGroupsEditor } from "@/components/admin/OptionGroupsEditor";
 import {
@@ -501,6 +502,17 @@ export function ProductForm({
         )
       )}
 
+      {/* ------------------------ Вопросы-ответы --------------------- */}
+      <Section
+        title="Вопросы и ответы"
+        note="Не для всех товаров, а для тех, про которые реально спрашивают. Вопрос — словами клиента, ответ — первой фразой по делу. Блок показывается на странице товара и уходит в разметку для поисковиков."
+      >
+        <FaqEditor
+          value={draft.faq ?? []}
+          onChange={(faq) => patch({ faq })}
+        />
+      </Section>
+
       {/* --------------------------- Поиск --------------------------- */}
       <Section
         title="Поиск и SEO"
@@ -751,5 +763,6 @@ function clean(product: Product): Product {
     storageCode: trimmed(product.storageCode),
     featured: product.featured ? true : undefined,
     specs: product.specs.filter((spec) => spec.name.trim() && spec.value.trim()),
+    faq: cleanFaq(product.faq),
   };
 }

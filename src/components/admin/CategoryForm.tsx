@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
+import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import {
   Field,
@@ -361,6 +362,13 @@ export function CategoryForm({
         </Field>
       </Section>
 
+      <Section
+        title="Вопросы и ответы"
+        note="Общие вопросы по разделу: они показываются и на его странице, и на страницах подбора по автомобилю внутри раздела. Одно заполнение — десятки страниц."
+      >
+        <FaqEditor value={draft.faq ?? []} onChange={(faq) => patch({ faq })} />
+      </Section>
+
       <Section title="Картинка раздела">
         <ImagePicker
           value={draft.image ? [draft.image] : []}
@@ -510,5 +518,6 @@ function clean(category: Category): Category {
     seoTitle: trimmed(category.seoTitle),
     seoDescription: trimmed(category.seoDescription),
     image: trimmed(category.image),
+    faq: cleanFaq(category.faq),
   };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { Faq } from "@/components/Faq";
 import { ProductCars } from "@/components/ProductCars";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
@@ -208,6 +209,8 @@ export default async function ProductPage({ params }: PageProps) {
         )}
         <ProductCars cars={cars} base={carsRoot(category?.slug)} />
       </div>
+
+      <Faq items={product.faq ?? []} schema />
 
       {/* ------------------------- Похожие товары ----------------------- */}
       {related.length > 0 && (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GenerationList, ModelList } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
+import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import {
@@ -221,6 +222,11 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
         allUrl={markUrl(mark.slug)}
         allLabel={`Весь автосвет для ${mark.name}`}
       />
+
+      <Faq
+        items={category.faq ?? []}
+        title={`${category.name}: частые вопросы`}
+      />
     </div>
   );
 }
@@ -302,6 +308,11 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
         related={related}
         allUrl={modelUrl(mark.slug, model.slug)}
         allLabel={`Весь автосвет для ${title}`}
+      />
+
+      <Faq
+        items={category.faq ?? []}
+        title={`${category.name}: частые вопросы`}
       />
     </div>
   );
@@ -418,6 +429,11 @@ export function CategoryGenerationView({
         related={related}
         allUrl={generationUrl(mark.slug, model.slug, generation.slug)}
         allLabel={`Весь автосвет для ${title}`}
+      />
+
+      <Faq
+        items={category.faq ?? []}
+        title={`${category.name}: частые вопросы`}
       />
     </div>
   );

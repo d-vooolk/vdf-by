@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MarkChips } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { CategoryGrid } from "@/components/CategoryTile";
+import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { carsRoot } from "@/lib/car-types";
@@ -184,6 +185,8 @@ export function CategoryView({ category }: { category: Category }) {
           ))}
         </section>
       )}
+
+      <Faq items={category.faq ?? []} schema />
     </div>
   );
 }
