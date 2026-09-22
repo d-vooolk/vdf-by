@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { deleteCarEntryAction, saveCarEntryAction } from "@/app/admin/actions";
-import { ImagePicker } from "@/components/admin/ImagePicker";
 import { Field, Problems } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { CarEntry, CarLevel } from "@/lib/car-types";
@@ -41,6 +40,7 @@ interface Draft {
   yearFrom: string;
   yearTo: string;
   image: string;
+  imageUrl: string;
 }
 
 async function loadEntries(level: CarLevel, parent?: string): Promise<CarEntry[]> {
@@ -119,6 +119,7 @@ export function CarCatalogEditor() {
       yearFrom: entry?.yearFrom ? String(entry.yearFrom) : "",
       yearTo: entry?.yearTo ? String(entry.yearTo) : "",
       image: entry?.image ?? "",
+      imageUrl: "",
     });
   };
 
@@ -134,6 +135,7 @@ export function CarCatalogEditor() {
         yearFrom: toYear(draft.yearFrom),
         yearTo: toYear(draft.yearTo),
         image: draft.image,
+        imageUrl: draft.imageUrl.trim(),
       });
       if (!result.ok) {
         setProblems(result.problems);
@@ -289,24 +291,42 @@ export function CarCatalogEditor() {
             </div>
 
             {LEVEL_TEXT[draft.level].image && (
-              <ImagePicker
-                key={draft.entry?.id ?? "new"}
-                value={draft.image ? [draft.image] : []}
-                onChange={(images) => setDraft({ ...draft, image: images[0] ?? "" })}
-                max={1}
-                folder={draft.level === "mark" ? "cars/mark" : "cars/gen"}
-                label={LEVEL_TEXT[draft.level].image}
-                thumbs={
-                  draft.entry?.image
-                    ? { [draft.entry.image]: draft.entry.thumb }
-                    : undefined
-                }
-                hint={
-                  draft.entry?.pendingImage
-                    ? "Фото из справочника подтянется само при первой привязке товара. Можно загрузить своё."
-                    : undefined
-                }
-              />
+              <div className="space-y-2">
+                <Field
+                  label={`${LEVEL_TEXT[draft.level].image}: ссылка на картинку`}
+                  hint="Прямая ссылка на файл, а не на страницу с ним. Скачаем к себе при сохранении."
+                >
+                  <input
+                    value={draft.imageUrl}
+                    onChange={(event) => setDraft({ ...draft, imageUrl: event.target.value })}
+                    placeholder="https://example.com/car.jpg"
+                    className="field"
+                  />
+                </Field>
+                {draft.image && !draft.imageUrl.trim() && (
+                  <div className="flex items-center gap-3">
+                    {draft.entry?.image === draft.image && draft.entry.thumb && (
+                      <img
+                        src={draft.entry.thumb}
+                        alt=""
+                        className="h-16 w-24 rounded-lg border border-brand-100 object-contain"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDraft({ ...draft, image: "" })}
+                      className="btn-ghost py-1.5 text-xs text-red-700 hover:bg-red-50"
+                    >
+                      Убрать фото
+                    </button>
+                  </div>
+                )}
+                {!draft.image && draft.entry?.pendingImage && !draft.imageUrl.trim() && (
+                  <p className="text-xs text-brand-400">
+                    Фото из справочника подтянется само при первой привязке товара.
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="flex items-center gap-2 pt-2">

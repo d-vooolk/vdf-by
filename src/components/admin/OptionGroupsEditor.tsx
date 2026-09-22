@@ -400,10 +400,7 @@ function ValuesEditor({
       <div className="p-3">
         <button
           type="button"
-          onClick={() => {
-            onChange([...values, { id: "", label: "" }]);
-            setExpanded(values.length);
-          }}
+          onClick={() => onChange([...values, { id: "", label: "" }])}
           className="btn-secondary py-1.5 text-sm"
         >
           + Значение

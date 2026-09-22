@@ -708,6 +708,16 @@ export async function fetchCarImages(generationIds: string[]): Promise<void> {
   }
 }
 
+export async function downloadCarImage(
+  level: CarLevel,
+  url: string,
+): Promise<string> {
+  if (!/^https?:\/\/\S+$/i.test(url)) return "";
+  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const folder = level === "mark" ? "mark" : "gen";
+  return download(url, `cars/${folder}/link-${stamp}.jpg`, level === "mark");
+}
+
 /**
  * @param flatten логотипы приходят прозрачными png, и jpeg-фолбэк из такого
  * файла получается с чёрным фоном. Заливаем прозрачность белым заранее —

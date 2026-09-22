@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import {
   carPathsForProduct,
   deleteCarEntry,
+  downloadCarImage,
   fetchCarImages,
   isCarFitmentCategory,
   isCarLevel,
@@ -449,7 +450,19 @@ export async function saveCarEntryAction(
     return fail(["Некорректный запрос"]);
   }
 
-  const result = saveCarEntry(level, input);
+  const imageUrl = String(input.imageUrl ?? "").trim();
+  let image = input.image;
+  if (imageUrl) {
+    image = await downloadCarImage(level, imageUrl);
+    if (!image) {
+      return fail([
+        "Не удалось скачать фото по ссылке — нужна прямая ссылка на картинку (jpg, png, webp)",
+      ]);
+    }
+    revalidateImages();
+  }
+
+  const result = saveCarEntry(level, { ...input, image });
   if (!result.ok) return fail(result.problems);
 
   revalidateSite();

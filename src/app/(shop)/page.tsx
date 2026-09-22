@@ -85,11 +85,11 @@ export default function HomePage() {
         шапке они есть на каждой странице сайта.
       */}
       <section className="beam grid-hint relative overflow-hidden border-b border-brand-100">
-        <div className="container-page grid gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-8 lg:py-14">
+        <div className="container-page grid gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-8 lg:py-9">
           <div className="rise">
             {/* h1 на главной — под самый частотный запрос. Текст менять
                 нельзя, а подать его крупнее можно. */}
-            <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[3rem]">
+            <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[2.6rem]">
               Автосвет в Минске:{" "}
               <span className="whitespace-nowrap">
               <span className="relative inline-block whitespace-nowrap">
@@ -111,13 +111,13 @@ export default function HomePage() {
               стёкла фар и лампы
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-brand-500">
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-brand-500">
               Би-ЛЕД и би-ксеноновые модули, стёкла на замену помутневшим,
               лампы во всех популярных цоколях. Проверяем каждый комплект на
               стенде перед отправкой.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap gap-3">
               <Link href="/catalog/" className="btn-primary">
                 Смотреть каталог
                 <ChevronRightIcon className="h-4 w-4" />
@@ -128,7 +128,7 @@ export default function HomePage() {
               </a>
             </div>
 
-            <dl className="mt-7 grid max-w-lg grid-cols-3 gap-6 border-t border-brand-100 pt-6">
+            <dl className="mt-6 grid max-w-lg grid-cols-3 gap-6 border-t border-brand-100 pt-5">
               <div>
                 <dt className="text-xs text-brand-400">Доставка по Минску</dt>
                 <dd className="mt-1 text-[15px] font-semibold text-brand-900">
@@ -157,7 +157,7 @@ export default function HomePage() {
               занимал там почти весь первый экран, а каталог уезжал за
               нижний край. */}
           <div
-            className="rise relative mx-auto hidden w-full max-w-[20rem] lg:block lg:max-w-[24rem]"
+            className="rise relative mx-auto hidden w-full max-w-[15rem] lg:block lg:max-w-[17rem]"
             style={{ animationDelay: "120ms" }}
             aria-hidden="true"
           >

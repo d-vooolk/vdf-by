@@ -255,7 +255,7 @@ export function ProductPurchase({
   };
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1fr)] lg:gap-10">
       {/* ---------------------------- Галерея ---------------------------- */}
       <div>
         {/* Ни серой подложки, ни рамки, ни внутреннего отступа: вместе они
@@ -263,13 +263,13 @@ export function ProductPurchase({
         <button
           type="button"
           onClick={() => mainEntry && setLightbox(true)}
-          className="relative block aspect-square max-h-[min(34rem,60vh)] w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
+          className="relative block aspect-square max-h-[min(26rem,48vh)] w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
           aria-label="Открыть фото на весь экран"
         >
           <Picture
             entry={mainEntry}
             alt={altText}
-            sizes="(max-width: 1024px) 100vw, 560px"
+            sizes="(max-width: 1024px) 100vw, 480px"
             priority
             className="h-full w-full object-contain"
           />

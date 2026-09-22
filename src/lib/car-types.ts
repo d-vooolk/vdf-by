@@ -56,6 +56,7 @@ export interface CarEntryInput {
   yearFrom: number | null;
   yearTo: number | null;
   image: string;
+  imageUrl?: string;
 }
 
 export interface FitGeneration extends CarGeneration {
