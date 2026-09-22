@@ -108,6 +108,9 @@ export function Footer() {
             © {year} {site.legalName}. Цены на сайте не являются публичной
             офертой.
           </p>
+          <Link href="/privacy/" className="transition-colors hover:text-brand-700">
+            Политика обработки персональных данных
+          </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
       </div>

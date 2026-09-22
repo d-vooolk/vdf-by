@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 
@@ -59,7 +60,8 @@ export function QuickOrder({
   const [name, setName] = useState("");
   const [tel, setTel] = useState("");
   const [website, setWebsite] = useState(""); // ловушка для ботов
-  const [errors, setErrors] = useState<{ name?: string; tel?: string }>({});
+  const [consent, setConsent] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; tel?: string; consent?: string }>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "failed">(
     "idle",
   );
@@ -83,7 +85,8 @@ export function QuickOrder({
     event.preventDefault();
     if (website) return;
 
-    const next: { name?: string; tel?: string } = {};
+    const next: { name?: string; tel?: string; consent?: string } = {};
+    if (!consent) next.consent = "Без согласия мы не сможем принять заказ";
     if (name.trim().length < 2) next.name = "Как к вам обращаться?";
     const phoneDigits = digits(tel);
     if (phoneDigits.length < 9) next.tel = "Введите номер — перезвоним по нему";
@@ -106,6 +109,7 @@ export function QuickOrder({
             phoneDigits,
             comment: "Быстрый заказ со страницы товара",
           },
+          consent,
           delivery: { id: deliveryId, address: "" },
           items: [
             {
@@ -276,6 +280,13 @@ export function QuickOrder({
                         </p>
                       )}
                     </div>
+
+                    <ConsentCheckbox
+                      id="quick-consent"
+                      checked={consent}
+                      onChange={setConsent}
+                      error={errors.consent}
+                    />
 
                     <div className="hidden" aria-hidden="true">
                       <label htmlFor="quick-website">Сайт</label>

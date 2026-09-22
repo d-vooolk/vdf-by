@@ -26,6 +26,8 @@ interface OrderRow {
   name: string;
   phone: string;
   phone_digits: string;
+  email: string;
+  consent_at: number | null;
   comment: string;
   delivery_id: string;
   delivery_name: string;
@@ -50,6 +52,8 @@ function toOrder(row: OrderRow): Order {
     name: row.name,
     phone: row.phone,
     phoneDigits: row.phone_digits,
+    email: row.email,
+    consentAt: row.consent_at,
     comment: row.comment,
     deliveryId: row.delivery_id,
     deliveryName: row.delivery_name,
@@ -67,7 +71,7 @@ function toOrder(row: OrderRow): Order {
   };
 }
 
-const COLUMNS = `id, created_at, status, name, phone, phone_digits, comment,
+const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total,
   currency, items, notes, ip, referer, telegram_sent, admin_note`;
 
@@ -79,6 +83,8 @@ export interface NewOrder {
   name: string;
   phone: string;
   phoneDigits: string;
+  email: string;
+  consentAt: number;
   comment: string;
   deliveryId: string;
   deliveryName: string;
@@ -103,11 +109,11 @@ export function createOrder(order: NewOrder): number {
   const result = getDb()
     .prepare(
       `INSERT INTO orders
-         (created_at, status, name, phone, phone_digits, comment,
+         (created_at, status, name, phone, phone_digits, email, consent_at, comment,
           delivery_id, delivery_name, address, delivery_cost,
           subtotal, total, currency, items, notes, ip, referer)
        VALUES
-         (@createdAt, 'new', @name, @phone, @phoneDigits, @comment,
+         (@createdAt, 'new', @name, @phone, @phoneDigits, @email, @consentAt, @comment,
           @deliveryId, @deliveryName, @address, @deliveryCost,
           @subtotal, @total, @currency, @items, @notes, @ip, @referer)`,
     )
@@ -116,6 +122,8 @@ export function createOrder(order: NewOrder): number {
       name: order.name,
       phone: order.phone,
       phoneDigits: order.phoneDigits,
+      email: order.email,
+      consentAt: order.consentAt,
       comment: order.comment,
       deliveryId: order.deliveryId,
       deliveryName: order.deliveryName,

@@ -41,6 +41,8 @@ export interface Order {
   name: string;
   phone: string;
   phoneDigits: string;
+  email: string;
+  consentAt: number | null;
   comment: string;
   deliveryId: string;
   deliveryName: string;

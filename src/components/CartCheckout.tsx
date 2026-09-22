@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { CartLines } from "@/components/CartLines";
 import {
   AlertIcon,
@@ -41,6 +42,8 @@ interface CartCheckoutProps {
 interface FormState {
   name: string;
   phone: string;
+  email: string;
+  consent: boolean;
   address: string;
   comment: string;
   /** Ловушка для ботов: люди это поле не видят и не заполняют. */
@@ -50,6 +53,8 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: "",
   phone: "",
+  email: "",
+  consent: false,
   address: "",
   comment: "",
   website: "",
@@ -139,6 +144,12 @@ export function CartCheckout({
     if (method?.requiresAddress && form.address.trim().length < 5) {
       next.address = "Укажите адрес: улица, дом, квартира";
     }
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      next.email = "Проверьте адрес почты";
+    }
+    if (!form.consent) {
+      next.consent = "Без согласия мы не сможем принять заказ";
+    }
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -159,6 +170,7 @@ export function CartCheckout({
       "",
       `Имя: ${form.name}`,
       `Телефон: ${form.phone}`,
+      form.email ? `Email: ${form.email}` : "",
       form.address ? `Адрес: ${form.address}` : "",
       form.comment ? `Комментарий: ${form.comment}` : "",
     ]
@@ -183,8 +195,10 @@ export function CartCheckout({
             name: form.name.trim(),
             phone: form.phone.trim(),
             phoneDigits: digits(form.phone),
+            email: form.email.trim(),
             comment: form.comment.trim(),
           },
+          consent: form.consent,
           delivery: {
             id: method?.id ?? "",
             name: method?.name ?? "",
@@ -430,6 +444,30 @@ export function CartCheckout({
               </div>
             </div>
 
+            <div>
+              <label htmlFor="email" className="label">
+                Email <span className="font-normal text-brand-400">— необязательно</span>
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={form.email}
+                onChange={(event) => setForm({ ...form, email: event.target.value })}
+                className={`field ${errors.email ? "field-error" : ""}`}
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                placeholder="ivan@example.com"
+              />
+              {errors.email && (
+                <p id="email-error" className="mt-1.5 text-xs text-red-600">
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
             {method?.requiresAddress && (
               <div>
                 <label htmlFor="address" className="label">
@@ -476,6 +514,13 @@ export function CartCheckout({
                 отправки.
               </p>
             </div>
+
+            <ConsentCheckbox
+              id="consent"
+              checked={form.consent}
+              onChange={(consent) => setForm({ ...form, consent })}
+              error={errors.consent}
+            />
 
             {/* Ловушка для ботов: скрыта и от людей, и от скринридеров. */}
             <div className="hidden" aria-hidden="true">

@@ -136,8 +136,22 @@ export default async function OrderPage({ params }: PageProps) {
                   {order.phone}
                 </a>
               </Row>
+              {order.email && (
+                <Row label="Email">
+                  <a href={`mailto:${order.email}`} className="text-brand-700 hover:underline">
+                    {order.email}
+                  </a>
+                </Row>
+              )}
               {order.address && <Row label="Адрес">{order.address}</Row>}
               {order.comment && <Row label="Комментарий">{order.comment}</Row>}
+              <Row label="Согласие на обработку ПД">
+                {order.consentAt
+                  ? new Date(order.consentAt).toLocaleString("ru-RU", {
+                      timeZone: "Europe/Minsk",
+                    })
+                  : "не запрашивалось"}
+              </Row>
             </dl>
 
             {(order.referer || order.ip) && (

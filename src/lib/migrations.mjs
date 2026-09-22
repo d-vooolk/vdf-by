@@ -214,6 +214,11 @@ export const MIGRATIONS = [
     ALTER TABLE car_models      ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE car_generations ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;
   `,
+
+  /* 7 — почта покупателя и согласие на обработку персональных данных */ `
+    ALTER TABLE orders ADD COLUMN email      TEXT NOT NULL DEFAULT '';
+    ALTER TABLE orders ADD COLUMN consent_at INTEGER;
+  `,
 ];
 
 /**

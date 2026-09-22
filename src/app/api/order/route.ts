@@ -87,6 +87,8 @@ interface ValidatedOrder {
   name: string;
   phone: string;
   phoneDigits: string;
+  email: string;
+  consentAt: number;
   comment: string;
   deliveryId: string;
   deliveryName: string;
@@ -119,7 +121,15 @@ function validate(payload: unknown): { order?: ValidatedOrder; error?: string } 
   const phone = clean(customer.phone, 40);
   const phoneDigits = clean(customer.phoneDigits, 20).replace(/\D/g, "");
 
+  const email = clean(customer.email, 120);
+
   if (name.length < 2) return { error: "Не указано имя" };
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Некорректный email" };
+  }
+  if (body.consent !== true) {
+    return { error: "Нет согласия на обработку персональных данных" };
+  }
   if (phoneDigits.length < 9 || phoneDigits.length > 13) {
     return { error: "Некорректный телефон" };
   }
@@ -215,6 +225,8 @@ function validate(payload: unknown): { order?: ValidatedOrder; error?: string } 
       name,
       phone,
       phoneDigits,
+      email,
+      consentAt: Date.now(),
       comment: clean(customer.comment, 1000),
       deliveryId,
       deliveryName: method.name,
@@ -271,6 +283,7 @@ function buildMessage(
     `<b>Телефон:</b> <a href="tel:+${order.phoneDigits}">${escapeHtml(order.phone)}</a>`,
   ];
 
+  if (order.email) lines.push(`<b>Email:</b> ${escapeHtml(order.email)}`);
   if (order.address) lines.push(`<b>Адрес:</b> ${escapeHtml(order.address)}`);
   if (order.comment) {
     lines.push(`<b>Комментарий:</b> ${escapeHtml(order.comment)}`);
