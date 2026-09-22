@@ -133,18 +133,11 @@ export default async function GenerationPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Автосвет для {title}
+          Товары для {title}
         </h1>
         {period && (
           <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
         )}
-        <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          {pluralize(products.length, "позиция", "позиции", "позиций")}
-          {groups.length > 1 &&
-            ` в ${pluralize(groups.length, "разделе", "разделах", "разделах")}`}
-          {" "}— всё встаёт на эту машину без доработок. Не уверены в цоколе —
-          позвоните, подскажем по VIN.
-        </p>
       </header>
 
       <CarProducts

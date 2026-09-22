@@ -87,11 +87,10 @@ export default async function MarkPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Автосвет для {mark.name}
+          Товары для {mark.name}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите модель, а затем поколение — подбор идёт до поколения,
-          потому что у рестайлинга фары и крепления свои.
+          Выберите модель, а затем поколение.
         </p>
       </header>
 

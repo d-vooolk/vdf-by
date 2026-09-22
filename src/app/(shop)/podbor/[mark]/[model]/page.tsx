@@ -106,11 +106,10 @@ export default async function ModelPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Автосвет для {title}
+          Товары для {title}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите поколение — у рестайлинга стёкла и линзы свои, и деталь от
-          соседнего года не встанет.
+          Выберите поколение.
         </p>
       </header>
 

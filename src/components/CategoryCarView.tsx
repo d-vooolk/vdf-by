@@ -195,8 +195,7 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
           {category.name} для {mark.name}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите модель, а затем поколение: у рестайлинга посадочные места и
-          крепления свои, и деталь от соседнего года не встанет.
+          Выберите модель, а затем поколение.
         </p>
       </header>
 
