@@ -6,7 +6,6 @@ import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import {
-  getBrands,
   getCategories,
   getProducts,
   getRootCategories,
@@ -34,7 +33,6 @@ export default function CatalogPage() {
   // родителя — и покупателю, и краулеру.
   const allCategories = getCategories();
   const products = getProducts();
-  const brands = getBrands();
 
   const items: CatalogItem[] = products.map((product, position) => ({
     id: product.id,
@@ -70,8 +68,6 @@ export default function CatalogPage() {
       <CatalogControls
         items={items}
         titles={products.map((product) => product.title)}
-        brands={brands}
-        currencySymbol={site.currencySymbol}
       >
         {products.map((product, position) => (
           <ProductCard

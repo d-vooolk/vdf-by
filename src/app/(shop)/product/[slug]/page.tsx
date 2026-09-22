@@ -22,8 +22,8 @@ import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickImages } from "@/lib/images";
 import { findRedirect } from "@/lib/redirects";
-import { buildMetadata, productJsonLd, sentences } from "@/lib/seo";
-import { firstParagraph } from "@/lib/text";
+import { buildMetadata, productJsonLd } from "@/lib/seo";
+import { productSnippet } from "@/lib/snippet";
 import { allProductImages, priceRange } from "@/lib/variant";
 
 export function generateStaticParams() {
@@ -42,24 +42,17 @@ export async function generateMetadata({
   if (!product) return {};
 
   const site = getSite();
-  const range = priceRange(product);
   const category = getCategoryById(product.categoryId);
 
-  // В title входит цена: в выдаче такой сниппет заметно кликабельнее.
-  const priceLabel = range.varies
-    ? `от ${formatPrice(range.min, site.currencySymbol)}`
-    : formatPrice(range.min, site.currencySymbol);
+  const snippet = productSnippet({
+    product,
+    categoryName: category?.name,
+    currencySymbol: site.currencySymbol,
+  });
 
   return buildMetadata({
-    title: product.seoTitle ?? `${product.title} — ${priceLabel}`,
-    description:
-      product.seoDescription ??
-      sentences(
-        firstParagraph(product.description) || product.title,
-        priceLabel,
-        category && `${category.name} с доставкой по Минску и Беларуси`,
-        "Оплата при получении",
-      ),
+    title: snippet.title,
+    description: snippet.description,
     path: `/product/${product.slug}/`,
     image: product.images[0],
   });
@@ -124,7 +117,7 @@ export default async function ProductPage({ params }: PageProps) {
     site.delivery.methods[0];
 
   return (
-    <div className="container-page">
+    <div className="container-page max-w-[1120px]">
       <Breadcrumbs
         items={[
           { label: "Каталог", href: "/catalog/" },
@@ -141,13 +134,13 @@ export default async function ProductPage({ params }: PageProps) {
       />
       <JsonLd data={productJsonLd(product, category)} />
 
-      <header className="mb-7">
+      <header className="mb-5">
         {product.brand && (
           <p className="mb-1.5 text-sm font-medium tracking-wide text-brand-400 uppercase">
             {product.brand}
           </p>
         )}
-        <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
+        <h1 className="text-3xl font-semibold text-brand-900 lg:text-[2.25rem] lg:leading-[1.15]">
           {product.title}
         </h1>
       </header>

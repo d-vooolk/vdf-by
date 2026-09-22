@@ -208,6 +208,12 @@ export const MIGRATIONS = [
      WHERE json_extract(data, '$.excerpt') IS NOT NULL
         OR json_extract(data, '$.tags') IS NOT NULL;
   `,
+
+  /* 6 — свои марки, модели и поколения в справочнике */ `
+    ALTER TABLE car_marks       ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE car_models      ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE car_generations ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /**

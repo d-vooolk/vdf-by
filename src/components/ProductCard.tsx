@@ -112,13 +112,8 @@ export function ProductCard({
         {/* mt-auto прижимает цену и кнопку к низу — карточки в сетке
             выравниваются по нижнему краю независимо от длины названия. */}
         <div className="mt-auto pt-2">
-          <div className="mb-3 flex items-baseline gap-2">
+          <div className={`flex items-baseline gap-2 ${hasOptions && inStock ? "" : "mb-3"}`}>
             <span className="tnum text-lg font-semibold text-brand-900">
-              {range.varies && (
-                <span className="mr-1 text-sm font-normal text-brand-400">
-                  от
-                </span>
-              )}
               {formatPrice(range.min, currencySymbol)}
             </span>
             {!range.varies && product.oldPrice && product.oldPrice > range.max && (
@@ -132,11 +127,7 @@ export function ProductCard({
             <Link href={href} className="btn-secondary w-full">
               Подробнее
             </Link>
-          ) : hasOptions ? (
-            <Link href={href} className="btn-secondary w-full">
-              Выбрать вариант
-            </Link>
-          ) : (
+          ) : hasOptions ? null : (
             <AddToCartButton
               compact
               item={{

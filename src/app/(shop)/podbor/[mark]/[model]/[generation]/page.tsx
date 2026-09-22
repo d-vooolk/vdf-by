@@ -150,14 +150,18 @@ export default async function GenerationPage({ params }: PageProps) {
       <CarProducts
         groups={groups}
         currencySymbol={site.currencySymbol}
-        linkFor={(group) =>
-          generationUrl(
-            mark.slug,
-            model.slug,
-            generation.slug,
-            carsRoot(group.category.slug),
-          )
-        }
+        trailFor={(group) => {
+          const base = carsRoot(group.category.slug);
+          return [
+            { label: group.category.name, href: base },
+            { label: mark.name, href: markUrl(mark.slug, base) },
+            { label: model.name, href: modelUrl(mark.slug, model.slug, base) },
+            {
+              label: generation.name,
+              href: generationUrl(mark.slug, model.slug, generation.slug, base),
+            },
+          ];
+        }}
       />
 
       {siblings.length > 0 && (

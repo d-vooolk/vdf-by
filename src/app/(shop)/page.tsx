@@ -91,6 +91,7 @@ export default function HomePage() {
                 нельзя, а подать его крупнее можно. */}
             <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[3rem]">
               Автосвет в Минске:{" "}
+              <span className="whitespace-nowrap">
               <span className="relative inline-block whitespace-nowrap">
                 линзы
                 {/* Подчёркивание рисуем сами: у text-decoration нельзя
@@ -105,7 +106,9 @@ export default function HomePage() {
                   className="sweep absolute inset-x-0 -bottom-0.5 -z-10 h-[0.3em] rounded-full"
                 />
               </span>
-              , стёкла фар и лампы
+              ,
+              </span>{" "}
+              стёкла фар и лампы
             </h1>
 
             <p className="mt-5 max-w-xl text-base leading-relaxed text-brand-500">

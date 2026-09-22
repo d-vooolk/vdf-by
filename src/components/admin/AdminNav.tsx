@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/admin/", label: "Сводка", exact: true },
   { href: "/admin/products/", label: "Товары" },
   { href: "/admin/categories/", label: "Разделы" },
+  { href: "/admin/cars/", label: "Автомобили" },
   { href: "/admin/orders/", label: "Заказы", badge: true },
   { href: "/admin/media/", label: "Фото" },
   { href: "/admin/settings/", label: "Настройки" },

@@ -263,13 +263,13 @@ export function ProductPurchase({
         <button
           type="button"
           onClick={() => mainEntry && setLightbox(true)}
-          className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
+          className="relative block aspect-square max-h-[min(34rem,60vh)] w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
           aria-label="Открыть фото на весь экран"
         >
           <Picture
             entry={mainEntry}
             alt={altText}
-            sizes="(max-width: 1024px) 100vw, 620px"
+            sizes="(max-width: 1024px) 100vw, 560px"
             priority
             className="h-full w-full object-contain"
           />
@@ -282,7 +282,7 @@ export function ProductPurchase({
 
         {gallery.length > 1 && (
           <div
-            className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6"
+            className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-7"
             role="tablist"
             aria-label="Фотографии товара"
           >

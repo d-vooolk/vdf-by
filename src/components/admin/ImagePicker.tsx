@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 
@@ -15,6 +15,10 @@ import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
  * (тот самый цоколь H7 со своими фото) и картинка раздела. Поэтому умеет
  * работать и в режиме одной картинки (max = 1).
  */
+
+export const UploadTrackerContext = createContext<
+  ((delta: number) => void) | null
+>(null);
 
 export interface MediaItem {
   path: string;
@@ -54,6 +58,13 @@ export function ImagePicker({
   const [uploading, setUploading] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
+  const trackUpload = useContext(UploadTrackerContext);
+
+  useEffect(() => {
+    if (!uploading || !trackUpload) return;
+    trackUpload(1);
+    return () => trackUpload(-1);
+  }, [uploading, trackUpload]);
 
   /**
    * Адреса миниатюр накапливаются по ходу работы: часть пришла со страницы,

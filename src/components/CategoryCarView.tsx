@@ -29,7 +29,7 @@ import {
   getProductsForMark,
   getProductsForModel,
 } from "@/lib/cars";
-import { brandsOf, categoryUrl, getSite } from "@/lib/catalog";
+import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
@@ -95,8 +95,6 @@ function Filtered({
     <CatalogControls
       items={catalogItems(products)}
       titles={products.map((product) => product.title)}
-      brands={brandsOf(products)}
-      currencySymbol={currencySymbol}
     >
       {products.map((product, position) => (
         <ProductCard

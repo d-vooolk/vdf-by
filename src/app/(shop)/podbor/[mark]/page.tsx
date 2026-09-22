@@ -8,7 +8,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { markUrl } from "@/lib/car-types";
 import { findMark, getCarTree, getProductsForMark } from "@/lib/cars";
-import { brandsOf, getSite } from "@/lib/catalog";
+import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { hasAnyInStock, priceRange } from "@/lib/variant";
@@ -108,8 +108,6 @@ export default async function MarkPage({ params }: PageProps) {
           <CatalogControls
             items={items}
             titles={products.map((product) => product.title)}
-            brands={brandsOf(products)}
-            currencySymbol={site.currencySymbol}
           >
             {products.map((product, position) => (
               <ProductCard

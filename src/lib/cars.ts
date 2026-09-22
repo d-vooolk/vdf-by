@@ -12,7 +12,10 @@ import {
   generationUrl,
   markUrl,
   modelUrl,
+  type CarEntry,
+  type CarEntryInput,
   type CarGeneration,
+  type CarLevel,
   type CarMark,
   type CarModel,
   type FitGeneration,
@@ -20,7 +23,9 @@ import {
   type FitModel,
   type ProductCar,
 } from "./car-types";
+import { pickUrl } from "./image-types";
 import { getImage, saveImage } from "./images";
+import { toSlug } from "./slug.mjs";
 import type { Category, Product } from "./schema";
 
 /**
@@ -449,6 +454,188 @@ export function setProductCars(
   // счётчиком, что и каталог. Без этого правка привязок осталась бы видна
   // только после следующего сохранения товара.
   bumpCatalogVersion();
+}
+
+interface LevelTable {
+  table: string;
+  image: string;
+  imageSrc: string;
+  parent: string | null;
+  order: string;
+}
+
+const LEVELS: Record<CarLevel, LevelTable> = {
+  mark: {
+    table: "car_marks",
+    image: "logo",
+    imageSrc: "logo_src",
+    parent: null,
+    order: "name",
+  },
+  model: {
+    table: "car_models",
+    image: "",
+    imageSrc: "",
+    parent: "mark_id",
+    order: "name",
+  },
+  generation: {
+    table: "car_generations",
+    image: "photo",
+    imageSrc: "photo_src",
+    parent: "model_id",
+    order: "year_from DESC, name",
+  },
+};
+
+export function isCarLevel(value: unknown): value is CarLevel {
+  return value === "mark" || value === "model" || value === "generation";
+}
+
+interface EntryRow {
+  id: string;
+  slug: string;
+  name: string;
+  yearFrom: number | null;
+  yearTo: number | null;
+  manual: number;
+  image: string;
+  imageSrc: string;
+}
+
+export function listCarEntries(level: CarLevel, parentId?: string): CarEntry[] {
+  const spec = LEVELS[level];
+  if (spec.parent && !parentId) return [];
+
+  const rows = getDb()
+    .prepare(
+      `SELECT id, slug, name, year_from AS yearFrom, year_to AS yearTo, manual,
+              ${spec.image || "''"} AS image, ${spec.imageSrc || "''"} AS imageSrc
+         FROM ${spec.table}
+        ${spec.parent ? `WHERE ${spec.parent} = ?` : ""}
+        ORDER BY ${spec.order}`,
+    )
+    .all(...(spec.parent ? [parentId] : [])) as EntryRow[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    yearFrom: row.yearFrom,
+    yearTo: row.yearTo,
+    manual: row.manual === 1,
+    image: row.image,
+    thumb: (row.image && pickUrl(getImage(row.image), 200)) || "",
+    pendingImage: !row.image && Boolean(row.imageSrc),
+  }));
+}
+
+function uniqueSlug(level: CarLevel, name: string, parentId?: string): string {
+  const spec = LEVELS[level];
+  const taken = getDb().prepare(
+    `SELECT 1 FROM ${spec.table} WHERE slug = ?${spec.parent ? ` AND ${spec.parent} = ?` : ""}`,
+  );
+  const base = toSlug(name) || "car";
+  let slug = base;
+  for (let counter = 2; taken.get(...(spec.parent ? [slug, parentId] : [slug])); counter += 1) {
+    slug = `${base}-${counter}`;
+  }
+  return slug;
+}
+
+function yearOrNull(value: unknown): number | null {
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null;
+}
+
+export type CarEntryResult =
+  | { ok: true; id: string }
+  | { ok: false; problems: string[] };
+
+export function saveCarEntry(
+  level: CarLevel,
+  input: CarEntryInput,
+): CarEntryResult {
+  const db = getDb();
+  const spec = LEVELS[level];
+  const name = String(input.name ?? "").trim();
+  const yearFrom = yearOrNull(input.yearFrom);
+  const yearTo = yearOrNull(input.yearTo);
+  const image = String(input.image ?? "").trim();
+
+  if (image && !getImage(image)) return { ok: false, problems: ["Фото не найдено"] };
+  if (yearFrom && yearTo && yearFrom > yearTo) {
+    return { ok: false, problems: ["Год начала позже года окончания"] };
+  }
+
+  if (input.id) {
+    const current = db
+      .prepare(`SELECT manual FROM ${spec.table} WHERE id = ?`)
+      .get(input.id) as { manual: number } | undefined;
+    if (!current) return { ok: false, problems: ["Запись не найдена"] };
+
+    if (current.manual === 1) {
+      if (!name) return { ok: false, problems: ["Укажите название"] };
+      db.prepare(
+        `UPDATE ${spec.table} SET name = ?, year_from = ?, year_to = ? WHERE id = ?`,
+      ).run(name, yearFrom, yearTo, input.id);
+    }
+    if (spec.image) {
+      db.prepare(`UPDATE ${spec.table} SET ${spec.image} = ? WHERE id = ?`).run(
+        image,
+        input.id,
+      );
+    }
+    bumpCatalogVersion();
+    return { ok: true, id: input.id };
+  }
+
+  if (!name) return { ok: false, problems: ["Укажите название"] };
+
+  const parentId = spec.parent ? String(input.parentId ?? "") : undefined;
+  if (spec.parent) {
+    const parentTable = level === "model" ? "car_marks" : "car_models";
+    if (!db.prepare(`SELECT 1 FROM ${parentTable} WHERE id = ?`).get(parentId)) {
+      return { ok: false, problems: ["Не выбран родительский уровень"] };
+    }
+  }
+
+  const id = `manual-${level}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const slug = uniqueSlug(level, name, parentId);
+  const columns = ["id", "slug", "name", "year_from", "year_to", "manual"];
+  const values: unknown[] = [id, slug, name, yearFrom, yearTo, 1];
+  if (spec.parent) {
+    columns.push(spec.parent);
+    values.push(parentId);
+  }
+  if (spec.image) {
+    columns.push(spec.image);
+    values.push(image);
+  }
+
+  db.prepare(
+    `INSERT INTO ${spec.table} (${columns.join(", ")})
+     VALUES (${columns.map(() => "?").join(", ")})`,
+  ).run(...values);
+  bumpCatalogVersion();
+  return { ok: true, id };
+}
+
+export function deleteCarEntry(level: CarLevel, id: string): CarEntryResult {
+  const spec = LEVELS[level];
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT manual FROM ${spec.table} WHERE id = ?`)
+    .get(id) as { manual: number } | undefined;
+
+  if (!row) return { ok: false, problems: ["Запись не найдена"] };
+  if (row.manual !== 1) {
+    return { ok: false, problems: ["Записи из основного справочника удалять нельзя"] };
+  }
+
+  db.prepare(`DELETE FROM ${spec.table} WHERE id = ?`).run(id);
+  bumpCatalogVersion();
+  return { ok: true, id };
 }
 
 /* ------------------------------------------------------------------ */

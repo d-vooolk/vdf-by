@@ -1,5 +1,11 @@
 import { getAdmin } from "@/lib/auth";
-import { listGenerations, listMarks, listModels } from "@/lib/cars";
+import {
+  isCarLevel,
+  listCarEntries,
+  listGenerations,
+  listMarks,
+  listModels,
+} from "@/lib/cars";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 
@@ -31,6 +37,13 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const modelId = params.get("model");
   const markId = params.get("mark");
+  const level = params.get("level");
+
+  if (isCarLevel(level)) {
+    return Response.json({
+      entries: listCarEntries(level, params.get("parent") ?? undefined),
+    });
+  }
 
   if (modelId) {
     return Response.json({ generations: listGenerations(modelId) });

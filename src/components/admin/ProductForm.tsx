@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 import {
   deleteProductAction,
@@ -11,7 +11,7 @@ import {
 } from "@/app/admin/actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
-import { ImagePicker } from "@/components/admin/ImagePicker";
+import { ImagePicker, UploadTrackerContext } from "@/components/admin/ImagePicker";
 import { OptionGroupsEditor } from "@/components/admin/OptionGroupsEditor";
 import {
   Field,
@@ -25,6 +25,7 @@ import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
+import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
 
 /**
@@ -82,6 +83,11 @@ export function ProductForm({
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [skuPending, setSkuPending] = useState(false);
+  const [uploads, setUploads] = useState(0);
+  const trackUpload = useCallback(
+    (delta: number) => setUploads((count) => count + delta),
+    [],
+  );
 
   const creating = !previousId;
 
@@ -99,6 +105,11 @@ export function ProductForm({
   const category = categories.find((entry) => entry.id === draft.categoryId);
   const carFitment = category?.carFitment ?? false;
   const categoryName = category?.name ?? draft.categoryId;
+  const snippet = productSnippet({
+    product: draft,
+    categoryName: category?.name,
+    currencySymbol,
+  });
 
   const save = () => {
     setProblems([]);
@@ -149,6 +160,7 @@ export function ProductForm({
   };
 
   return (
+    <UploadTrackerContext.Provider value={trackUpload}>
     <div className="space-y-5 pb-24">
       {/* --------------------------- Шапка --------------------------- */}
       <div className="flex flex-wrap items-center gap-3">
@@ -518,22 +530,64 @@ export function ProductForm({
         title="Поиск и SEO"
         note="Заголовки можно не заполнять — тогда они соберутся из названия и описания."
       >
-        <Field label="Заголовок для поиска" hint="До 60 символов">
+        <Field
+          label="Заголовок для поиска"
+          hint={`${(draft.seoTitle ?? "").trim().length || snippet.generatedTitle.length} / ${TITLE_LIMIT}`}
+        >
           <input
             value={draft.seoTitle ?? ""}
             onChange={(event) => patch({ seoTitle: event.target.value })}
+            placeholder={snippet.generatedTitle}
             className="field"
           />
         </Field>
 
-        <Field label="Описание для поиска" hint="До 165 символов">
+        <Field
+          label="Описание для поиска"
+          hint={`${(draft.seoDescription ?? "").trim().length || snippet.generatedDescription.length} / ${DESCRIPTION_LIMIT}`}
+        >
           <textarea
             value={draft.seoDescription ?? ""}
             onChange={(event) => patch({ seoDescription: event.target.value })}
-            rows={2}
+            placeholder={snippet.generatedDescription}
+            rows={3}
             className="field resize-y"
           />
         </Field>
+
+        <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-4">
+          <p className="mb-2 text-xs font-medium text-brand-400">
+            Так страница может выглядеть в выдаче
+            {!draft.seoTitle?.trim() && !draft.seoDescription?.trim()
+              ? " — собрано автоматически"
+              : ""}
+          </p>
+          <p className="text-xs text-brand-500">
+            /product/{draft.slug || "…"}/
+          </p>
+          <p
+            className={`mt-0.5 text-base leading-snug ${
+              snippet.title.length > TITLE_LIMIT ? "text-red-700" : "text-[#1a0dab]"
+            }`}
+          >
+            {snippet.title}
+          </p>
+          <p
+            className={`mt-1 text-sm ${
+              snippet.description.length > DESCRIPTION_LIMIT
+                ? "text-red-700"
+                : "text-brand-600"
+            }`}
+          >
+            {snippet.description}
+          </p>
+          {(snippet.title.length > TITLE_LIMIT ||
+            snippet.description.length > DESCRIPTION_LIMIT) && (
+            <p className="mt-2 text-xs text-red-700">
+              Красным — длиннее, чем покажет поисковик: хвост обрежется.
+            </p>
+          )}
+        </div>
       </Section>
 
       {/* ------------------------ Панель снизу ----------------------- */}
@@ -575,10 +629,15 @@ export function ProductForm({
           <button
             type="button"
             onClick={save}
-            disabled={pending}
+            disabled={pending || uploads > 0}
             className="btn-primary ml-auto py-2 text-sm"
           >
-            {pending ? (
+            {uploads > 0 ? (
+              <>
+                <SpinnerIcon className="h-4 w-4 animate-spin" />
+                Загружаются фото…
+              </>
+            ) : pending ? (
               <>
                 <SpinnerIcon className="h-4 w-4 animate-spin" />
                 Сохраняем…
@@ -592,6 +651,7 @@ export function ProductForm({
         </div>
       </div>
     </div>
+    </UploadTrackerContext.Provider>
   );
 }
 

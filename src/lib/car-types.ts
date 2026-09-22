@@ -35,6 +35,29 @@ export interface CarGeneration {
   photo: string;
 }
 
+export type CarLevel = "mark" | "model" | "generation";
+
+export interface CarEntry {
+  id: string;
+  slug: string;
+  name: string;
+  yearFrom: number | null;
+  yearTo: number | null;
+  manual: boolean;
+  image: string;
+  thumb: string;
+  pendingImage: boolean;
+}
+
+export interface CarEntryInput {
+  id?: string;
+  parentId?: string;
+  name: string;
+  yearFrom: number | null;
+  yearTo: number | null;
+  image: string;
+}
+
 export interface FitGeneration extends CarGeneration {
   productCount: number;
   updatedAt: number;

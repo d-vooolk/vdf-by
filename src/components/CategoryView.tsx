@@ -12,7 +12,6 @@ import { getCarTree } from "@/lib/cars";
 import {
   categoryTrail,
   categoryUrl,
-  getBrands,
   getChildCategories,
   getProductsInCategory,
   getSite,
@@ -78,7 +77,6 @@ export function CategoryView({ category }: { category: Category }) {
   // Товары подразделов входят в выдачу родителя: у самого родителя их нет,
   // и без них его страница была бы пустой в разметке ItemList.
   const products = getProductsInCategory(category.id);
-  const brands = getBrands(category.id);
   const marks = category.carFitment ? getCarTree(category.id) : [];
 
   const items: CatalogItem[] = products.map((product, position) => ({
@@ -152,8 +150,6 @@ export function CategoryView({ category }: { category: Category }) {
         <CatalogControls
           items={items}
           titles={products.map((product) => product.title)}
-          brands={brands}
-          currencySymbol={site.currencySymbol}
         >
           {products.map((product, position) => (
             <ProductCard

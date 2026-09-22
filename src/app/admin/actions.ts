@@ -7,10 +7,14 @@ import { headers } from "next/headers";
 
 import {
   carPathsForProduct,
+  deleteCarEntry,
   fetchCarImages,
   isCarFitmentCategory,
+  isCarLevel,
+  saveCarEntry,
   setProductCars,
 } from "@/lib/cars";
+import type { CarEntryInput } from "@/lib/car-types";
 import {
   categoryPaths,
   categorySubtreePaths,
@@ -433,5 +437,37 @@ export async function deleteImageAction(path: string): Promise<FormState> {
   await removeImageFiles(entry, join(process.cwd(), "public"));
 
   revalidateImages();
+  return ok();
+}
+
+export async function saveCarEntryAction(
+  level: unknown,
+  input: CarEntryInput,
+): Promise<FormState & { id?: string }> {
+  await requireAdmin();
+  if (!isCarLevel(level) || !input || typeof input !== "object") {
+    return fail(["Некорректный запрос"]);
+  }
+
+  const result = saveCarEntry(level, input);
+  if (!result.ok) return fail(result.problems);
+
+  revalidateSite();
+  return { ...ok(), id: result.id };
+}
+
+export async function deleteCarEntryAction(
+  level: unknown,
+  id: unknown,
+): Promise<FormState> {
+  await requireAdmin();
+  if (!isCarLevel(level) || typeof id !== "string") {
+    return fail(["Некорректный запрос"]);
+  }
+
+  const result = deleteCarEntry(level, id);
+  if (!result.ok) return fail(result.problems);
+
+  revalidateSite();
   return ok();
 }
