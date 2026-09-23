@@ -49,6 +49,7 @@ import {
   type SaveResult,
 } from "@/lib/store";
 import { login, logout, requireAdmin } from "@/lib/auth";
+import { getUsdRate, type UsdRate } from "@/lib/rates";
 
 /**
  * Действия админки.
@@ -483,4 +484,9 @@ export async function deleteCarEntryAction(
 
   revalidateSite();
   return ok();
+}
+
+export async function getUsdRateAction(): Promise<UsdRate | null> {
+  await requireAdmin();
+  return getUsdRate();
 }

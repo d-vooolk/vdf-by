@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
+import { getUsdRate } from "@/lib/rates";
 import { thumbsFor } from "@/lib/admin-thumbs";
 import { allProductImages } from "@/lib/variant";
 import { getProductRaw, listBrands, listCategoriesBrief } from "@/lib/store";
@@ -23,10 +24,17 @@ export default async function EditProductPage({ params }: PageProps) {
   if (!product) notFound();
 
   const site = getSite();
+  const usdRate = product.costUsd != null ? await getUsdRate() : null;
+  const current = usdRate && product.costUsd != null
+    ? { ...product, costPrice: Math.round(product.costUsd * usdRate.rate * 100) / 100 }
+    : product;
 
   return (
     <ProductForm
-      product={product}
+      key={product.id}
+      product={current}
+      usdRate={usdRate}
+      savedCostPrice={product.costPrice ?? null}
       previousId={product.id}
       categories={listCategoriesBrief()}
       brands={listBrands()}

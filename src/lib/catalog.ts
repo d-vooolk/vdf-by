@@ -103,6 +103,7 @@ function load(): Catalog {
     // (src/lib/store.ts), так что учёт не страдает.
     delete product.stockQty;
     delete product.costPrice;
+    delete product.costUsd;
     delete product.storageCode;
     return product;
   });

@@ -7,6 +7,7 @@ import { useCallback, useState, useTransition } from "react";
 import {
   deleteProductAction,
   generateSkuAction,
+  getUsdRateAction,
   saveProductAction,
 } from "@/app/admin/actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
@@ -24,6 +25,7 @@ import {
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
+import type { UsdRate } from "@/lib/rates";
 import type { Product, Spec } from "@/lib/schema";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
@@ -64,6 +66,8 @@ interface ProductFormProps {
   /** Готовые ссылки на миниатюры уже выбранных фото. */
   thumbs: Record<string, string>;
   currencySymbol: string;
+  usdRate?: UsdRate | null;
+  savedCostPrice?: number | null;
 }
 
 export function ProductForm({
@@ -74,6 +78,8 @@ export function ProductForm({
   previousId,
   thumbs,
   currencySymbol,
+  usdRate = null,
+  savedCostPrice = null,
 }: ProductFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -251,16 +257,14 @@ export function ProductForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field
-            label={`Себестоимость, ${currencySymbol}`}
-            hint="Только для вас — на сайте не показывается"
-          >
-            <NumberInput
-              value={draft.costPrice ?? null}
-              onChange={(costPrice) => patch({ costPrice })}
-              placeholder="не задана"
-            />
-          </Field>
+          <CostField
+            value={draft.costPrice ?? null}
+            usd={draft.costUsd ?? null}
+            onChange={(costPrice, costUsd) => patch({ costPrice, costUsd })}
+            currencySymbol={currencySymbol}
+            initialRate={usdRate}
+            savedValue={savedCostPrice}
+          />
 
           <div className="sm:col-span-2">
             <Margin
@@ -655,6 +659,114 @@ export function ProductForm({
   );
 }
 
+function CostField({
+  value,
+  usd,
+  onChange,
+  currencySymbol,
+  initialRate,
+  savedValue,
+}: {
+  value: number | null;
+  usd: number | null;
+  onChange: (value: number | null, usd: number | null) => void;
+  currencySymbol: string;
+  initialRate: UsdRate | null;
+  savedValue: number | null;
+}) {
+  const [inUsd, setInUsd] = useState(usd !== null);
+  const [rate, setRate] = useState<UsdRate | null>(initialRate);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const convert = (amount: number | null, by: UsdRate) =>
+    amount === null ? null : Math.round(amount * by.rate * 100) / 100;
+
+  const switchToUsd = async () => {
+    setInUsd(true);
+    setFailed(false);
+    let current = rate;
+    if (!current) {
+      setLoading(true);
+      current = await getUsdRateAction().catch(() => null);
+      setLoading(false);
+      if (!current) {
+        setFailed(true);
+        return;
+      }
+      setRate(current);
+    }
+    if (usd === null && value !== null) {
+      onChange(value, Math.round((value / current.rate) * 100) / 100);
+    }
+  };
+
+  const switchToByn = () => {
+    setInUsd(false);
+    onChange(value, null);
+  };
+
+  const rateDate = rate?.date.split("-").reverse().join(".");
+  const changed =
+    inUsd && savedValue !== null && value !== null && Math.abs(savedValue - value) >= 0.01;
+
+  let note = "Только для вас — на сайте не показывается";
+  if (inUsd && rate) {
+    note = `= ${value === null ? "—" : formatPrice(value, currencySymbol)} по курсу НБРБ ${rate.rate.toFixed(4)} на ${rateDate}`;
+    if (changed && savedValue !== null) {
+      note += `. При прошлом сохранении было ${formatPrice(savedValue, currencySymbol)}`;
+    }
+  } else if (inUsd && failed) {
+    note = usd !== null
+      ? `Не удалось получить курс НБРБ — показана сумма на момент сохранения. Источник: $${usd}`
+      : "Не удалось получить курс НБРБ — введите сумму в рублях";
+  } else if (inUsd && loading) {
+    note = "Загружаем курс НБРБ…";
+  }
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="label mb-0">Себестоимость</span>
+        <span className="flex overflow-hidden rounded-lg border border-brand-200 text-xs font-medium">
+          <button
+            type="button"
+            onClick={switchToByn}
+            className={`px-2 py-0.5 ${inUsd ? "text-brand-500" : "bg-brand-700 text-white"}`}
+          >
+            {currencySymbol}
+          </button>
+          <button
+            type="button"
+            onClick={switchToUsd}
+            className={`px-2 py-0.5 ${inUsd ? "bg-brand-700 text-white" : "text-brand-500"}`}
+          >
+            $
+          </button>
+        </span>
+      </div>
+
+      {inUsd && rate ? (
+        <NumberInput
+          value={usd}
+          onChange={(amount) => onChange(convert(amount, rate), amount)}
+          placeholder="сумма в $"
+        />
+      ) : (
+        <NumberInput
+          value={value}
+          onChange={(amount) => onChange(amount, null)}
+          placeholder="не задана"
+        />
+      )}
+
+      <span className={`mt-1 block text-xs ${changed ? "text-amber-700" : "text-brand-400"}`}>
+        {note}
+      </span>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Характеристики                                                      */
 /* ------------------------------------------------------------------ */
@@ -820,6 +932,7 @@ function clean(product: Product): Product {
     // ключ со значением null оставлять незачем.
     stockQty: product.stockQty ?? undefined,
     costPrice: product.costPrice ?? undefined,
+    costUsd: product.costUsd ?? undefined,
     storageCode: trimmed(product.storageCode),
     featured: product.featured ? true : undefined,
     specs: product.specs.filter((spec) => spec.name.trim() && spec.value.trim()),
