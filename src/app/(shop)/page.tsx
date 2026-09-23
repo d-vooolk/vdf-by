@@ -162,6 +162,7 @@ export default function HomePage() {
             aria-hidden="true"
           >
             <div className="lens-stage">
+              <span className="lens-rays" />
               <span className="lens-halo" />
               <span className="lens-bezel">
                 <span className="lens-glass block" />
