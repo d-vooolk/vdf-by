@@ -35,13 +35,13 @@ export function CategoryTile({ category, priority = false }: CategoryTileProps) 
         <Picture
           entry={getImage(category.image)}
           alt=""
-          sizes="(max-width: 640px) 31vw, (max-width: 1024px) 23vw, 200px"
+          sizes="(max-width: 640px) 24vw, (max-width: 1024px) 16vw, 150px"
           priority={priority}
           className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"
         />
       </span>
 
-      <span className="border-t border-brand-100 px-2 py-2 text-center text-[13px] leading-snug font-semibold sm:text-sm text-brand-900 transition-colors group-hover:text-brand-600">
+      <span className="border-t border-brand-100 px-1.5 py-1.5 text-center text-[11px] leading-tight font-semibold sm:text-xs text-brand-900 transition-colors group-hover:text-brand-600">
         {category.name}
       </span>
     </Link>
@@ -62,7 +62,7 @@ export function CategoryGrid({
 
   return (
     <div
-      className={`grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6 ${className}`}
+      className={`grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 ${className}`}
     >
       {categories.map((category, position) => (
         <CategoryTile

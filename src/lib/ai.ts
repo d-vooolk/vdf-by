@@ -117,6 +117,7 @@ export async function complete(system: string, user: string): Promise<string> {
     temperature: 0.7,
   };
   if (isOpenRouter && models.length > 1) body.models = models;
+  if (isOpenRouter) body.reasoning = { enabled: false };
 
   const startedAt = Date.now();
   const send = async (): Promise<{ response: Response; data: ChatResponse }> => {
