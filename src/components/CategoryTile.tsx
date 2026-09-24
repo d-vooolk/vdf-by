@@ -29,19 +29,19 @@ export function CategoryTile({ category, priority = false }: CategoryTileProps) 
   return (
     <Link
       href={categoryUrl(category)}
-      className="group card card-link reveal flex w-16 flex-col overflow-hidden sm:w-[4.5rem]"
+      className="group card card-link reveal flex w-[6.75rem] flex-col overflow-hidden sm:w-36"
     >
       <span className="relative block aspect-square overflow-hidden bg-white">
         <Picture
           entry={getImage(category.image)}
           alt=""
-          sizes="72px"
+          sizes="(max-width: 640px) 108px, 144px"
           priority={priority}
           className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"
         />
       </span>
 
-      <span className="border-t border-brand-100 px-0.5 py-1 text-center text-[10px] leading-tight font-semibold tracking-tight break-words hyphens-auto text-brand-900 transition-colors group-hover:text-brand-600">
+      <span className="border-t border-brand-100 px-1.5 py-1.5 text-center text-xs leading-tight font-semibold break-words hyphens-auto text-brand-900 transition-colors group-hover:text-brand-600">
         {category.name}
       </span>
     </Link>
@@ -62,7 +62,7 @@ export function CategoryGrid({
 
   return (
     <div
-      className={`flex flex-wrap gap-2 ${className}`}
+      className={`flex flex-wrap gap-2 sm:gap-3 ${className}`}
     >
       {categories.map((category, position) => (
         <CategoryTile
