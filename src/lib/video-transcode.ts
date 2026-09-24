@@ -38,7 +38,9 @@ function runFfmpeg(
   options: { onStdoutLine?: (line: string) => void; lowPriority?: boolean; timeoutMs?: number } = {},
 ): Promise<RunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegBinary(), args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(/*turbopackIgnore: true*/ ffmpegBinary(), args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     const stdout: Buffer[] = [];
     let stderr = "";
     let pending = "";
