@@ -1,4 +1,16 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import type { NextConfig } from "next";
+
+function activeDistDir(): string {
+  if (process.env.NEXT_DIST_DIR) return process.env.NEXT_DIST_DIR;
+  try {
+    const slot = fs.readFileSync(path.join(process.cwd(), "var", "dist-slot"), "utf8").trim();
+    if (/^\.next(-[ab])?$/.test(slot)) return slot;
+  } catch {}
+  return ".next";
+}
 
 const nextConfig: NextConfig = {
   // Сайт работает Node-сервером под systemd, за nginx. Статического экспорта
@@ -19,6 +31,8 @@ const nextConfig: NextConfig = {
   // Адреса не меняются относительно прежней статической версии — это важно:
   // они уже проиндексированы.
   trailingSlash: true,
+
+  distDir: activeDistDir(),
 
   // Встроенный оптимизатор картинок не используется: все размеры и форматы
   // делает наш конвейер (src/lib/image-pipeline.mjs) в момент загрузки фото,

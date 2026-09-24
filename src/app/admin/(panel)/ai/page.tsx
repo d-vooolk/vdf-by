@@ -15,6 +15,7 @@ const TASK_LABEL: Record<string, string> = {
   rewrite: "Рерайт",
   faq: "Вопросы",
   check: "Проверка",
+  import: "Разбор страницы",
 };
 
 function usd(value: number | null | undefined): string {

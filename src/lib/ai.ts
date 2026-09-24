@@ -107,7 +107,7 @@ export function aiConfigured(): boolean {
   return Boolean(env("AI_API_KEY", ""));
 }
 
-export type AiLogTask = AiTask | "check";
+export type AiLogTask = AiTask | "check" | "import";
 
 interface Usage {
   prompt_tokens?: number;

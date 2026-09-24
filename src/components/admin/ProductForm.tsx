@@ -11,6 +11,7 @@ import {
   saveProductAction,
 } from "@/app/admin/actions";
 import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
+import { ImportFromUrl, type ImportTarget } from "@/components/admin/ImportFromUrl";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { CategoryPicker, type CategoryChoice } from "@/components/admin/CategoryPicker";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
@@ -136,6 +137,41 @@ export function ProductForm({
     faq: draft.faq ?? [],
   };
 
+  const titleChanges = (title: string): Partial<Product> =>
+    creating ? { title, slug: toSlug(title), id: toSlug(title) } : { title };
+
+  type ImportSnapshot = Pick<Product, "title" | "slug" | "id" | "specs" | "description" | "faq">;
+  const importTarget: ImportTarget<ImportSnapshot> = {
+    context: {
+      categoryName: category?.name,
+      brand: draft.brand,
+      options: aiProduct.options,
+      faq: aiProduct.faq,
+    },
+    snapshot: () => ({
+      title: draft.title,
+      slug: draft.slug,
+      id: draft.id,
+      specs: draft.specs,
+      description: draft.description,
+      faq: draft.faq,
+    }),
+    restore: (snapshot) => patch(snapshot),
+    onTitle: (title) => patch(titleChanges(title)),
+    onSpecs: (specs) => patch({ specs }),
+    onDescription: (description) => patch({ description }),
+    onFaq: (items) => {
+      setDraft((current) => ({
+        ...current,
+        faq: [
+          ...(current.faq ?? []).filter((item) => item.q.trim() || item.a.trim()),
+          ...items,
+        ],
+      }));
+      setSaved(false);
+    },
+  };
+
   const save = () => {
     setProblems([]);
     const payload = clean(draft);
@@ -220,20 +256,22 @@ export function ProductForm({
         </p>
       )}
 
+      <Section
+        title="Сгенерировать по ссылке"
+        note="Вставьте ссылку на товар с другого сайта: название возьмётся как есть, описание перепишется, характеристики перенесутся, вопросы-ответы составятся по новому описанию. Остальное заполните сами."
+      >
+        <ImportFromUrl ready={ai.ready} target={importTarget} />
+      </Section>
+
       {/* -------------------------- Основное -------------------------- */}
       <Section title="Основное">
         <Field label="Название" required>
           <input
             value={draft.title}
             onChange={(event) => {
-              const title = event.target.value;
               // Адрес и код подставляем сами, пока товар новый и их не трогали
               // руками. У существующего товара менять их нельзя.
-              patch(
-                creating
-                  ? { title, slug: toSlug(title), id: toSlug(title) }
-                  : { title },
-              );
+              patch(titleChanges(event.target.value));
             }}
             className="field"
             placeholder="Линзы Hella 3R G5 Bi-Xenon"

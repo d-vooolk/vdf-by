@@ -105,14 +105,19 @@ echo "==> Обновляю справочник автомобилей"
 # тысяч строк — дешевле, чем помнить про отдельную команду после деплоя.
 npm run import-cars -- --logos
 
-echo "==> Собираю сайт"
+current_slot="$(cat var/dist-slot 2>/dev/null || echo .next)"
+if [ "$current_slot" = ".next-a" ]; then build_slot=".next-b"; else build_slot=".next-a"; fi
+
+echo "==> Собираю сайт в $build_slot (сейчас работает $current_slot)"
 # prebuild сам прогонит импорт данных и препроцессор картинок; заново
 # жмутся только новые фотографии.
 #
 # Сборка идёт до перезапуска намеренно: если она упадёт (опечатка в
 # шаблоне, ошибка типов), скрипт прервётся здесь и старый процесс продолжит
 # работать со старой сборкой. Сайт не заметит неудачного деплоя.
-NODE_ENV=production npm run build
+rm -rf "$build_slot"
+NODE_ENV=production NEXT_DIST_DIR="$build_slot" npm run build
+printf '%s\n' "$build_slot" > var/dist-slot
 
 echo "==> Перезапускаю $PM2_APP"
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
@@ -134,6 +139,11 @@ for attempt in $(seq 1 30); do
   fi
   if [ "$attempt" -eq 30 ]; then
     echo "    ВНИМАНИЕ: сайт не поднялся за 30 секунд!"
+    if [ -d "$current_slot" ]; then
+      echo "    Возвращаю прежнюю сборку $current_slot"
+      printf '%s\n' "$current_slot" > var/dist-slot
+      pm2 reload "$PM2_APP" --update-env
+    fi
     echo "    Смотрите: pm2 logs $PM2_APP --lines 50"
     exit 1
   fi
@@ -175,6 +185,10 @@ else
     echo "    robots.txt и sitemap.xml ведут на https."
     echo "    Починка: certbot --nginx -d $PUBLIC_HOST -d www.$PUBLIC_HOST"
     echo "             nginx -t && systemctl reload nginx"
+fi
+
+if [ "$current_slot" = ".next" ] && [ -d .next ]; then
+  rm -rf .next
 fi
 
 echo "==> Готово. Сайт обновлён."
