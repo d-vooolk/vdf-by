@@ -1,3 +1,5 @@
+import { fetch as undiciFetch, ProxyAgent } from "undici";
+
 import { getDb } from "./db";
 import { env, envNumber } from "./env.mjs";
 
@@ -71,6 +73,22 @@ interface ChatResponse {
 
 export class AiError extends Error {}
 
+const RATE_LIMIT_RETRY_MS = 6000;
+
+let proxyAgent: { url: string; agent: ProxyAgent } | null = null;
+
+function proxiedFetch(url: string, init: RequestInit): Promise<Response> {
+  const proxyUrl = env("AI_PROXY", "");
+  if (!proxyUrl) return fetch(url, init);
+  if (proxyAgent?.url !== proxyUrl) {
+    proxyAgent = { url: proxyUrl, agent: new ProxyAgent(proxyUrl) };
+  }
+  return undiciFetch(url, {
+    ...(init as Parameters<typeof undiciFetch>[1]),
+    dispatcher: proxyAgent.agent,
+  }) as unknown as Promise<Response>;
+}
+
 export async function complete(system: string, user: string): Promise<string> {
   const key = env("AI_API_KEY", "");
   if (!key) {
@@ -82,7 +100,7 @@ export async function complete(system: string, user: string): Promise<string> {
   const baseUrl = env("AI_BASE_URL", "https://openrouter.ai/api/v1").replace(/\/+$/, "");
   const models = env(
     "AI_MODEL",
-    "z-ai/glm-5.2:free,google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free",
+    "z-ai/glm-5.2:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free",
   )
     .split(",")
     .map((model) => model.trim())
@@ -100,35 +118,46 @@ export async function complete(system: string, user: string): Promise<string> {
   };
   if (isOpenRouter && models.length > 1) body.models = models;
 
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        ...(isOpenRouter
-          ? { "HTTP-Referer": "https://vdf.by", "X-Title": "VDF.BY admin" }
-          : {}),
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeout),
-    });
-  } catch (error) {
-    const name = (error as Error).name;
-    throw new AiError(
-      name === "TimeoutError"
-        ? "Нейросеть не ответила вовремя — попробуйте ещё раз"
-        : `Не удалось связаться с нейросетью: ${(error as Error).message}`,
-    );
+  const startedAt = Date.now();
+  const send = async (): Promise<{ response: Response; data: ChatResponse }> => {
+    let response: Response;
+    try {
+      response = await proxiedFetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          ...(isOpenRouter
+            ? { "HTTP-Referer": "https://vdf.by", "X-Title": "VDF.BY admin" }
+            : {}),
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(Math.max(1000, timeout - (Date.now() - startedAt))),
+      });
+    } catch (error) {
+      const name = (error as Error).name;
+      const cause = (error as { cause?: Error }).cause?.message;
+      throw new AiError(
+        name === "TimeoutError"
+          ? "Нейросеть не ответила вовремя — попробуйте ещё раз"
+          : `Не удалось связаться с нейросетью: ${cause ?? (error as Error).message}`,
+      );
+    }
+    const data = (await response.json().catch(() => ({}))) as ChatResponse;
+    return { response, data };
+  };
+
+  let { response, data } = await send();
+  if (response.status === 429 && Date.now() - startedAt < timeout / 3) {
+    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_MS));
+    ({ response, data } = await send());
   }
 
-  const data = (await response.json().catch(() => ({}))) as ChatResponse;
   if (!response.ok || data.error) {
     const detail = data.error?.message ?? `HTTP ${response.status}`;
     if (response.status === 429) {
       throw new AiError(
-        `Лимит бесплатных запросов исчерпан, подождите немного (${detail})`,
+        `Бесплатные модели сейчас перегружены — попробуйте через минуту (${detail})`,
       );
     }
     if (response.status === 401) {
