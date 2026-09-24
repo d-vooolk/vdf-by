@@ -107,24 +107,71 @@ export function aiConfigured(): boolean {
   return Boolean(env("AI_API_KEY", ""));
 }
 
-interface ChatResponse {
-  choices?: Array<{ message?: { content?: string | null } }>;
+export type AiLogTask = AiTask | "check";
+
+interface Usage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  cost?: number;
+}
+
+interface ResponseMeta {
+  model?: string;
+  provider?: string;
+  usage?: Usage;
   error?: { message?: string; code?: number | string };
 }
 
-interface StreamChunk {
+interface ChatResponse extends ResponseMeta {
+  choices?: Array<{ message?: { content?: string | null } }>;
+}
+
+interface StreamChunk extends ResponseMeta {
   choices?: Array<{ delta?: { content?: string | null } }>;
-  error?: { message?: string; code?: number | string };
+}
+
+export interface AiTrace {
+  task: AiLogTask;
+  startedAt: number;
+  model: string;
+  provider: string;
+  firstTokenMs: number | null;
+  usage: Usage;
 }
 
 export class AiError extends Error {}
 
 const DEFAULT_MODELS =
   "nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free,z-ai/glm-5.2:free";
+const LOG_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+
+export interface AiConfig {
+  keyConfigured: boolean;
+  baseUrl: string;
+  models: string[];
+  proxy: string;
+  isOpenRouter: boolean;
+  timeout: number;
+}
+
+export function aiConfig(): AiConfig {
+  const baseUrl = env("AI_BASE_URL", "https://openrouter.ai/api/v1").replace(/\/+$/, "");
+  return {
+    keyConfigured: aiConfigured(),
+    baseUrl,
+    models: env("AI_MODEL", DEFAULT_MODELS)
+      .split(",")
+      .map((model) => model.trim())
+      .filter(Boolean),
+    proxy: env("AI_PROXY", ""),
+    isOpenRouter: baseUrl.includes("openrouter.ai"),
+    timeout: envNumber("AI_TIMEOUT_MS", 90000),
+  };
+}
 
 let proxyAgent: { url: string; agent: ProxyAgent } | null = null;
 
-function proxiedFetch(url: string, init: RequestInit): Promise<Response> {
+export function aiFetch(url: string, init: RequestInit): Promise<Response> {
   const proxyUrl = env("AI_PROXY", "");
   if (!proxyUrl) return fetch(url, init);
   if (proxyAgent?.url !== proxyUrl) {
@@ -147,6 +194,43 @@ function failure(status: number, detail: string): AiError {
   return new AiError(`Нейросеть вернула ошибку: ${detail}`);
 }
 
+function startTrace(task: AiLogTask): AiTrace {
+  return { task, startedAt: Date.now(), model: "", provider: "", firstTokenMs: null, usage: {} };
+}
+
+function noteMeta(trace: AiTrace, meta: ResponseMeta) {
+  if (!trace.model && meta.model) trace.model = meta.model;
+  if (!trace.provider && meta.provider) trace.provider = meta.provider;
+  if (meta.usage) trace.usage = meta.usage;
+}
+
+function record(trace: AiTrace, error: string | null) {
+  try {
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO ai_requests
+         (created_at, task, model, provider, duration_ms, first_token_ms,
+          tokens_in, tokens_out, cost, ok, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      trace.startedAt,
+      trace.task,
+      trace.model,
+      trace.provider,
+      Date.now() - trace.startedAt,
+      trace.firstTokenMs,
+      trace.usage.prompt_tokens ?? null,
+      trace.usage.completion_tokens ?? null,
+      trace.usage.cost ?? null,
+      error === null ? 1 : 0,
+      error ?? "",
+    );
+    db.prepare("DELETE FROM ai_requests WHERE created_at < ?").run(Date.now() - LOG_RETENTION_MS);
+  } catch (logError) {
+    console.error("[ai] журнал запросов", logError);
+  }
+}
+
 async function request(system: string, user: string, stream: boolean): Promise<Response> {
   const key = env("AI_API_KEY", "");
   if (!key) {
@@ -155,13 +239,7 @@ async function request(system: string, user: string, stream: boolean): Promise<R
     );
   }
 
-  const baseUrl = env("AI_BASE_URL", "https://openrouter.ai/api/v1").replace(/\/+$/, "");
-  const models = env("AI_MODEL", DEFAULT_MODELS)
-    .split(",")
-    .map((model) => model.trim())
-    .filter(Boolean);
-  const timeout = envNumber("AI_TIMEOUT_MS", 90000);
-  const isOpenRouter = baseUrl.includes("openrouter.ai");
+  const { baseUrl, models, timeout, isOpenRouter } = aiConfig();
 
   const body: Record<string, unknown> = {
     model: models[0],
@@ -176,11 +254,14 @@ async function request(system: string, user: string, stream: boolean): Promise<R
     if (models.length > 1) body.models = models;
     body.reasoning = { enabled: false };
     body.provider = { sort: "throughput" };
+    body.usage = { include: true };
+  } else if (stream) {
+    body.stream_options = { include_usage: true };
   }
 
   const send = async () => {
     try {
-      return await proxiedFetch(`${baseUrl}/chat/completions`, {
+      return await aiFetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${key}`,
@@ -220,55 +301,103 @@ function stripThinking(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
-export async function complete(system: string, user: string): Promise<string> {
-  const response = await request(system, user, false);
-  const data = (await response.json().catch(() => ({}))) as ChatResponse;
-  if (data.error) {
-    throw failure(Number(data.error.code) || 500, data.error.message ?? "неизвестная ошибка");
-  }
+export async function completeTraced(
+  system: string,
+  user: string,
+  task: AiLogTask,
+): Promise<{ text: string; trace: AiTrace }> {
+  const trace = startTrace(task);
+  try {
+    const response = await request(system, user, false);
+    const data = (await response.json().catch(() => ({}))) as ChatResponse;
+    noteMeta(trace, data);
+    if (data.error) {
+      throw failure(Number(data.error.code) || 500, data.error.message ?? "неизвестная ошибка");
+    }
 
-  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!text) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
-  return stripThinking(text);
+    const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!text) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+    trace.firstTokenMs = Date.now() - trace.startedAt;
+    record(trace, null);
+    return { text: stripThinking(text), trace };
+  } catch (error) {
+    record(trace, (error as Error).message);
+    throw error;
+  }
 }
 
-export async function* completeStream(system: string, user: string): AsyncGenerator<string> {
-  const response = await request(system, user, true);
-  if (!response.body) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+export async function complete(system: string, user: string, task: AiLogTask): Promise<string> {
+  return (await completeTraced(system, user, task)).text;
+}
 
-  const decoder = new TextDecoder();
-  let pending = "";
+export async function* completeStream(
+  system: string,
+  user: string,
+  task: AiLogTask,
+): AsyncGenerator<string> {
+  const trace = startTrace(task);
+  let outcome: string | null = "генерация прервана";
   let produced = false;
 
-  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-    pending += decoder.decode(chunk, { stream: true });
-    const lines = pending.split("\n");
-    pending = lines.pop() ?? "";
+  try {
+    const response = await request(system, user, true);
+    if (!response.body) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
 
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (payload === "[DONE]") return;
+    const decoder = new TextDecoder();
+    let pending = "";
+    let finished = false;
 
-      let parsed: StreamChunk;
-      try {
-        parsed = JSON.parse(payload) as StreamChunk;
-      } catch {
-        continue;
+    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+      pending += decoder.decode(chunk, { stream: true });
+      const lines = pending.split("\n");
+      pending = lines.pop() ?? "";
+
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (payload === "[DONE]") {
+          finished = true;
+          break;
+        }
+
+        let parsed: StreamChunk;
+        try {
+          parsed = JSON.parse(payload) as StreamChunk;
+        } catch {
+          continue;
+        }
+        noteMeta(trace, parsed);
+        if (parsed.error) {
+          throw failure(Number(parsed.error.code) || 500, parsed.error.message ?? "обрыв генерации");
+        }
+        const piece = parsed.choices?.[0]?.delta?.content;
+        if (piece) {
+          if (!produced) trace.firstTokenMs = Date.now() - trace.startedAt;
+          produced = true;
+          yield piece;
+        }
       }
-      if (parsed.error) {
-        throw failure(Number(parsed.error.code) || 500, parsed.error.message ?? "обрыв генерации");
-      }
-      const piece = parsed.choices?.[0]?.delta?.content;
-      if (piece) {
-        produced = true;
-        yield piece;
-      }
+      if (finished) break;
     }
-  }
 
-  if (!produced) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+    if (!produced) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+    outcome = null;
+  } catch (error) {
+    outcome = (error as Error).message;
+    throw error;
+  } finally {
+    record(trace, outcome);
+  }
+}
+
+export async function checkConnection(): Promise<AiTrace & { durationMs: number; answer: string }> {
+  const { text, trace } = await completeTraced(
+    "Отвечай одним словом, без точки.",
+    "Столица Беларуси?",
+    "check",
+  );
+  return { ...trace, durationMs: Date.now() - trace.startedAt, answer: text.slice(0, 40) };
 }
 
 export function finishRewrite(text: string): string {

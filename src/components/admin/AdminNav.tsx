@@ -21,6 +21,7 @@ const LINKS = [
   { href: "/admin/cars/", label: "Автомобили" },
   { href: "/admin/orders/", label: "Заказы", badge: true },
   { href: "/admin/media/", label: "Фото" },
+  { href: "/admin/ai/", label: "Нейросеть" },
   { href: "/admin/settings/", label: "Настройки" },
 ];
 

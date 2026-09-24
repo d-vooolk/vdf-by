@@ -219,6 +219,25 @@ export const MIGRATIONS = [
     ALTER TABLE orders ADD COLUMN email      TEXT NOT NULL DEFAULT '';
     ALTER TABLE orders ADD COLUMN consent_at INTEGER;
   `,
+
+  /* 8 — журнал запросов к нейросети */ `
+    CREATE TABLE ai_requests (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at     INTEGER NOT NULL,
+      task           TEXT NOT NULL,
+      model          TEXT NOT NULL DEFAULT '',
+      provider       TEXT NOT NULL DEFAULT '',
+      duration_ms    INTEGER NOT NULL,
+      first_token_ms INTEGER,
+      tokens_in      INTEGER,
+      tokens_out     INTEGER,
+      cost           REAL,
+      ok             INTEGER NOT NULL,
+      error          TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE INDEX ai_requests_by_time ON ai_requests(created_at);
+  `,
 ];
 
 /**

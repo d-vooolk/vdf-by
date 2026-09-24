@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   let pieces: AsyncGenerator<string>;
   let first: IteratorResult<string>;
   try {
-    pieces = completeStream(promptFor("rewrite", input.prompt), describeProduct(input, false));
+    pieces = completeStream(promptFor("rewrite", input.prompt), describeProduct(input, false), "rewrite");
     first = await pieces.next();
   } catch (error) {
     if (error instanceof AiError) return reject(error.message, 502);

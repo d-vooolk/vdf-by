@@ -50,6 +50,7 @@ import {
 } from "@/lib/store";
 import {
   AiError,
+  checkConnection,
   complete,
   describeProduct,
   getPrompts,
@@ -530,7 +531,7 @@ export async function aiFaqAction(input: AiProductInput): Promise<AiFaqResult> {
   if (!input.title?.trim()) return { ok: false, error: "Сначала заполните название" };
 
   try {
-    const answer = await complete(promptFor("faq", input.prompt), describeProduct(input, true));
+    const answer = await complete(promptFor("faq", input.prompt), describeProduct(input, true), "faq");
     const items = parseFaq(answer);
     if (!items.length) {
       return { ok: false, error: "Нейросеть не предложила ни одного вопроса — попробуйте ещё раз" };
@@ -549,4 +550,34 @@ export async function saveAiPromptAction(
   if (task !== "rewrite" && task !== "faq") return getPrompts();
   savePrompt(task, typeof prompt === "string" ? prompt.slice(0, MAX_PROMPT) : null);
   return getPrompts();
+}
+
+export type AiCheckResult =
+  | {
+      ok: true;
+      durationMs: number;
+      firstTokenMs: number | null;
+      model: string;
+      provider: string;
+      answer: string;
+      cost: number | null;
+    }
+  | { ok: false; error: string };
+
+export async function checkAiConnectionAction(): Promise<AiCheckResult> {
+  await requireAdmin();
+  try {
+    const result = await checkConnection();
+    return {
+      ok: true,
+      durationMs: result.durationMs,
+      firstTokenMs: result.firstTokenMs,
+      model: result.model,
+      provider: result.provider,
+      answer: result.answer,
+      cost: result.usage.cost ?? null,
+    };
+  } catch (error) {
+    return aiFailure(error);
+  }
 }
