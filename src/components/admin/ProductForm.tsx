@@ -86,6 +86,7 @@ export function ProductForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState<Product>(initial);
+  const [importedThumbs, setImportedThumbs] = useState<Record<string, string>>({});
   const [cars, setCars] = useState<ProductCar[]>(initialCars);
   const [problems, setProblems] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -140,7 +141,10 @@ export function ProductForm({
   const titleChanges = (title: string): Partial<Product> =>
     creating ? { title, slug: toSlug(title), id: toSlug(title) } : { title };
 
-  type ImportSnapshot = Pick<Product, "title" | "slug" | "id" | "specs" | "description" | "faq">;
+  type ImportSnapshot = Pick<
+    Product,
+    "title" | "slug" | "id" | "specs" | "description" | "faq" | "images"
+  >;
   const importTarget: ImportTarget<ImportSnapshot> = {
     context: {
       categoryName: category?.name,
@@ -148,6 +152,7 @@ export function ProductForm({
       options: aiProduct.options,
       faq: aiProduct.faq,
     },
+    folder,
     snapshot: () => ({
       title: draft.title,
       slug: draft.slug,
@@ -155,11 +160,26 @@ export function ProductForm({
       specs: draft.specs,
       description: draft.description,
       faq: draft.faq,
+      images: draft.images,
     }),
     restore: (snapshot) => patch(snapshot),
     onTitle: (title) => patch(titleChanges(title)),
     onSpecs: (specs) => patch({ specs }),
     onDescription: (description) => patch({ description }),
+    onImages: (images) => {
+      setImportedThumbs((current) => ({
+        ...current,
+        ...Object.fromEntries(images.map((image) => [image.path, image.thumb])),
+      }));
+      setDraft((current) => ({
+        ...current,
+        images: [
+          ...current.images,
+          ...images.map((image) => image.path).filter((path) => !current.images.includes(path)),
+        ],
+      }));
+      setSaved(false);
+    },
     onFaq: (items) => {
       setDraft((current) => ({
         ...current,
@@ -524,7 +544,7 @@ export function ProductForm({
           value={draft.images}
           onChange={(images) => patch({ images })}
           folder={folder}
-          thumbs={thumbs}
+          thumbs={{ ...thumbs, ...importedThumbs }}
           label="Общая галерея"
         />
 

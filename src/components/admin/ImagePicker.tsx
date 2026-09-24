@@ -204,7 +204,7 @@ export function ImagePicker({
               className="group relative h-20 w-20 overflow-hidden rounded-xl border border-brand-100"
             >
               <img
-                src={known[path] ?? guessThumb(path)}
+                src={known[path] ?? thumbs?.[path] ?? guessThumb(path)}
                 alt={path}
                 title={path}
                 className="photo-bed h-full w-full object-contain"

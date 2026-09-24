@@ -1,16 +1,9 @@
 import path from "node:path";
 
-import sharp from "sharp";
-
 import { getAdmin } from "@/lib/auth";
-import {
-  ACCEPTED,
-  processImage,
-  safeImagePath,
-} from "@/lib/image-pipeline.mjs";
-import { getImage, saveImage } from "@/lib/images";
+import { ACCEPTED } from "@/lib/image-pipeline.mjs";
+import { storeImage } from "@/lib/image-store";
 import { revalidateImages } from "@/lib/revalidate";
-import type { ImageEntry } from "@/lib/image-types";
 
 /**
  * Загрузка фотографий из админки.
@@ -68,7 +61,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const outDir = path.join(process.cwd(), "public", "img");
   const uploaded: Uploaded[] = [];
   const problems: string[] = [];
 
@@ -84,46 +76,19 @@ export async function POST(request: Request) {
       continue;
     }
 
-    // Имя приходит из браузера, поэтому приводится к безопасному виду —
-    // «../../» в пути здесь вполне может оказаться.
-    let relativePath = safeImagePath(folder, file.name);
-
-    // Одинаковые имена — обычное дело: с телефона все снимки называются
-    // IMG_0001. Молча затирать чужое фото нельзя, поэтому добавляем суффикс.
-    const renamed = Boolean(getImage(relativePath));
-    if (renamed) {
-      const extension2 = path.extname(relativePath);
-      const base = relativePath.slice(0, -extension2.length);
-      let counter = 2;
-      while (getImage(`${base}-${counter}${extension2}`)) counter += 1;
-      relativePath = `${base}-${counter}${extension2}`;
-    }
-
     try {
-      const source = Buffer.from(await file.arrayBuffer());
-      const result = await processImage({
-        source,
-        relativePath,
-        outDir,
-        sharp,
+      const stored = await storeImage({
+        source: Buffer.from(await file.arrayBuffer()),
+        folder,
+        filename: file.name,
       });
 
-      if (!result) {
+      if (!stored) {
         problems.push(`${file.name}: не похоже на картинку`);
         continue;
       }
 
-      const entry = result.entry as ImageEntry;
-      saveImage(relativePath, entry, result.bytes);
-
-      uploaded.push({
-        path: relativePath,
-        // Миниатюра для интерфейса: самая узкая версия webp.
-        thumb: entry.sources.webp?.[0]?.url ?? entry.fallback,
-        w: entry.w,
-        h: entry.h,
-        renamed,
-      });
+      uploaded.push(stored);
     } catch (error) {
       console.error("[upload]", file.name, error);
       problems.push(`${file.name}: ${(error as Error).message}`);

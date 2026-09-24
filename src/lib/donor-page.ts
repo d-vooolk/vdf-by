@@ -5,6 +5,10 @@ const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const MAX_LINES = 500;
 const MAX_LINE_LENGTH = 1200;
+const MAX_IMAGE_CANDIDATES = 40;
+const IMAGE_PATH = /\.(?:jpe?g|png|webp|avif)$/i;
+const NOT_PRODUCT_IMAGE =
+  /logo|icon|sprite|favicon|banner|avatar|social|placeholder|no[-_]?(?:image|photo)|loader|flag|payment|rating|star|arrow/i;
 const TIMEOUT_MS = 20000;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
@@ -16,6 +20,7 @@ export interface DonorPage {
   title: string;
   structuredDescription: string;
   lines: string[];
+  images: string[];
 }
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -88,7 +93,7 @@ function isPrivateAddress(address: string): boolean {
   );
 }
 
-async function assertPublicUrl(raw: string): Promise<URL> {
+export async function assertPublicUrl(raw: string): Promise<URL> {
   let url: URL;
   try {
     url = new URL(raw.trim());
@@ -184,6 +189,8 @@ async function download(raw: string): Promise<{ url: string; html: string }> {
 interface StructuredProduct {
   name?: string;
   description?: string;
+  image?: unknown;
+  sku?: unknown;
 }
 
 function findProduct(node: unknown): StructuredProduct | null {
@@ -245,6 +252,119 @@ function visibleLines(html: string): string[] {
   return lines;
 }
 
+function structuredImages(image: unknown): string[] {
+  if (!image) return [];
+  if (typeof image === "string") return [image];
+  if (Array.isArray(image)) return image.flatMap(structuredImages);
+  if (typeof image === "object") {
+    const record = image as Record<string, unknown>;
+    return structuredImages(record.contentUrl ?? record.url);
+  }
+  return [];
+}
+
+function largestFromSrcset(srcset: string): string {
+  let best = "";
+  let bestSize = -1;
+  for (const part of srcset.split(",")) {
+    const [candidate, descriptor = ""] = part.trim().split(/\s+/);
+    const size = parseFloat(descriptor) || 0;
+    if (candidate && size >= bestSize) {
+      best = candidate;
+      bestSize = size;
+    }
+  }
+  return best;
+}
+
+function attribute(tag: string, name: string): string {
+  const match = tag.match(new RegExp(`\\s${name}=["']([^"']+)["']`, "i"));
+  return match ? decodeEntities(match[1]) : "";
+}
+
+function stemOf(pathname: string): string {
+  return (pathname.split("/").pop() ?? "")
+    .toLowerCase()
+    .replace(/\.(?:jpe?g|png|webp|avif)/g, "")
+    .replace(/[-_.]?\d*$/, "");
+}
+
+function commonPrefix(a: string, b: string): number {
+  let length = 0;
+  while (length < a.length && a[length] === b[length]) length += 1;
+  return length;
+}
+
+function folderOf(pathname: string): string {
+  return pathname.slice(0, pathname.lastIndexOf("/") + 1);
+}
+
+function belongsToProduct(candidate: URL, primary: URL[], sku: string): boolean {
+  if (sku.length >= 4 && candidate.pathname.toLowerCase().includes(sku)) return true;
+  const stem = stemOf(candidate.pathname);
+  return primary.some(
+    (main) =>
+      main.host === candidate.host &&
+      (folderOf(main.pathname) === folderOf(candidate.pathname) ||
+        commonPrefix(stemOf(main.pathname), stem) >= 5),
+  );
+}
+
+function imageCandidates(html: string, base: string, product: StructuredProduct | null): string[] {
+  const primaryRaw: string[] = [...structuredImages(product?.image)];
+  for (const [tag] of html.matchAll(/<meta\b[^>]+(?:og:image|twitter:image)[^>]*>/gi)) {
+    primaryRaw.push(attribute(tag, "content"));
+  }
+  const raw: string[] = [...primaryRaw];
+  for (const [, href] of html.matchAll(/<a\b[^>]+href=["']([^"']+)["']/gi)) {
+    raw.push(decodeEntities(href));
+  }
+  for (const [tag] of html.matchAll(/<(?:img|source)\b[^>]*>/gi)) {
+    for (const name of ["data-zoom-image", "data-large", "data-full", "data-original", "data-src", "data-lazy", "src"]) {
+      raw.push(attribute(tag, name));
+    }
+    for (const name of ["data-srcset", "srcset"]) {
+      const srcset = attribute(tag, name);
+      if (srcset) raw.push(largestFromSrcset(srcset));
+    }
+  }
+  for (const [, found] of html.matchAll(
+    /["'(]((?:https?:)?(?:\/|\\u002F|\\\/)[^"'()\s<>]+?\.(?:jpe?g|png|webp|avif))(?=["'?)#])/gi,
+  )) {
+    raw.push(found.replace(/\\u002F/gi, "/").replace(/\\\//g, "/"));
+  }
+
+  const toUrl = (candidate: string): URL | null => {
+    if (!candidate) return null;
+    try {
+      const url = new URL(candidate, base);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+      if (!IMAGE_PATH.test(url.pathname) || NOT_PRODUCT_IMAGE.test(url.pathname)) return null;
+      url.hash = "";
+      return url;
+    } catch {
+      return null;
+    }
+  };
+
+  const primary = primaryRaw.map(toUrl).filter((url): url is URL => url !== null);
+  const sku = typeof product?.sku === "string" ? product.sku.trim().toLowerCase() : "";
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const candidate of raw) {
+    const url = toUrl(candidate);
+    if (!url) continue;
+    const key = url.toString();
+    if (seen.has(key)) continue;
+    if (primary.length && !belongsToProduct(url, primary, sku)) continue;
+    seen.add(key);
+    result.push(key);
+    if (result.length >= MAX_IMAGE_CANDIDATES) break;
+  }
+  return result;
+}
+
 export async function fetchDonorPage(raw: string): Promise<DonorPage> {
   const { url, html } = await download(raw);
   const product = structuredProduct(html);
@@ -266,5 +386,6 @@ export async function fetchDonorPage(raw: string): Promise<DonorPage> {
     title,
     structuredDescription: product?.description ? stripTags(product.description) : "",
     lines,
+    images: imageCandidates(html, url, product),
   };
 }

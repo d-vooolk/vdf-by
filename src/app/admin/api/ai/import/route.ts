@@ -9,7 +9,8 @@ import {
   parseFaq,
   promptFor,
 } from "@/lib/ai";
-import { extractDonorContent } from "@/lib/ai-import";
+import { extractDonorContent, WRITE_FROM_TITLE } from "@/lib/ai-import";
+import { downloadDonorImages, type DonorImagesResult } from "@/lib/donor-images";
 import { DonorPageError, fetchDonorPage } from "@/lib/donor-page";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,8 @@ interface ImportRequest {
   brand?: unknown;
   options?: unknown;
   faq?: unknown;
+  photos?: unknown;
+  folder?: unknown;
 }
 
 const text = (value: unknown) => (typeof value === "string" ? value : "");
@@ -40,6 +43,8 @@ export async function POST(request: Request) {
   const url = text(input.url).trim();
   if (!url) return Response.json({ error: "Вставьте ссылку на товар" }, { status: 400 });
 
+  const withPhotos = input.photos === true;
+  const folder = text(input.folder) || "misc/new";
   const categoryName = text(input.categoryName) || undefined;
   const brand = text(input.brand) || undefined;
   const options = Array.isArray(input.options) ? input.options.map(text).filter(Boolean) : [];
@@ -59,16 +64,33 @@ export async function POST(request: Request) {
         if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
 
+      let photos: Promise<DonorImagesResult> | null = null;
+      const finishPhotos = async () => {
+        if (!photos) return;
+        send({ stage: "photos" });
+        const result = await photos;
+        photos = null;
+        if (result.images.length) send({ images: result.images });
+        if (result.problems.length) send({ photoWarning: result.problems.join("; ") });
+      };
+
       try {
         send({ stage: "fetch" });
         const page = await fetchDonorPage(url);
         send({ title: page.title });
+        if (withPhotos) {
+          photos = downloadDonorImages(page.images, folder, page.url).catch((error) => ({
+            images: [],
+            problems: [`Фото не загрузились: ${messageOf(error)}`],
+          }));
+        }
 
         send({ stage: "extract" });
         const content = await extractDonorContent(page);
         send({ specs: content.specs });
 
-        send({ stage: "rewrite" });
+        const fromTitle = !content.description;
+        send({ stage: "rewrite", fromTitle });
         const product = {
           title: page.title,
           description: content.description,
@@ -77,9 +99,10 @@ export async function POST(request: Request) {
           specs: content.specs,
           options,
         };
+        const rewritePrompt = promptFor("rewrite", undefined) + (fromTitle ? WRITE_FROM_TITLE : "");
         let draft = "";
         for await (const piece of completeStream(
-          promptFor("rewrite", undefined),
+          rewritePrompt,
           describeProduct(product, false),
           "rewrite",
         )) {
@@ -104,9 +127,11 @@ export async function POST(request: Request) {
           send({ warning: `Вопросы-ответы не получились: ${messageOf(error)}` });
         }
 
+        await finishPhotos();
         send({ done: true });
       } catch (error) {
         send({ error: messageOf(error) });
+        await finishPhotos().catch(() => {});
       } finally {
         if (!cancelled) controller.close();
       }

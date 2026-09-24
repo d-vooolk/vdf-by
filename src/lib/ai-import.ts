@@ -83,8 +83,9 @@ export async function extractDonorContent(page: DonorPage): Promise<DonorContent
   const answer = parseAnswer(await complete(EXTRACT_PROMPT, request, "import"));
   const description =
     descriptionFromRanges(answer.description, page.lines) || page.structuredDescription;
-  if (!description.trim()) {
-    throw new AiError("На странице не нашлось описания товара");
-  }
-  return { description, specs: cleanSpecs(answer.specs) };
+  return { description: description.trim(), specs: cleanSpecs(answer.specs) };
 }
+
+export const WRITE_FROM_TITLE = `
+
+Исходного описания нет. Напиши описание товара с нуля по названию, разделу, бренду и характеристикам. Опирайся только на эти данные и общеизвестные свойства такого типа товаров: не придумывай цифр, совместимости, комплектации и гарантии, которых нет в данных. Требования к стилю, объёму и формату — те же.`;
