@@ -54,7 +54,7 @@ function TileRow({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8 lg:grid-cols-12">
       {items.map((category) => {
         const selected = category.id === value;
         return (
@@ -64,7 +64,7 @@ function TileRow({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(category.id)}
-            className={`flex flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition-colors ${
+            className={`flex flex-col overflow-hidden rounded-lg border-2 bg-white text-left transition-colors ${
               selected
                 ? "border-brand-700 ring-2 ring-brand-700/20"
                 : "border-brand-100 hover:border-brand-300"
@@ -79,18 +79,18 @@ function TileRow({
                   className="h-full w-full object-contain"
                 />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-brand-200">
+                <span className="flex h-full w-full items-center justify-center text-base font-semibold text-brand-200">
                   {category.name.charAt(0)}
                 </span>
               )}
             </span>
             <span
-              className={`block px-2 py-1.5 text-xs leading-tight ${
+              className={`block px-1 py-1 text-[11px] leading-tight break-words hyphens-auto ${
                 selected ? "font-semibold text-brand-900" : "text-brand-700"
               }`}
             >
               {category.name}
-              <span className="ml-1 text-brand-300">{category.count}</span>
+              <span className="ml-0.5 text-brand-300">{category.count}</span>
             </span>
           </button>
         );
