@@ -8,6 +8,7 @@ import {
   type Product,
   type Site,
 } from "./schema";
+import { hasAnyInStock } from "./variant";
 
 /**
  * Чтение каталога из базы.
@@ -108,7 +109,10 @@ function load(): Catalog {
     return product;
   });
 
-  cache = { site, categories, products, version };
+  const available = products.filter(hasAnyInStock);
+  const unavailable = products.filter((product) => !hasAnyInStock(product));
+
+  cache = { site, categories, products: [...available, ...unavailable], version };
   return cache;
 }
 

@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { ContactButtons } from "@/components/ContactButtons";
 import { INFO_PAGES } from "@/components/Header";
-import { HeadlightIcon, PhoneIcon } from "@/components/icons";
+import { HomeLink } from "@/components/HomeLink";
+import { PhoneIcon } from "@/components/icons";
 import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
@@ -21,14 +22,19 @@ export function Footer() {
     <footer className="mt-24 border-t border-brand-100 bg-brand-50/50">
       <div className="container-page grid gap-10 py-16 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="mb-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-control bg-brand-900 text-accent-400">
-              <HeadlightIcon className="h-5 w-5" />
-            </span>
-            <span className="text-[15px] font-semibold text-brand-900">
-              {site.name}
-            </span>
-          </div>
+          <HomeLink
+            className="mb-4 inline-flex items-center transition-opacity hover:opacity-80"
+            ariaLabel={`${site.name} — на главную`}
+          >
+            <img
+              src="/brand/logo.png"
+              alt={site.name}
+              width={600}
+              height={100}
+              loading="lazy"
+              className="h-6 w-auto"
+            />
+          </HomeLink>
           <p className="text-sm leading-relaxed text-brand-500">
             {site.tagline}. Подберём комплект под вашу модель авто и проверим
             перед отправкой.

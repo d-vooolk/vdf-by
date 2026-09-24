@@ -59,7 +59,9 @@ export function productSnippet({
   const price = formatPrice(range.min, currencySymbol);
   const priceLabel = range.varies ? `от ${price}` : price;
 
-  const generatedTitle = `${product.title} — ${priceLabel}`;
+  const titleWithPrice = `${product.title} — ${priceLabel}`;
+  const generatedTitle =
+    titleWithPrice.length <= TITLE_LIMIT ? titleWithPrice : product.title;
 
   const lead = firstParagraph(product.description) || product.title;
   const tails = [

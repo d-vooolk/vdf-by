@@ -3,7 +3,7 @@
 import { join } from "node:path";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import {
   carPathsForProduct,
@@ -48,6 +48,16 @@ import {
   setProductStockQty,
   type SaveResult,
 } from "@/lib/store";
+import {
+  AiError,
+  cleanPlainText,
+  complete,
+  getPrompts,
+  parseFaq,
+  savePrompt,
+  type AiTask,
+} from "@/lib/ai";
+import { LAST_CATEGORY_COOKIE } from "@/lib/admin-prefs";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { getUsdRate, type UsdRate } from "@/lib/rates";
 
@@ -158,6 +168,15 @@ export async function saveProductAction(
     },
     carPathsForProduct(product.id),
   );
+
+  if (!previousId) {
+    (await cookies()).set(LAST_CATEGORY_COOKIE, product.categoryId, {
+      path: "/admin",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  }
 
   return ok();
 }
@@ -489,4 +508,97 @@ export async function deleteCarEntryAction(
 export async function getUsdRateAction(): Promise<UsdRate | null> {
   await requireAdmin();
   return getUsdRate();
+}
+
+export interface AiProductInput {
+  title: string;
+  description: string;
+  categoryName?: string;
+  brand?: string;
+  specs?: Array<{ name: string; value: string }>;
+  options?: string[];
+  faq?: Array<{ q: string; a: string }>;
+  prompt?: string;
+}
+
+export type AiTextResult = { ok: true; text: string } | { ok: false; error: string };
+export type AiFaqResult =
+  | { ok: true; items: Array<{ q: string; a: string }> }
+  | { ok: false; error: string };
+
+const MAX_PROMPT = 8000;
+const MAX_SOURCE = 20000;
+
+function describeProduct(input: AiProductInput, withFaq: boolean): string {
+  const lines = [`Название товара: ${input.title.trim()}`];
+  if (input.categoryName) lines.push(`Раздел каталога: ${input.categoryName}`);
+  if (input.brand?.trim()) lines.push(`Бренд: ${input.brand.trim()}`);
+
+  const specs = (input.specs ?? []).filter((spec) => spec.name.trim() && spec.value.trim());
+  if (specs.length) {
+    lines.push("Характеристики:");
+    for (const spec of specs) lines.push(`- ${spec.name.trim()}: ${spec.value.trim()}`);
+  }
+  if (input.options?.length) lines.push(`Варианты: ${input.options.join("; ")}`);
+
+  lines.push("", "Описание:", input.description.trim().slice(0, MAX_SOURCE) || "(описания нет)");
+
+  const faq = (input.faq ?? []).filter((item) => item.q.trim());
+  if (withFaq && faq.length) {
+    lines.push("", "Эти вопросы уже есть на странице, не повторяй их:");
+    for (const item of faq) lines.push(`- ${item.q.trim()}`);
+  }
+  return lines.join("\n");
+}
+
+function promptFor(task: AiTask, custom: string | undefined): string {
+  const text = custom?.trim().slice(0, MAX_PROMPT);
+  return text || getPrompts()[task];
+}
+
+function aiFailure(error: unknown): { ok: false; error: string } {
+  if (error instanceof AiError) return { ok: false, error: error.message };
+  console.error("[ai]", error);
+  return { ok: false, error: "Не получилось: внутренняя ошибка, подробности в логе сервера" };
+}
+
+export async function aiRewriteAction(input: AiProductInput): Promise<AiTextResult> {
+  await requireAdmin();
+  if (!input.title?.trim()) return { ok: false, error: "Сначала заполните название" };
+  if (!input.description?.trim()) {
+    return { ok: false, error: "Вставьте исходное описание — переписывать нечего" };
+  }
+
+  try {
+    const answer = await complete(promptFor("rewrite", input.prompt), describeProduct(input, false));
+    return { ok: true, text: cleanPlainText(answer) };
+  } catch (error) {
+    return aiFailure(error);
+  }
+}
+
+export async function aiFaqAction(input: AiProductInput): Promise<AiFaqResult> {
+  await requireAdmin();
+  if (!input.title?.trim()) return { ok: false, error: "Сначала заполните название" };
+
+  try {
+    const answer = await complete(promptFor("faq", input.prompt), describeProduct(input, true));
+    const items = parseFaq(answer);
+    if (!items.length) {
+      return { ok: false, error: "Нейросеть не предложила ни одного вопроса — попробуйте ещё раз" };
+    }
+    return { ok: true, items };
+  } catch (error) {
+    return aiFailure(error);
+  }
+}
+
+export async function saveAiPromptAction(
+  task: AiTask,
+  prompt: string | null,
+): Promise<Record<AiTask, string>> {
+  await requireAdmin();
+  if (task !== "rewrite" && task !== "faq") return getPrompts();
+  savePrompt(task, typeof prompt === "string" ? prompt.slice(0, MAX_PROMPT) : null);
+  return getPrompts();
 }

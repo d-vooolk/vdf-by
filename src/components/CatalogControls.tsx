@@ -57,6 +57,7 @@ export function CatalogControls({
 
   const orderById = useMemo(() => {
     const sorted = [...items].sort((a, b) => {
+      if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
       switch (sort) {
         case "price-asc":
           return a.price - b.price;
@@ -65,7 +66,6 @@ export function CatalogControls({
         case "name":
           return (titles[a.order] ?? "").localeCompare(titles[b.order] ?? "", "ru");
         default:
-          if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
           return a.order - b.order;
       }
     });

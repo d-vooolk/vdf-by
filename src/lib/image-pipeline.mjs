@@ -19,7 +19,7 @@ import path from "node:path";
 export const WIDTHS = [400, 800, 1200, 1600];
 
 const FORMATS = [
-  { ext: "avif", options: { quality: 52, effort: 4 } },
+  { ext: "avif", options: { quality: 52, effort: 3 } },
   { ext: "webp", options: { quality: 78, effort: 4 } },
 ];
 
@@ -90,59 +90,72 @@ function outputName(relativePath, suffix) {
  */
 export async function processImage({ source, relativePath, outDir, sharp }) {
   const meta = await sharp(source, { failOn: "error" }).metadata();
-  const width = meta.width ?? 0;
-  const height = meta.height ?? 0;
-  if (!width || !height) return null;
+  if (!meta.width || !meta.height) return null;
 
-  // Не растягиваем мелкие фото: 1200-я версия картинки шириной 900px —
-  // это просто тот же файл, только тяжелее.
-  const widths = WIDTHS.filter((w) => w <= width);
-  if (!widths.length) widths.push(width);
+  const upright = sharp(source, { failOn: "error" }).rotate().toColourspace("srgb");
+  const { data: pixels, info } = await upright
+    .resize({ width: Math.max(...WIDTHS, FALLBACK_WIDTH), withoutEnlargement: true })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  const entry = { w: width, h: height, blur: "", sources: {}, fallback: "" };
-  let bytes = 0;
+  const orientedWidth = (meta.orientation ?? 1) >= 5 ? meta.height : meta.width;
+  const orientedHeight = (meta.orientation ?? 1) >= 5 ? meta.width : meta.height;
 
-  for (const format of FORMATS) {
-    const variants = [];
-    for (const w of widths) {
+  const fromPixels = () =>
+    sharp(pixels, {
+      raw: { width: info.width, height: info.height, channels: info.channels },
+    });
+
+  const widths = WIDTHS.filter((w) => w <= info.width);
+  if (!widths.length) widths.push(info.width);
+
+  const writeVariant = async (relativeOut, width, encode) => {
+    const outPath = path.join(/*turbopackIgnore: true*/ outDir, relativeOut);
+    await fsp.mkdir(path.dirname(outPath), { recursive: true });
+    const result = await encode(
+      fromPixels().resize({ width, withoutEnlargement: true }),
+    ).toFile(outPath);
+    return result.size ?? 0;
+  };
+
+  const jobs = FORMATS.flatMap((format) =>
+    widths.map((w) => {
       const relativeOut = `${outputName(relativePath, w)}.${format.ext}`;
-      // turbopackIgnore: сборщик видит путь, собранный на ходу, и на всякий
-      // случай тянет в трассировку весь проект. Здесь это не нужно: outDir
-      // всегда public/img, и внутрь него мы только пишем.
-      const outPath = path.join(/*turbopackIgnore: true*/ outDir, relativeOut);
-      await fsp.mkdir(path.dirname(outPath), { recursive: true });
-      const info = await sharp(source)
-        .rotate() // учесть EXIF-поворот, иначе фото с телефона лежат на боку
-        .resize({ width: w, withoutEnlargement: true })
-        [format.ext](format.options)
-        .toFile(outPath);
-      bytes += info.size ?? 0;
-      variants.push({ w, url: `/img/${relativeOut}` });
-    }
-    entry.sources[format.ext] = variants;
+      return {
+        format: format.ext,
+        w,
+        url: `/img/${relativeOut}`,
+        run: () =>
+          writeVariant(relativeOut, w, (image) => image[format.ext](format.options)),
+      };
+    }),
+  );
+
+  const fallbackWidth = Math.min(FALLBACK_WIDTH, info.width);
+  const fallbackRelative = `${outputName(relativePath, fallbackWidth)}.jpg`;
+
+  const [sizes, fallbackSize, blur] = await Promise.all([
+    Promise.all(jobs.map((job) => job.run())),
+    writeVariant(fallbackRelative, fallbackWidth, (image) =>
+      image.jpeg({ quality: 80, mozjpeg: true }),
+    ),
+    fromPixels().resize({ width: 16 }).webp({ quality: 30 }).toBuffer(),
+  ]);
+
+  const entry = {
+    w: orientedWidth,
+    h: orientedHeight,
+    blur: `data:image/webp;base64,${blur.toString("base64")}`,
+    sources: {},
+    fallback: `/img/${fallbackRelative}`,
+  };
+  for (const format of FORMATS) {
+    entry.sources[format.ext] = jobs
+      .filter((job) => job.format === format.ext)
+      .map((job) => ({ w: job.w, url: job.url }));
   }
 
-  const fallbackWidth = Math.min(FALLBACK_WIDTH, width);
-  const fallbackRelative = `${outputName(relativePath, fallbackWidth)}.jpg`;
-  const fallbackPath = path.join(/*turbopackIgnore: true*/ outDir, fallbackRelative);
-  await fsp.mkdir(path.dirname(fallbackPath), { recursive: true });
-  const fallbackInfo = await sharp(source)
-    .rotate()
-    .resize({ width: fallbackWidth, withoutEnlargement: true })
-    .jpeg({ quality: 80, mozjpeg: true })
-    .toFile(fallbackPath);
-  bytes += fallbackInfo.size ?? 0;
-  entry.fallback = `/img/${fallbackRelative}`;
-
-  // Размытая заглушка инлайном в HTML: убирает «прыжок» при загрузке фото,
-  // а значит и CLS — один из факторов ранжирования.
-  const blur = await sharp(source)
-    .rotate()
-    .resize({ width: 16 })
-    .webp({ quality: 30 })
-    .toBuffer();
-  entry.blur = `data:image/webp;base64,${blur.toString("base64")}`;
-
+  const bytes = sizes.reduce((sum, size) => sum + size, 0) + fallbackSize;
   return { entry, bytes };
 }
 

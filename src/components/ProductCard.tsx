@@ -66,7 +66,9 @@ export function ProductCard({
           alt=""
           sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 280px"
           priority={priority}
-          className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+          className={`h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] ${
+            inStock ? "" : "opacity-60 grayscale"
+          }`}
         />
         {product.badge && inStock && (
           <span className="badge absolute top-3 left-3 bg-accent-400 text-brand-900">

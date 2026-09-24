@@ -40,7 +40,7 @@ export function MediaGrid({ items: initial }: { items: MediaItem[] }) {
     for (const file of Array.from(files)) form.append("files", file);
 
     try {
-      const response = await fetch("/admin/api/upload", {
+      const response = await fetch("/admin/api/upload/", {
         method: "POST",
         body: form,
       });

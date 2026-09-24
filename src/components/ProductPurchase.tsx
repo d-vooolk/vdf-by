@@ -182,6 +182,14 @@ export function ProductPurchase({
       : 0;
   const setIndex = (next: number) => setActive({ key: galleryKey, index: next });
 
+  const videos = product.videos ?? [];
+  const [videoIndex, setVideoIndex] = useState<number | null>(null);
+  const activeVideo = videoIndex === null ? null : (videos[videoIndex] ?? null);
+  const showImage = (position: number) => {
+    setVideoIndex(null);
+    setIndex(position);
+  };
+
   const mainPath = gallery[index];
   const mainEntry = images[mainPath] ?? null;
   const altText = `${product.title}${variant.label ? `, ${variant.label}` : ""}`;
@@ -260,6 +268,20 @@ export function ProductPurchase({
       <div>
         {/* Ни серой подложки, ни рамки, ни внутреннего отступа: вместе они
             читались как паспарту вокруг снимка, а не как фото товара. */}
+        {activeVideo ? (
+          <div className="relative aspect-square max-h-[min(26rem,48vh)] w-full overflow-hidden rounded-card bg-brand-900">
+            <video
+              key={activeVideo.src}
+              src={`/video/${activeVideo.src}`}
+              poster={activeVideo.poster ? `/video/${activeVideo.poster}` : undefined}
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
         <button
           type="button"
           onClick={() => mainEntry && setLightbox(true)}
@@ -279,8 +301,9 @@ export function ProductPurchase({
             </span>
           )}
         </button>
+        )}
 
-        {gallery.length > 1 && (
+        {gallery.length + videos.length > 1 && (
           <div
             className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-7"
             role="tablist"
@@ -291,13 +314,13 @@ export function ProductPurchase({
                 key={path}
                 type="button"
                 role="tab"
-                aria-selected={position === index}
+                aria-selected={videoIndex === null && position === index}
                 aria-label={`Фото ${position + 1} из ${gallery.length}`}
-                onClick={() => setIndex(position)}
+                onClick={() => showImage(position)}
                 // У миниатюр рамка остаётся: она здесь не украшение, а
                 // единственный признак того, какая из них выбрана.
                 className={`aspect-square overflow-hidden rounded-lg border-2 bg-white transition-colors ${
-                  position === index
+                  videoIndex === null && position === index
                     ? "border-brand-600"
                     : "border-brand-100 hover:border-brand-300"
                 }`}
@@ -312,6 +335,35 @@ export function ProductPurchase({
                 ) : (
                   <ImagePlaceholder className="h-full w-full" />
                 )}
+              </button>
+            ))}
+            {videos.map((video, position) => (
+              <button
+                key={video.src}
+                type="button"
+                role="tab"
+                aria-selected={videoIndex === position}
+                aria-label={`Видео ${position + 1} из ${videos.length}`}
+                onClick={() => setVideoIndex(position)}
+                className={`relative aspect-square overflow-hidden rounded-lg border-2 bg-brand-900 transition-colors ${
+                  videoIndex === position
+                    ? "border-brand-600"
+                    : "border-brand-100 hover:border-brand-300"
+                }`}
+              >
+                {video.poster && (
+                  <img
+                    src={`/video/${video.poster}`}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover opacity-80"
+                  />
+                )}
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 pl-0.5 text-xs text-brand-900">
+                    ▶
+                  </span>
+                </span>
               </button>
             ))}
           </div>

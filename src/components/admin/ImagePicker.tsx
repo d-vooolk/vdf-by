@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { runPool, sendWithProgress } from "@/lib/upload-client";
 
 /**
  * Выбор фотографий: загрузка новых и подбор уже загруженных.
@@ -19,6 +20,25 @@ import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 export const UploadTrackerContext = createContext<
   ((delta: number) => void) | null
 >(null);
+
+const PARALLEL_UPLOADS = 2;
+
+export type QueueStage = "waiting" | "sending" | "processing" | "done" | "failed";
+
+export interface QueueItem {
+  name: string;
+  size: number;
+  loaded: number;
+  stage: QueueStage;
+  processed?: number;
+  uploadShare?: number;
+}
+
+interface UploadReply {
+  error?: string;
+  uploaded?: Array<{ path: string; thumb: string }>;
+  problems?: string[];
+}
 
 export interface MediaItem {
   path: string;
@@ -56,6 +76,7 @@ export function ImagePicker({
 }: ImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
   const trackUpload = useContext(UploadTrackerContext);
@@ -79,43 +100,80 @@ export function ImagePicker({
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
+    const picked = Array.from(files).slice(0, max - value.length);
+    if (!picked.length) return;
+
     setUploading(true);
     setProblems([]);
+    setQueue(
+      picked.map((file) => ({
+        name: file.name,
+        size: file.size,
+        loaded: 0,
+        stage: "waiting",
+      })),
+    );
 
-    const form = new FormData();
-    form.set("folder", folder);
-    for (const file of Array.from(files).slice(0, max - value.length)) {
-      form.append("files", file);
-    }
-
-    try {
-      const response = await fetch("/admin/api/upload", {
-        method: "POST",
-        body: form,
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setProblems([data.error ?? `Сервер ответил ${response.status}`]);
-        return;
-      }
-
-      const uploadedItems: Array<{ path: string; thumb: string }> =
-        data.uploaded ?? [];
-
-      remember(
-        Object.fromEntries(uploadedItems.map((item) => [item.path, item.thumb])),
+    const updateItem = (index: number, changes: Partial<QueueItem>) =>
+      setQueue((current) =>
+        current.map((item, i) => (i === index ? { ...item, ...changes } : item)),
       );
 
-      const added = uploadedItems.map((item) => item.path);
-      if (added.length) onChange([...value, ...added].slice(0, max));
-      if (data.problems?.length) setProblems(data.problems);
-    } catch (error) {
-      setProblems([(error as Error).message]);
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+    const results: Array<{ path: string; thumb: string } | null> = picked.map(
+      () => null,
+    );
+    const failures: string[] = [];
+
+    await runPool(picked, PARALLEL_UPLOADS, async (file, index) => {
+      const form = new FormData();
+      form.set("folder", folder);
+      form.append("files", file);
+      updateItem(index, { stage: "sending" });
+
+      try {
+        const response = await sendWithProgress<UploadReply>(
+          "/admin/api/upload/",
+          form,
+          (progress) =>
+            updateItem(
+              index,
+              progress.sent
+                ? { loaded: file.size, stage: "processing" }
+                : { loaded: Math.min(progress.loaded, file.size) },
+            ),
+        );
+
+        if (response.status >= 400) {
+          failures.push(
+            `${file.name}: ${response.data.error ?? `сервер ответил ${response.status}`}`,
+          );
+          updateItem(index, { stage: "failed" });
+          return;
+        }
+
+        const item = response.data.uploaded?.[0];
+        if (item) results[index] = { path: item.path, thumb: item.thumb };
+        failures.push(...(response.data.problems ?? []));
+        updateItem(index, { stage: item ? "done" : "failed" });
+      } catch (error) {
+        failures.push(`${file.name}: ${(error as Error).message}`);
+        updateItem(index, { stage: "failed" });
+      }
+    });
+
+    const uploadedItems = results.filter(
+      (item): item is { path: string; thumb: string } => item !== null,
+    );
+    remember(
+      Object.fromEntries(uploadedItems.map((item) => [item.path, item.thumb])),
+    );
+    if (uploadedItems.length) {
+      onChange([...value, ...uploadedItems.map((item) => item.path)].slice(0, max));
     }
+    setProblems(failures);
+    setUploading(false);
+    setQueue([]);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
   const move = (from: number, to: number) => {
@@ -204,7 +262,7 @@ export function ImagePicker({
           {uploading ? (
             <>
               <SpinnerIcon className="h-4 w-4 animate-spin" />
-              Обрабатываем…
+              Загружаем…
             </>
           ) : (
             "Загрузить с компьютера"
@@ -230,6 +288,8 @@ export function ImagePicker({
         />
       </div>
 
+      {queue.length > 0 && <UploadQueue items={queue} />}
+
       {problems.length > 0 && (
         <ul className="mt-2 space-y-1">
           {problems.map((problem) => (
@@ -254,6 +314,89 @@ export function ImagePicker({
           }}
           limit={max - value.length}
         />
+      )}
+    </div>
+  );
+}
+
+const STAGE_LABEL: Record<QueueStage, string> = {
+  waiting: "в очереди",
+  sending: "загрузка",
+  processing: "обработка",
+  done: "готово",
+  failed: "ошибка",
+};
+
+export function UploadQueue({ items }: { items: QueueItem[] }) {
+  const total = items.reduce((sum, item) => sum + item.size, 0) || 1;
+  const finished = items.filter(
+    (item) => item.stage === "done" || item.stage === "failed",
+  ).length;
+  const weight = (item: QueueItem) => {
+    const share = item.uploadShare ?? 0.9;
+    if (item.stage === "done" || item.stage === "failed") return item.size;
+    if (item.stage === "processing") {
+      return item.size * (share + (1 - share) * (item.processed ?? 0));
+    }
+    return item.loaded * share;
+  };
+  const percent = Math.round(
+    (items.reduce((sum, item) => sum + weight(item), 0) / total) * 100,
+  );
+  const transcoding = items.some(
+    (item) => item.stage === "processing" && item.processed !== undefined,
+  );
+
+  return (
+    <div className="mt-3 rounded-xl border border-brand-100 bg-brand-50/60 p-3" aria-live="polite">
+      <div className="mb-1.5 flex items-center justify-between text-xs text-brand-600">
+        <span>
+          Загружено {finished} из {items.length}
+          {transcoding && " · перекодируем видео, можно подождать пару минут"}
+        </span>
+        <span className="tnum font-semibold">{percent}%</span>
+      </div>
+      <div
+        className="h-2 overflow-hidden rounded-full bg-brand-100"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
+        <div
+          className="h-full rounded-full bg-brand-700 transition-[width] duration-300"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      {items.length > 1 && (
+        <ul className="mt-2 space-y-1">
+          {items.map((item, index) => {
+            const itemPercent =
+              item.stage === "sending"
+                ? Math.round((item.loaded / (item.size || 1)) * 100)
+                : item.stage === "processing" && item.processed !== undefined
+                  ? Math.round(item.processed * 100)
+                  : null;
+            return (
+              <li key={`${item.name}-${index}`} className="flex items-center gap-2 text-[11px] text-brand-500">
+                <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                <span
+                  className={`tnum shrink-0 ${
+                    item.stage === "failed"
+                      ? "text-red-700"
+                      : item.stage === "done"
+                        ? "text-green-700"
+                        : ""
+                  }`}
+                >
+                  {STAGE_LABEL[item.stage]}
+                  {itemPercent !== null && ` ${itemPercent}%`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

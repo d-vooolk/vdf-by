@@ -11,6 +11,18 @@ import { getImage } from "./images";
  * Размытые заглушки (blur) в результат не попадают: это самая тяжёлая часть
  * записи, а миниатюре в форме она не нужна.
  */
+export function withCategoryThumbs<T extends { image: string | null }>(
+  categories: T[],
+): Array<T & { thumb: string | null }> {
+  const thumbs = thumbsFor(
+    categories.flatMap((category) => (category.image ? [category.image] : [])),
+  );
+  return categories.map((category) => ({
+    ...category,
+    thumb: category.image ? (thumbs[category.image] ?? null) : null,
+  }));
+}
+
 export function thumbsFor(paths: string[]): Record<string, string> {
   const thumbs: Record<string, string> = {};
 

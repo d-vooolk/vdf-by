@@ -4,7 +4,8 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { getUsdRate } from "@/lib/rates";
-import { thumbsFor } from "@/lib/admin-thumbs";
+import { thumbsFor, withCategoryThumbs } from "@/lib/admin-thumbs";
+import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
 import { allProductImages } from "@/lib/variant";
 import { getProductRaw, listBrands, listCategoriesBrief } from "@/lib/store";
 
@@ -36,13 +37,14 @@ export default async function EditProductPage({ params }: PageProps) {
       usdRate={usdRate}
       savedCostPrice={product.costPrice ?? null}
       previousId={product.id}
-      categories={listCategoriesBrief()}
+      categories={withCategoryThumbs(listCategoriesBrief())}
       brands={listBrands()}
       cars={getProductCars(product.id)}
       // Ссылки на миниатюры считаем на сервере: и общая галерея, и галереи
       // опций — иначе форме пришлось бы угадывать их по имени файла.
       thumbs={thumbsFor(allProductImages(product))}
       currencySymbol={site.currencySymbol}
+      ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
     />
   );
 }

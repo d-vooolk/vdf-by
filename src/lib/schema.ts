@@ -29,6 +29,21 @@ const imagePath = z
     "путь к фото: относительно папки ./media, например «lamps/osram/h7-1.jpg»",
   );
 
+export const videoSchema = z.strictObject({
+  src: z
+    .string()
+    .regex(
+      /^[a-z0-9._/-]+\.(mp4|webm)$/,
+      "путь к видео: относительно папки public/video, например «lenses/hella/obzor.mp4»",
+    ),
+  poster: z
+    .string()
+    .regex(/^[a-z0-9._/-]+\.jpg$/, "обложка видео: jpg рядом с роликом")
+    .optional(),
+  w: z.number().int().positive().optional(),
+  h: z.number().int().positive().optional(),
+});
+
 const money = z
   .number()
   .nonnegative("цена не может быть отрицательной")
@@ -102,6 +117,7 @@ export const productSchema = z.strictObject({
   unit: z.string().optional(),
   sku: z.string().optional(),
   images: z.array(imagePath).default([]),
+  videos: z.array(videoSchema).optional(),
   description: z.string().optional(),
   specs: z.array(specSchema).default([]),
   optionGroups: z.array(optionGroupSchema).default([]),
@@ -206,6 +222,7 @@ export type FaqItem = z.infer<typeof faqItemSchema>;
 export type OptionValue = z.infer<typeof optionValueSchema>;
 export type OptionGroup = z.infer<typeof optionGroupSchema>;
 export type Product = z.infer<typeof productSchema>;
+export type ProductVideo = z.infer<typeof videoSchema>;
 export type Category = z.infer<typeof categorySchema>;
 export type Site = z.infer<typeof siteSchema>;
 export type DeliveryMethod = z.infer<typeof deliveryMethodSchema>;

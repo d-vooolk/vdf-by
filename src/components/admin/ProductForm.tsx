@@ -10,10 +10,13 @@ import {
   getUsdRateAction,
   saveProductAction,
 } from "@/app/admin/actions";
+import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
+import { CategoryPicker, type CategoryChoice } from "@/components/admin/CategoryPicker";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker, UploadTrackerContext } from "@/components/admin/ImagePicker";
 import { OptionGroupsEditor } from "@/components/admin/OptionGroupsEditor";
+import { VideoPicker } from "@/components/admin/VideoPicker";
 import {
   Field,
   NumberInput,
@@ -46,13 +49,7 @@ interface ProductFormProps {
   /** Существующий товар или заготовка нового. */
   product: Product;
   /** Список уже в порядке дерева: родитель, следом его подразделы. */
-  categories: Array<{
-    id: string;
-    name: string;
-    parentId: string | null;
-    children: number;
-    carFitment: boolean;
-  }>;
+  categories: Array<CategoryChoice & { carFitment: boolean }>;
   /** Бренды, которые уже есть в каталоге — для подсказки в поле бренда. */
   brands: string[];
   /**
@@ -68,7 +65,10 @@ interface ProductFormProps {
   currencySymbol: string;
   usdRate?: UsdRate | null;
   savedCostPrice?: number | null;
+  ai: AiSettings;
 }
+
+const UNITS = ["комплект", "шт."];
 
 export function ProductForm({
   product: initial,
@@ -80,6 +80,7 @@ export function ProductForm({
   currencySymbol,
   usdRate = null,
   savedCostPrice = null,
+  ai,
 }: ProductFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -117,11 +118,32 @@ export function ProductForm({
     currencySymbol,
   });
 
+  const titleIsAuto =
+    draft.seoTitle === undefined || draft.seoTitle.trim() === snippet.generatedTitle;
+  const descriptionIsAuto =
+    draft.seoDescription === undefined ||
+    draft.seoDescription.trim() === snippet.generatedDescription;
+
+  const aiProduct = {
+    title: draft.title,
+    description: draft.description ?? "",
+    categoryName: category?.name,
+    brand: draft.brand,
+    specs: draft.specs,
+    options: draft.optionGroups.map(
+      (group) => `${group.name}: ${group.values.map((value) => value.label).join(", ")}`,
+    ),
+    faq: draft.faq ?? [],
+  };
+
   const save = () => {
     setProblems([]);
+    const payload = clean(draft);
+    if (titleIsAuto) payload.seoTitle = undefined;
+    if (descriptionIsAuto) payload.seoDescription = undefined;
     startTransition(async () => {
       const result = await saveProductAction(
-        clean(draft),
+        payload,
         previousId,
         cars.map((car) => car.generationId),
       );
@@ -218,31 +240,18 @@ export function ProductForm({
           />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Раздел" required>
-            <select
-              value={draft.categoryId}
-              onChange={(event) => patch({ categoryId: event.target.value })}
-              className="field"
-            >
-              <option value="">— выберите —</option>
-              {categories.map((category) =>
-                category.children > 0 ? (
-                  // Раздел с подразделами — только заголовок группы: товары
-                  // лежат в листьях, на странице такого раздела для них нет
-                  // места, там плитка подразделов.
-                  <option key={category.id} value="" disabled>
-                    {category.name}
-                  </option>
-                ) : (
-                  <option key={category.id} value={category.id}>
-                    {category.parentId ? `   └ ${category.name}` : category.name}
-                  </option>
-                ),
-              )}
-            </select>
-          </Field>
+        <div>
+          <span className="label">
+            Раздел<span className="text-red-600"> *</span>
+          </span>
+          <CategoryPicker
+            categories={categories}
+            value={draft.categoryId}
+            onChange={(categoryId) => patch({ categoryId })}
+          />
+        </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="Бренд"
             hint="Попадает в фильтр каталога. Начните вводить — предложим из уже заведённых"
@@ -297,13 +306,22 @@ export function ProductForm({
             />
           </Field>
 
-          <Field label="Единица" hint="«комплект (2 шт.)», «шт.»">
-            <input
+          <Field label="Единица" hint="Выводится как «цена за …»">
+            <select
               value={draft.unit ?? ""}
               onChange={(event) => patch({ unit: event.target.value })}
               className="field"
-              placeholder="шт."
-            />
+            >
+              <option value="">не указана</option>
+              {UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+              {draft.unit && !UNITS.includes(draft.unit) && (
+                <option value={draft.unit}>{draft.unit}</option>
+              )}
+            </select>
           </Field>
         </div>
 
@@ -451,11 +469,17 @@ export function ProductForm({
             className="field resize-y"
           />
         </Field>
+
+        <RewriteTool
+          settings={ai}
+          product={aiProduct}
+          onRewrite={(description) => patch({ description })}
+        />
       </Section>
 
       {/* ---------------------------- Фото --------------------------- */}
       <Section
-        title="Фотографии"
+        title="Фото и видео"
         note="Первая — главная: она стоит на карточке в каталоге. Если у опции есть свои фото, на странице товара покажутся они."
       >
         <ImagePicker
@@ -464,6 +488,12 @@ export function ProductForm({
           folder={folder}
           thumbs={thumbs}
           label="Общая галерея"
+        />
+
+        <VideoPicker
+          value={draft.videos ?? []}
+          onChange={(videos) => patch({ videos })}
+          folder={folder}
         />
       </Section>
 
@@ -527,44 +557,77 @@ export function ProductForm({
           value={draft.faq ?? []}
           onChange={(faq) => patch({ faq })}
         />
+
+        <FaqTool
+          settings={ai}
+          product={aiProduct}
+          onGenerate={(items) =>
+            patch({
+              faq: [
+                ...(draft.faq ?? []).filter((item) => item.q.trim() || item.a.trim()),
+                ...items,
+              ],
+            })
+          }
+        />
       </Section>
 
       {/* --------------------------- Поиск --------------------------- */}
       <Section
         title="Поиск и SEO"
-        note="Заголовки можно не заполнять — тогда они соберутся из названия и описания."
+        note="Пока текст не правили руками, он собирается сам из названия, цены и описания и обновляется вместе с ними. Если заголовок с ценой длиннее лимита, цена убирается."
       >
-        <Field
-          label="Заголовок для поиска"
-          hint={`${(draft.seoTitle ?? "").trim().length || snippet.generatedTitle.length} / ${TITLE_LIMIT}`}
-        >
-          <input
-            value={draft.seoTitle ?? ""}
-            onChange={(event) => patch({ seoTitle: event.target.value })}
-            placeholder={snippet.generatedTitle}
-            className="field"
-          />
-        </Field>
+        <div>
+          <Field
+            label="Заголовок для поиска"
+            hint={`${snippet.title.length} / ${TITLE_LIMIT}${titleIsAuto ? " · собран автоматически" : ""}`}
+          >
+            <input
+              value={titleIsAuto ? snippet.generatedTitle : (draft.seoTitle ?? "")}
+              onChange={(event) => patch({ seoTitle: event.target.value })}
+              className="field"
+            />
+          </Field>
+          {!titleIsAuto && (
+            <button
+              type="button"
+              onClick={() => patch({ seoTitle: undefined })}
+              className="btn-ghost mt-1 py-1 text-xs"
+            >
+              Вернуть автоматический
+            </button>
+          )}
+        </div>
 
-        <Field
-          label="Описание для поиска"
-          hint={`${(draft.seoDescription ?? "").trim().length || snippet.generatedDescription.length} / ${DESCRIPTION_LIMIT}`}
-        >
-          <textarea
-            value={draft.seoDescription ?? ""}
-            onChange={(event) => patch({ seoDescription: event.target.value })}
-            placeholder={snippet.generatedDescription}
-            rows={3}
-            className="field resize-y"
-          />
-        </Field>
+        <div>
+          <Field
+            label="Описание для поиска"
+            hint={`${snippet.description.length} / ${DESCRIPTION_LIMIT}${descriptionIsAuto ? " · собрано автоматически" : ""}`}
+          >
+            <textarea
+              value={
+                descriptionIsAuto ? snippet.generatedDescription : (draft.seoDescription ?? "")
+              }
+              onChange={(event) => patch({ seoDescription: event.target.value })}
+              rows={3}
+              className="field resize-y"
+            />
+          </Field>
+          {!descriptionIsAuto && (
+            <button
+              type="button"
+              onClick={() => patch({ seoDescription: undefined })}
+              className="btn-ghost mt-1 py-1 text-xs"
+            >
+              Вернуть автоматическое
+            </button>
+          )}
+        </div>
 
         <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-4">
           <p className="mb-2 text-xs font-medium text-brand-400">
             Так страница может выглядеть в выдаче
-            {!draft.seoTitle?.trim() && !draft.seoDescription?.trim()
-              ? " — собрано автоматически"
-              : ""}
+            {titleIsAuto && descriptionIsAuto ? " — собрано автоматически" : ""}
           </p>
           <p className="text-xs text-brand-500">
             /product/{draft.slug || "…"}/
@@ -935,6 +998,7 @@ function clean(product: Product): Product {
     costUsd: product.costUsd ?? undefined,
     storageCode: trimmed(product.storageCode),
     featured: product.featured ? true : undefined,
+    videos: product.videos?.length ? product.videos : undefined,
     specs: product.specs.filter((spec) => spec.name.trim() && spec.value.trim()),
     faq: cleanFaq(product.faq),
   };

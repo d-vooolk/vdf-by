@@ -729,6 +729,7 @@ export interface CategoryBrief {
   count: number;
   children: number;
   carFitment: boolean;
+  image: string | null;
 }
 
 /**
@@ -742,7 +743,8 @@ export function listCategoriesBrief(): CategoryBrief[] {
       `SELECT c.id, c.name, c.slug, c.parent_id AS parentId,
               (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS count,
               (SELECT COUNT(*) FROM categories k WHERE k.parent_id = c.id) AS children,
-              COALESCE(json_extract(c.data, '$.carFitment'), 0) AS carFitment
+              COALESCE(json_extract(c.data, '$.carFitment'), 0) AS carFitment,
+              json_extract(c.data, '$.image') AS image
          FROM categories c
         ORDER BY c.sort_order, c.name`,
     )

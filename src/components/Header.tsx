@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CartBadge } from "@/components/CartBadge";
+import { HomeLink } from "@/components/HomeLink";
 import { PhoneIcon } from "@/components/icons";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SearchBox } from "@/components/SearchBox";
@@ -78,10 +79,9 @@ export function Header() {
           workHours={site.workHours}
         />
 
-        <Link
-          href="/"
+        <HomeLink
           className="flex shrink-0 items-center transition-opacity hover:opacity-80"
-          aria-label={`${site.name} — на главную`}
+          ariaLabel={`${site.name} — на главную`}
         >
           <img
             src="/brand/logo.png"
@@ -90,7 +90,7 @@ export function Header() {
             height={100}
             className="h-5 w-auto sm:h-6 lg:h-7"
           />
-        </Link>
+        </HomeLink>
 
         <div className="min-w-0 flex-1">
           <SearchBox currencySymbol={site.currencySymbol} />
