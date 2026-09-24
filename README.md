@@ -32,7 +32,7 @@ npm run admin -- --login admin      # пароль спросит скрытым
 | `npm run import-cars` | залить справочник машин из `data/cars-catalog.json` |
 | `npm run import-cars -- --logos` | то же плюс выкачать логотипы марок |
 | `npm run admin -- --list` | кто заведён в админке |
-| `npm run backup` | копия базы в `var/backups` |
+| `npm run backup` | копия базы в `var/backups`, хранит 30 последних (`-- --keep N`, `0` — не удалять) |
 
 Проверки ниже требуют запущенного сервера (`npm start` в соседнем окне):
 
