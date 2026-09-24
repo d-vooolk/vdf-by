@@ -2,14 +2,9 @@
 
 import { useState } from "react";
 
-import {
-  aiFaqAction,
-  aiRewriteAction,
-  saveAiPromptAction,
-  type AiProductInput,
-} from "@/app/admin/actions";
+import { aiFaqAction, saveAiPromptAction } from "@/app/admin/actions";
 import { AlertIcon, SpinnerIcon } from "@/components/icons";
-import type { AiTask } from "@/lib/ai";
+import type { AiProductInput, AiTask } from "@/lib/ai";
 import type { FaqItem } from "@/lib/schema";
 
 export interface AiSettings {
@@ -134,16 +129,65 @@ export function RewriteTool({
   const run = async () => {
     setBusy(true);
     setError("");
+    const original = product.description;
+    let text = "";
+    let started = false;
+    let finished = false;
+
+    const fail = (message: string) => {
+      if (started) {
+        onRewrite(original);
+        setPrevious(null);
+      }
+      setError(message);
+    };
+
     try {
-      const result = await aiRewriteAction({ ...product, prompt: prompt.text });
-      if (!result.ok) {
-        setError(result.error);
+      const response = await fetch("/admin/api/ai/rewrite/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...product, prompt: prompt.text }),
+      });
+      if (!response.ok || !response.body) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        fail(data.error ?? `Сервер ответил ${response.status}`);
         return;
       }
-      setPrevious(product.description);
-      onRewrite(result.text);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let pending = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        pending += decoder.decode(value, { stream: true });
+        const lines = pending.split("\n");
+        pending = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as { text?: string; done?: string; error?: string };
+          if (event.error) {
+            fail(event.error);
+            return;
+          }
+          if (event.text) {
+            if (!started) {
+              started = true;
+              setPrevious(original);
+            }
+            text += event.text;
+            onRewrite(text);
+          }
+          if (event.done !== undefined) {
+            finished = true;
+            onRewrite(event.done);
+          }
+        }
+      }
+      if (!finished) fail("Генерация оборвалась — попробуйте ещё раз");
     } catch (reason) {
-      setError((reason as Error).message);
+      fail((reason as Error).message);
     } finally {
       setBusy(false);
     }

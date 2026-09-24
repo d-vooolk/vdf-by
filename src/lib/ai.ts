@@ -62,6 +62,47 @@ export function savePrompt(task: AiTask, prompt: string | null): void {
   ).run(PROMPT_KEYS[task], text);
 }
 
+export interface AiProductInput {
+  title: string;
+  description: string;
+  categoryName?: string;
+  brand?: string;
+  specs?: Array<{ name: string; value: string }>;
+  options?: string[];
+  faq?: Array<{ q: string; a: string }>;
+  prompt?: string;
+}
+
+export const MAX_PROMPT = 8000;
+const MAX_SOURCE = 20000;
+
+export function describeProduct(input: AiProductInput, withFaq: boolean): string {
+  const lines = [`Название товара: ${input.title.trim()}`];
+  if (input.categoryName) lines.push(`Раздел каталога: ${input.categoryName}`);
+  if (input.brand?.trim()) lines.push(`Бренд: ${input.brand.trim()}`);
+
+  const specs = (input.specs ?? []).filter((spec) => spec.name.trim() && spec.value.trim());
+  if (specs.length) {
+    lines.push("Характеристики:");
+    for (const spec of specs) lines.push(`- ${spec.name.trim()}: ${spec.value.trim()}`);
+  }
+  if (input.options?.length) lines.push(`Варианты: ${input.options.join("; ")}`);
+
+  lines.push("", "Описание:", input.description.trim().slice(0, MAX_SOURCE) || "(описания нет)");
+
+  const faq = (input.faq ?? []).filter((item) => item.q.trim());
+  if (withFaq && faq.length) {
+    lines.push("", "Эти вопросы уже есть на странице, не повторяй их:");
+    for (const item of faq) lines.push(`- ${item.q.trim()}`);
+  }
+  return lines.join("\n");
+}
+
+export function promptFor(task: AiTask, custom: string | undefined): string {
+  const text = custom?.trim().slice(0, MAX_PROMPT);
+  return text || getPrompts()[task];
+}
+
 export function aiConfigured(): boolean {
   return Boolean(env("AI_API_KEY", ""));
 }
@@ -71,9 +112,15 @@ interface ChatResponse {
   error?: { message?: string; code?: number | string };
 }
 
+interface StreamChunk {
+  choices?: Array<{ delta?: { content?: string | null } }>;
+  error?: { message?: string; code?: number | string };
+}
+
 export class AiError extends Error {}
 
-const RATE_LIMIT_RETRY_MS = 6000;
+const DEFAULT_MODELS =
+  "nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free,z-ai/glm-5.2:free";
 
 let proxyAgent: { url: string; agent: ProxyAgent } | null = null;
 
@@ -89,7 +136,18 @@ function proxiedFetch(url: string, init: RequestInit): Promise<Response> {
   }) as unknown as Promise<Response>;
 }
 
-export async function complete(system: string, user: string): Promise<string> {
+function failure(status: number, detail: string): AiError {
+  if (status === 429) {
+    return new AiError(`Модели сейчас перегружены — попробуйте через минуту (${detail})`);
+  }
+  if (status === 401) return new AiError("Ключ AI_API_KEY не подошёл — проверьте его в .env");
+  if (status === 402) {
+    return new AiError(`На счёте OpenRouter закончились деньги — пополните баланс (${detail})`);
+  }
+  return new AiError(`Нейросеть вернула ошибку: ${detail}`);
+}
+
+async function request(system: string, user: string, stream: boolean): Promise<Response> {
   const key = env("AI_API_KEY", "");
   if (!key) {
     throw new AiError(
@@ -98,10 +156,7 @@ export async function complete(system: string, user: string): Promise<string> {
   }
 
   const baseUrl = env("AI_BASE_URL", "https://openrouter.ai/api/v1").replace(/\/+$/, "");
-  const models = env(
-    "AI_MODEL",
-    "z-ai/glm-5.2:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free",
-  )
+  const models = env("AI_MODEL", DEFAULT_MODELS)
     .split(",")
     .map((model) => model.trim())
     .filter(Boolean);
@@ -115,15 +170,17 @@ export async function complete(system: string, user: string): Promise<string> {
       { role: "user", content: user },
     ],
     temperature: 0.7,
+    stream,
   };
-  if (isOpenRouter && models.length > 1) body.models = models;
-  if (isOpenRouter) body.reasoning = { enabled: false };
+  if (isOpenRouter) {
+    if (models.length > 1) body.models = models;
+    body.reasoning = { enabled: false };
+    body.provider = { sort: "throughput" };
+  }
 
-  const startedAt = Date.now();
-  const send = async (): Promise<{ response: Response; data: ChatResponse }> => {
-    let response: Response;
+  const send = async () => {
     try {
-      response = await proxiedFetch(`${baseUrl}/chat/completions`, {
+      return await proxiedFetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${key}`,
@@ -133,7 +190,7 @@ export async function complete(system: string, user: string): Promise<string> {
             : {}),
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(Math.max(1000, timeout - (Date.now() - startedAt))),
+        signal: AbortSignal.timeout(timeout),
       });
     } catch (error) {
       const name = (error as Error).name;
@@ -144,32 +201,78 @@ export async function complete(system: string, user: string): Promise<string> {
           : `Не удалось связаться с нейросетью: ${cause ?? (error as Error).message}`,
       );
     }
-    const data = (await response.json().catch(() => ({}))) as ChatResponse;
-    return { response, data };
   };
 
-  let { response, data } = await send();
-  if (response.status === 429 && Date.now() - startedAt < timeout / 3) {
-    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_MS));
-    ({ response, data } = await send());
+  let response = await send();
+  if (response.status === 429) {
+    await response.body?.cancel();
+    response = await send();
   }
 
-  if (!response.ok || data.error) {
-    const detail = data.error?.message ?? `HTTP ${response.status}`;
-    if (response.status === 429) {
-      throw new AiError(
-        `Бесплатные модели сейчас перегружены — попробуйте через минуту (${detail})`,
-      );
-    }
-    if (response.status === 401) {
-      throw new AiError("Ключ AI_API_KEY не подошёл — проверьте его в .env");
-    }
-    throw new AiError(`Нейросеть вернула ошибку: ${detail}`);
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as ChatResponse;
+    throw failure(response.status, data.error?.message ?? `HTTP ${response.status}`);
+  }
+  return response;
+}
+
+function stripThinking(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
+export async function complete(system: string, user: string): Promise<string> {
+  const response = await request(system, user, false);
+  const data = (await response.json().catch(() => ({}))) as ChatResponse;
+  if (data.error) {
+    throw failure(Number(data.error.code) || 500, data.error.message ?? "неизвестная ошибка");
   }
 
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
   if (!text) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
-  return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  return stripThinking(text);
+}
+
+export async function* completeStream(system: string, user: string): AsyncGenerator<string> {
+  const response = await request(system, user, true);
+  if (!response.body) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+
+  const decoder = new TextDecoder();
+  let pending = "";
+  let produced = false;
+
+  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+    pending += decoder.decode(chunk, { stream: true });
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (payload === "[DONE]") return;
+
+      let parsed: StreamChunk;
+      try {
+        parsed = JSON.parse(payload) as StreamChunk;
+      } catch {
+        continue;
+      }
+      if (parsed.error) {
+        throw failure(Number(parsed.error.code) || 500, parsed.error.message ?? "обрыв генерации");
+      }
+      const piece = parsed.choices?.[0]?.delta?.content;
+      if (piece) {
+        produced = true;
+        yield piece;
+      }
+    }
+  }
+
+  if (!produced) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
+}
+
+export function finishRewrite(text: string): string {
+  return cleanPlainText(stripThinking(text));
 }
 
 export function cleanPlainText(text: string): string {
