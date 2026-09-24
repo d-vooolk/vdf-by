@@ -166,7 +166,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                       </span>
                     </span>
                     <span className="tnum shrink-0 text-sm font-semibold text-brand-900">
-                      {formatPrice(entry.p, currencySymbol)}
+                      {entry.p > 0 ? formatPrice(entry.p, currencySymbol) : ""}
                     </span>
                   </Link>
                 </li>

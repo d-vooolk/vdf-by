@@ -1,7 +1,7 @@
 import { formatPrice } from "./format";
 import type { Product } from "./schema";
 import { firstParagraph } from "./text";
-import { priceRange } from "./variant";
+import { hasPrice, priceRange } from "./variant";
 
 export const DESCRIPTION_LIMIT = 165;
 export const TITLE_LIMIT = 60;
@@ -57,21 +57,22 @@ export function productSnippet({
 }: ProductSnippetInput): ProductSnippet {
   const range = priceRange(product);
   const price = formatPrice(range.min, currencySymbol);
-  const priceLabel = range.varies ? `от ${price}` : price;
+  const priceLabel = hasPrice(range.min) ? (range.varies ? `от ${price}` : price) : "";
+  const priceTail = priceLabel ? [priceLabel] : [];
 
-  const titleWithPrice = `${product.title} — ${priceLabel}`;
+  const titleWithPrice = priceLabel ? `${product.title} — ${priceLabel}` : product.title;
   const generatedTitle =
     titleWithPrice.length <= TITLE_LIMIT ? titleWithPrice : product.title;
 
   const lead = firstParagraph(product.description) || product.title;
   const tails = [
     [
-      priceLabel,
+      ...priceTail,
       ...(categoryName ? [`${categoryName} с доставкой по Минску и Беларуси`] : []),
       "Оплата при получении",
     ],
-    [priceLabel, "Доставка по Минску и Беларуси"],
-    [priceLabel],
+    [...priceTail, "Доставка по Минску и Беларуси"],
+    priceTail,
   ];
   const tail =
     tails.find(

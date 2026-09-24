@@ -11,7 +11,7 @@ import { findMark, getCarTree, getProductsForMark } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
+import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
 
 /**
  * Автосвет для одной марки: список моделей и весь ассортимент под неё.
@@ -39,9 +39,7 @@ export async function generateMetadata({
 
   const site = getSite();
   const products = getProductsForMark(mark.id);
-  const cheapest = products.length
-    ? Math.min(...products.map((product) => priceRange(product).min))
-    : 0;
+  const cheapest = cheapestPrice(products);
 
   return buildMetadata({
     title: `Автосвет для ${mark.name} — линзы, стёкла фар, лампы`,
@@ -52,7 +50,7 @@ export async function generateMetadata({
         .map((model) => model.name)
         .join(", ")}`,
       products.length > 0 &&
-        `${pluralize(products.length, "позиция", "позиции", "позиций")}, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
+        `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Доставка по Минску и Беларуси, оплата при получении",
     ),
     path: markUrl(mark.slug),

@@ -190,12 +190,28 @@ export function priceRange(product: Product): PriceRange {
   if (!product.optionGroups.length) {
     return { min: product.price, max: product.price, varies: false };
   }
-  const prices = allSelections(product).map(
-    (selection) => resolveVariant(product, selection).price,
-  );
+  const prices = allSelections(product)
+    .map((selection) => resolveVariant(product, selection).price)
+    .filter(hasPrice);
+  if (!prices.length) return { min: 0, max: 0, varies: false };
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   return { min, max, varies: min !== max };
+}
+
+export const PRICE_ON_REQUEST = "Цену уточняйте";
+
+export function hasPrice(price: number): boolean {
+  return price > 0;
+}
+
+export function isOrderable(variant: { price: number; inStock: boolean }): boolean {
+  return variant.inStock && hasPrice(variant.price);
+}
+
+export function cheapestPrice(products: Product[]): number {
+  const prices = products.map((product) => priceRange(product).min).filter(hasPrice);
+  return prices.length ? Math.min(...prices) : 0;
 }
 
 /** Есть ли хоть одна доступная комбинация — для бейджа на карточке. */

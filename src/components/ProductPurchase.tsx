@@ -26,6 +26,8 @@ import { pickUrl, type ImageMap } from "@/lib/image-types";
 import type { Product } from "@/lib/schema";
 import {
   defaultSelection,
+  hasPrice,
+  PRICE_ON_REQUEST,
   resolveVariant,
   selectionFromQuery,
   variantQuery,
@@ -155,6 +157,7 @@ export function ProductPurchase({
   };
 
   const variant = resolveVariant(product, selection);
+  const priced = hasPrice(variant.price);
 
   /*
    * Сколько этого варианта уже лежит в корзине.
@@ -373,10 +376,21 @@ export function ProductPurchase({
       {/* ------------------------ Цена и опции -------------------------- */}
       <div>
         <div className="mb-5 flex flex-wrap items-baseline gap-3">
-          <span className="tnum text-3xl font-semibold text-brand-900">
-            {formatPrice(variant.price, currencySymbol)}
-          </span>
-          {variant.oldPrice && (
+          {priced ? (
+            <span className="tnum text-3xl font-semibold text-brand-900">
+              {formatPrice(variant.price, currencySymbol)}
+            </span>
+          ) : (
+            <>
+              <span className="text-2xl font-semibold text-brand-900">
+                {PRICE_ON_REQUEST}
+              </span>
+              <span className="w-full text-sm text-brand-500">
+                Позвоните или напишите в мессенджер — назовём цену и срок поставки.
+              </span>
+            </>
+          )}
+          {priced && variant.oldPrice && (
             <>
               <span className="tnum text-lg text-brand-300 line-through">
                 {formatPrice(variant.oldPrice, currencySymbol)}
@@ -386,7 +400,7 @@ export function ProductPurchase({
               </span>
             </>
           )}
-          {product.unit && (
+          {priced && product.unit && (
             <span className="w-full text-sm text-brand-400">
               цена за {product.unit}
             </span>
@@ -454,79 +468,89 @@ export function ProductPurchase({
         )}
 
         {/* --------------------------- Заказ ---------------------------- */}
-        <div className="mb-4 flex gap-3">
-          {choosingQty && (
-            <div className="flex items-center rounded-xl border border-brand-200">
-              <button
-                type="button"
-                onClick={() => setQty((current) => Math.max(1, current - 1))}
-                disabled={qty <= 1}
-                className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
-                aria-label="Уменьшить количество"
-              >
-                <MinusIcon className="h-4 w-4" />
-              </button>
-              <span
-                className="tnum w-10 text-center text-sm font-semibold"
-                aria-live="polite"
-                aria-label={`Количество: ${qty}`}
-              >
-                {qty}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQty((current) => Math.min(99, current + 1))}
-                disabled={qty >= 99}
-                className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
-                aria-label="Увеличить количество"
-              >
-                <PlusIcon className="h-4 w-4" />
-              </button>
+        {!priced && phone && (
+          <a href={phoneHref} className="btn-primary mb-6 w-full">
+            Узнать цену: {phone}
+          </a>
+        )}
+
+        {priced && (
+          <>
+            <div className="mb-4 flex gap-3">
+              {choosingQty && (
+                <div className="flex items-center rounded-xl border border-brand-200">
+                  <button
+                    type="button"
+                    onClick={() => setQty((current) => Math.max(1, current - 1))}
+                    disabled={qty <= 1}
+                    className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
+                    aria-label="Уменьшить количество"
+                  >
+                    <MinusIcon className="h-4 w-4" />
+                  </button>
+                  <span
+                    className="tnum w-10 text-center text-sm font-semibold"
+                    aria-live="polite"
+                    aria-label={`Количество: ${qty}`}
+                  >
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQty((current) => Math.min(99, current + 1))}
+                    disabled={qty >= 99}
+                    className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
+                    aria-label="Увеличить количество"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+    
+              <AddToCartButton
+                className="btn-primary flex-1"
+                disabled={!variant.inStock}
+                qty={qty}
+                item={{
+                  key: variant.key,
+                  productId: product.id,
+                  slug: product.slug,
+                  title: product.title,
+                  optionLabel: variant.label,
+                  options: variant.selected.map((entry) => ({
+                    groupName: entry.groupName,
+                    label: entry.value.label,
+                  })),
+                  price: variant.price,
+                  unit: product.unit,
+                  sku: variant.sku,
+                  imageUrl: pickUrl(mainEntry, 200),
+                }}
+              />
             </div>
-          )}
-
-          <AddToCartButton
-            className="btn-primary flex-1"
-            disabled={!variant.inStock}
-            qty={qty}
-            item={{
-              key: variant.key,
-              productId: product.id,
-              slug: product.slug,
-              title: product.title,
-              optionLabel: variant.label,
-              options: variant.selected.map((entry) => ({
-                groupName: entry.groupName,
-                label: entry.value.label,
-              })),
-              price: variant.price,
-              unit: product.unit,
-              sku: variant.sku,
-              imageUrl: pickUrl(mainEntry, 200),
-            }}
-          />
-        </div>
-
-        <div className="mb-6">
-          <QuickOrder
-            orderEndpoint={orderEndpoint}
-            deliveryId={quickDeliveryId}
-            disabled={!variant.inStock}
-            qty={qty}
-            currency={currency}
-            phone={phone}
-            phoneHref={phoneHref}
-            item={{
-              key: variant.key,
-              productId: product.id,
-              slug: product.slug,
-              title: product.title,
-              options: variant.label,
-              sku: variant.sku,
-              price: variant.price,
-            }}
-          />
-        </div>
+    
+            <div className="mb-6">
+              <QuickOrder
+                orderEndpoint={orderEndpoint}
+                deliveryId={quickDeliveryId}
+                disabled={!variant.inStock}
+                qty={qty}
+                currency={currency}
+                phone={phone}
+                phoneHref={phoneHref}
+                item={{
+                  key: variant.key,
+                  productId: product.id,
+                  slug: product.slug,
+                  title: product.title,
+                  options: variant.label,
+                  sku: variant.sku,
+                  price: variant.price,
+                }}
+              />
+            </div>
+          </>
+        )}
 
         {messengers.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-card border border-brand-100 p-4">

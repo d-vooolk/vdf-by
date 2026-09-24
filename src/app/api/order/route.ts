@@ -164,6 +164,9 @@ function validate(payload: unknown): { order?: ValidatedOrder; error?: string } 
     if (actual && !actual.inStock) {
       notes.push(`«${title}» помечен как отсутствующий`);
     }
+    if (actual && actual.price <= 0) {
+      notes.push(`у «${title}» не указана цена — назвать её клиенту`);
+    }
 
     serverTotal += price * qty;
 

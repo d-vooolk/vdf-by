@@ -238,6 +238,33 @@ export const MIGRATIONS = [
 
     CREATE INDEX ai_requests_by_time ON ai_requests(created_at);
   `,
+
+  /* 9 — временный импорт переходных рамок с vdf-light.ru */ `
+    CREATE TABLE vdf_categories (
+      slug      TEXT PRIMARY KEY,
+      done      INTEGER NOT NULL DEFAULT 0,
+      truncated INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE vdf_frames (
+      url            TEXT PRIMARY KEY,
+      article        TEXT NOT NULL DEFAULT '',
+      model_frame    TEXT NOT NULL DEFAULT '',
+      frame_type     TEXT NOT NULL DEFAULT '',
+      name           TEXT NOT NULL DEFAULT '',
+      cars           TEXT NOT NULL DEFAULT '[]',
+      generation_ids TEXT NOT NULL DEFAULT '[]',
+      unmatched      TEXT NOT NULL DEFAULT '[]',
+      review         TEXT NOT NULL DEFAULT '[]',
+      details        TEXT NOT NULL DEFAULT '{}',
+      status         TEXT NOT NULL DEFAULT 'new',
+      product_id     TEXT,
+      error          TEXT NOT NULL DEFAULT '',
+      updated_at     INTEGER NOT NULL
+    );
+
+    CREATE INDEX vdf_frames_by_status ON vdf_frames(status);
+  `,
 ];
 
 /**

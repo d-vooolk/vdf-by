@@ -33,23 +33,17 @@ import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
+import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
 
 const THIS_YEAR = new Date().getFullYear();
 
-function priceFrom(products: Product[]): number {
-  return products.length
-    ? Math.min(...products.map((product) => priceRange(product).min))
-    : 0;
-}
-
 function countLine(products: Product[], currencySymbol: string): string | false {
+  const cheapest = cheapestPrice(products);
   return (
     products.length > 0 &&
-    `${pluralize(products.length, "позиция", "позиции", "позиций")}, цены от ${formatPrice(
-      priceFrom(products),
-      currencySymbol,
-    )}`
+    `${pluralize(products.length, "позиция", "позиции", "позиций")}${
+      cheapest ? `, цены от ${formatPrice(cheapest, currencySymbol)}` : ""
+    }`
   );
 }
 

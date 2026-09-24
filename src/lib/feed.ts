@@ -6,7 +6,7 @@ import {
 } from "./catalog";
 import { getImage } from "./images";
 import { absoluteUrl, bigImageUrl, variantUrl } from "./seo";
-import { allSelections, defaultSelection, resolveVariant } from "./variant";
+import { allSelections, defaultSelection, hasPrice, resolveVariant } from "./variant";
 
 /**
  * Товарные фиды: данные для них считаются здесь, один раз для обоих форматов.
@@ -84,6 +84,7 @@ export function feedOffers(): FeedOffer[] {
 
     for (const selection of selections) {
       const variant = resolveVariant(product, selection);
+      if (!hasPrice(variant.price)) continue;
       const suffix = hasVariants
         ? `-${product.optionGroups
             .map((group) => selection[group.id])

@@ -104,9 +104,10 @@ export function ProductRow({
       )}
 
       <InlineNumber
-        value={product.price}
+        value={product.price > 0 ? product.price : null}
         suffix={currencySymbol}
         title="Цена"
+        placeholder="нет"
         className="w-24"
         onSave={(next) =>
           startTransition(async () => {

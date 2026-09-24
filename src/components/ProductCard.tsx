@@ -9,6 +9,8 @@ import type { Product } from "@/lib/schema";
 import {
   defaultSelection,
   hasAnyInStock,
+  hasPrice,
+  PRICE_ON_REQUEST,
   priceRange,
   resolveVariant,
 } from "@/lib/variant";
@@ -42,6 +44,7 @@ export function ProductCard({
   const range = priceRange(product);
   const inStock = hasAnyInStock(product);
   const hasOptions = product.optionGroups.length > 0;
+  const priced = hasPrice(range.min);
 
   const imagePath = product.images[0];
   const entry = getImage(imagePath);
@@ -75,7 +78,7 @@ export function ProductCard({
             {product.badge}
           </span>
         )}
-        {range.varies === false && product.oldPrice && product.oldPrice > range.max && (
+        {priced && range.varies === false && product.oldPrice && product.oldPrice > range.max && (
           <span className="badge absolute top-1.5 right-1.5 bg-red-500 px-1.5 py-0.5 text-[10px] text-white sm:top-3 sm:right-3 sm:px-2.5 sm:py-1 sm:text-xs">
             −{Math.round((1 - range.max / product.oldPrice) * 100)}%
           </span>
@@ -116,20 +119,26 @@ export function ProductCard({
         <div className="mt-auto pt-1 sm:pt-2">
           <div
             className={`flex flex-wrap items-baseline gap-x-1.5 sm:gap-x-2 ${
-              hasOptions && inStock ? "" : "mb-2 sm:mb-3"
+              hasOptions && inStock && priced ? "" : "mb-2 sm:mb-3"
             }`}
           >
-            <span className="tnum text-sm font-semibold text-brand-900 sm:text-lg">
-              {formatPrice(range.min, currencySymbol)}
-            </span>
-            {!range.varies && product.oldPrice && product.oldPrice > range.max && (
+            {priced ? (
+              <span className="tnum text-sm font-semibold text-brand-900 sm:text-lg">
+                {formatPrice(range.min, currencySymbol)}
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-brand-600 sm:text-base">
+                {PRICE_ON_REQUEST}
+              </span>
+            )}
+            {priced && !range.varies && product.oldPrice && product.oldPrice > range.max && (
               <span className="tnum text-[10px] text-brand-300 line-through sm:text-sm">
                 {formatPrice(product.oldPrice, currencySymbol)}
               </span>
             )}
           </div>
 
-          {!inStock ? (
+          {!inStock || !priced ? (
             <Link href={href} className="btn-secondary w-full px-2 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm">
               Подробнее
             </Link>

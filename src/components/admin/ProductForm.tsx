@@ -346,13 +346,12 @@ export function ProductForm({
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
             label={`Цена розницы, ${currencySymbol}`}
-            required
-            hint="Если есть опции со своими ценами — запасная"
+            hint="Пусто — на сайте «Цену уточняйте». Если есть опции со своими ценами — запасная"
           >
             <NumberInput
-              value={draft.price}
+              value={draft.price > 0 ? draft.price : null}
               onChange={(price) => patch({ price: price ?? 0 })}
-              placeholder="0"
+              placeholder="не указана"
             />
           </Field>
 
@@ -957,10 +956,10 @@ function Margin({
   currencySymbol: string;
   hasOptions: boolean;
 }) {
-  if (cost === null) {
+  if (cost === null || price <= 0) {
     return (
       <p className="flex h-full items-center text-xs text-brand-400">
-        Заполните себестоимость — рядом посчитается прибыль и маржа.
+        Заполните себестоимость и цену — рядом посчитается прибыль и маржа.
       </p>
     );
   }

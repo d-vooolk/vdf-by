@@ -24,7 +24,7 @@ import { pickImages } from "@/lib/images";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd } from "@/lib/seo";
 import { productSnippet } from "@/lib/snippet";
-import { allProductImages, priceRange } from "@/lib/variant";
+import { allProductImages, hasPrice, priceRange } from "@/lib/variant";
 
 export function generateStaticParams() {
   return getProducts().map((product) => ({ slug: product.slug }));
@@ -105,7 +105,9 @@ export default async function ProductPage({ params }: PageProps) {
     productMessage(
       site,
       product,
-      `${range.varies ? "от " : ""}${formatPrice(range.min, site.currencySymbol)}`,
+      hasPrice(range.min)
+        ? `${range.varies ? "от " : ""}${formatPrice(range.min, site.currencySymbol)}`
+        : undefined,
     ),
   );
 

@@ -9,6 +9,7 @@ import {
   allProductImages,
   allSelections,
   hasAnyInStock,
+  hasPrice,
   priceRange,
   resolveVariant,
   variantQuery,
@@ -386,7 +387,9 @@ export function productJsonLd(product: Product, category?: Category) {
   const combos = product.optionGroups.length ? allSelections(product) : [];
 
   let offers;
-  if (!combos.length) {
+  if (!hasPrice(range.min)) {
+    offers = undefined;
+  } else if (!combos.length) {
     offers = offerJsonLd(site, {
       price: range.min,
       inStock,
@@ -394,8 +397,9 @@ export function productJsonLd(product: Product, category?: Category) {
       sku: product.sku,
     });
   } else if (combos.length <= VARIANT_OFFER_LIMIT) {
-    offers = combos.map((selection) => {
+    offers = combos.flatMap((selection) => {
       const variant = resolveVariant(product, selection);
+      if (!hasPrice(variant.price)) return [];
       return offerJsonLd(site, {
         name: `${product.title}, ${variant.label}`,
         price: variant.price,
@@ -440,7 +444,7 @@ export function productJsonLd(product: Product, category?: Category) {
           })),
         }
       : {}),
-    offers,
+    ...(offers ? { offers } : {}),
   };
 }
 

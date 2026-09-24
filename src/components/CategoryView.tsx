@@ -19,7 +19,7 @@ import {
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
+import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
 
 /**
  * Страница раздела — одна на оба адреса.
@@ -43,9 +43,8 @@ export function categoryMetadata(category: Category): Metadata {
   const products = getProductsInCategory(category.id);
   const children = getChildCategories(category.id);
   const marks = category.carFitment ? getCarTree(category.id) : [];
-  const cheapest = products.length
-    ? Math.min(...products.map((product) => priceRange(product).min))
-    : 0;
+  const cheapest = cheapestPrice(products);
+  const available = products.filter(hasAnyInStock).length;
 
   return buildMetadata({
     title: category.seoTitle ?? `${category.name} купить в Минске`,
@@ -61,7 +60,11 @@ export function categoryMetadata(category: Category): Metadata {
             .map((mark) => mark.name)
             .join(", ")}`,
         products.length > 0 &&
-          `${pluralize(products.length, "позиция", "позиции", "позиций")} в наличии, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
+          `${
+            available > 0
+              ? `${pluralize(available, "позиция", "позиции", "позиций")} в наличии`
+              : pluralize(products.length, "позиция", "позиции", "позиций")
+          }${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
         "Доставка по Минску и Беларуси, оплата при получении",
       ),
     path: categoryUrl(category),

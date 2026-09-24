@@ -16,7 +16,7 @@ import {
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
+import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
 
 /**
  * Автосвет для одной модели: поколения с фотографиями и весь ассортимент,
@@ -54,9 +54,7 @@ export async function generateMetadata({
   const { mark, model } = found;
   const site = getSite();
   const products = getProductsForModel(model.id);
-  const cheapest = products.length
-    ? Math.min(...products.map((product) => priceRange(product).min))
-    : 0;
+  const cheapest = cheapestPrice(products);
 
   const title = carName(mark, model);
 
@@ -67,7 +65,7 @@ export async function generateMetadata({
       model.generations.length > 0 &&
         `${pluralize(model.generations.length, "поколение", "поколения", "поколений")} в подборе`,
       products.length > 0 &&
-        `${pluralize(products.length, "позиция", "позиции", "позиций")}, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
+        `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Доставка по Минску и Беларуси",
     ),
     path: modelUrl(mark.slug, model.slug),

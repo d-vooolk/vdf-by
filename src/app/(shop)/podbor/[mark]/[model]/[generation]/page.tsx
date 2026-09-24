@@ -24,7 +24,7 @@ import {
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { priceRange } from "@/lib/variant";
+import { cheapestPrice } from "@/lib/variant";
 
 /**
  * Автосвет для конкретного поколения — то, ради чего весь подбор и сделан.
@@ -72,9 +72,7 @@ export async function generateMetadata({
   const site = getSite();
   const products = getProductsForGeneration(generation.id);
   const groups = groupByCategory(products);
-  const cheapest = products.length
-    ? Math.min(...products.map((product) => priceRange(product).min))
-    : 0;
+  const cheapest = cheapestPrice(products);
   const period = years(generation, new Date().getFullYear());
   const title = carName(mark, model, generation);
 
@@ -89,7 +87,7 @@ export async function generateMetadata({
     description: sentences(
       what,
       products.length > 0 &&
-        `${pluralize(products.length, "позиция", "позиции", "позиций")}, цены от ${formatPrice(cheapest, site.currencySymbol)}`,
+        `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Проверяем каждый комплект на стенде. Доставка по Минску и Беларуси",
     ),
     path: generationUrl(mark.slug, model.slug, generation.slug),

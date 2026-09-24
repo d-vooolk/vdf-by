@@ -58,6 +58,11 @@ export function CatalogControls({
   const orderById = useMemo(() => {
     const sorted = [...items].sort((a, b) => {
       if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+      const pricedA = a.price > 0;
+      const pricedB = b.price > 0;
+      if (sort !== "default" && sort !== "name" && pricedA !== pricedB) {
+        return pricedA ? -1 : 1;
+      }
       switch (sort) {
         case "price-asc":
           return a.price - b.price;

@@ -17,6 +17,8 @@ import { CloseIcon, MenuIcon } from "@/components/icons";
 const LINKS = [
   { href: "/admin/", label: "Сводка", exact: true },
   { href: "/admin/products/", label: "Товары" },
+  { href: "/admin/incomplete/", label: "Незаполненные" },
+  { href: "/admin/frames/", label: "Импорт рамок" },
   { href: "/admin/categories/", label: "Разделы" },
   { href: "/admin/cars/", label: "Автомобили" },
   { href: "/admin/orders/", label: "Заказы", badge: true },
