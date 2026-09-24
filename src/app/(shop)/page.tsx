@@ -37,7 +37,7 @@ const ICONS = [TruckIcon, ShieldIcon, CheckIcon, PhoneIcon];
 export default function HomePage() {
   const site = getSite();
   const categories = getRootCategories();
-  const featured = getFeaturedProducts(8);
+  const featured = getFeaturedProducts(10);
   const marks = getCarTree();
   const currentYear = new Date().getFullYear();
 
@@ -248,7 +248,7 @@ export default function HomePage() {
                 Выбирают чаще всего
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
               {featured.map((product, position) => (
                 <ProductCard
                   key={product.id}

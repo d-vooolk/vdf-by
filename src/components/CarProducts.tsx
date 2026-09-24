@@ -63,7 +63,7 @@ export function CarProducts({
               </span>
             </h2>
 
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
               {group.products.map((product) => (
                 <ProductCard
                   key={product.id}

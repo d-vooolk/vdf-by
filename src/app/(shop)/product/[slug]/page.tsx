@@ -91,7 +91,7 @@ export default async function ProductPage({ params }: PageProps) {
 
   const site = getSite();
   const category = getCategoryById(product.categoryId);
-  const related = getRelatedProducts(product);
+  const related = getRelatedProducts(product, 5);
   const cars = category?.carFitment ? getProductCars(product.id) : [];
 
   // В клиентский компонент уходят записи манифеста только для фото этого
@@ -211,7 +211,7 @@ export default async function ProductPage({ params }: PageProps) {
           <h2 className="mb-6 text-xl font-semibold text-brand-900 sm:text-2xl">
             Смотрите также
           </h2>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
             {related.map((item) => (
               <ProductCard
                 key={item.id}

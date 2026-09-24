@@ -54,9 +54,11 @@ export function AddToCartButton({
         type="button"
         onClick={() => add(item, qty)}
         disabled={disabled}
-        className={className}
+        className={
+          compact ? `${className} px-2 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm` : className
+        }
       >
-        <CartIcon className="h-4 w-4 shrink-0" />
+        <CartIcon className={`h-4 w-4 shrink-0 ${compact ? "hidden sm:block" : ""}`} />
         {label}
       </button>
     );
@@ -83,7 +85,9 @@ export function AddToCartButton({
         <button
           type="button"
           onClick={() => setQty(item.key, inCart - 1)}
-          className="px-2.5 py-2 text-brand-500 transition-colors hover:text-brand-900"
+          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 ${
+            compact ? "px-1.5 sm:px-2.5" : "px-2.5"
+          }`}
           aria-label={inCart === 1 ? "Убрать из корзины" : "Уменьшить количество"}
         >
           <MinusIcon className="h-4 w-4" />
@@ -98,7 +102,9 @@ export function AddToCartButton({
         <button
           type="button"
           onClick={() => add(item, 1)}
-          className="px-2.5 py-2 text-brand-500 transition-colors hover:text-brand-900"
+          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 ${
+            compact ? "px-1.5 sm:px-2.5" : "px-2.5"
+          }`}
           aria-label="Увеличить количество"
         >
           <PlusIcon className="h-4 w-4" />
@@ -107,11 +113,11 @@ export function AddToCartButton({
 
       <Link
         href="/cart/"
-        className={`btn-primary min-w-0 px-3 whitespace-nowrap ${
-          compact ? "w-full text-xs" : "flex-1 text-sm"
+        className={`btn-primary min-w-0 whitespace-nowrap ${
+          compact ? "w-full px-2 py-2 text-xs sm:px-3" : "flex-1 px-3 text-sm"
         }`}
       >
-        <CartIcon className="h-4 w-4 shrink-0" />
+        <CartIcon className={`h-4 w-4 shrink-0 ${compact ? "hidden sm:block" : ""}`} />
         {compact ? "В корзину" : "Перейти в корзину"}
       </Link>
     </div>
