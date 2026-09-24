@@ -1,3 +1,4 @@
+import { ChevronDownIcon } from "@/components/icons";
 import { JsonLd } from "@/components/JsonLd";
 import type { FaqItem } from "@/lib/schema";
 
@@ -32,18 +33,19 @@ export function Faq({
 
       <h2 className="mb-4 text-xl font-semibold text-brand-900">{title}</h2>
 
-      <dl className="max-w-3xl divide-y divide-brand-100 border-y border-brand-100">
+      <div className="max-w-3xl divide-y divide-brand-100 border-y border-brand-100">
         {items.map((item, index) => (
-          <div key={index} className="py-4">
-            <dt className="text-base font-semibold text-brand-900">
+          <details key={index} className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold text-brand-900 transition-colors select-none hover:text-brand-600 [&::-webkit-details-marker]:hidden">
               {item.q}
-            </dt>
-            <dd className="mt-1.5 text-sm leading-relaxed text-brand-600">
+              <ChevronDownIcon className="h-5 w-5 shrink-0 text-brand-400 transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <p className="-mt-1 pb-4 text-sm leading-relaxed text-brand-600">
               {item.a}
-            </dd>
-          </div>
+            </p>
+          </details>
         ))}
-      </dl>
+      </div>
     </section>
   );
 }
