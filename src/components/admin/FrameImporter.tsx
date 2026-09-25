@@ -98,7 +98,7 @@ function progressOf(task: Task, summary: FrameSummary): Progress {
     total: pool,
     failed: counts.import_error,
     unit: "товаров",
-    note: `Создано: ${counts.imported}, ждут очереди: ${counts.read}`,
+    note: `Создано: ${counts.imported}, ждут очереди: ${counts.read}${counts.importing ? `, в работе или прерваны: ${counts.importing}` : ""}`,
     current: summary.importing,
   };
 }
@@ -397,6 +397,7 @@ export function FrameImporter({
 
   const { counts } = summary;
   const errors = counts.read_error + counts.import_error;
+  const queued = counts.read + counts.importing;
   const stopButton = (name: Task) =>
     task === name && (
       <button
@@ -509,7 +510,7 @@ export function FrameImporter({
           <button
             type="button"
             onClick={() => runImport(5)}
-            disabled={busy || !aiReady || !categoryId || counts.read === 0}
+            disabled={busy || !aiReady || !categoryId || queued === 0}
             className="btn-secondary py-2 text-sm"
           >
             Создать 5 для проверки
@@ -517,10 +518,10 @@ export function FrameImporter({
           <button
             type="button"
             onClick={() => runImport(null)}
-            disabled={busy || !aiReady || !categoryId || counts.read === 0}
+            disabled={busy || !aiReady || !categoryId || queued === 0}
             className="btn-primary py-2 text-sm"
           >
-            Создать все ({counts.read})
+            Создать все ({queued})
           </button>
           {stopButton("import")}
         </div>
