@@ -8,6 +8,7 @@ import {
 import { CategoryView, categoryMetadata } from "@/components/CategoryView";
 import { markParams, resolveMark } from "@/lib/car-branch";
 import { getCategories, getCategoryById, getCategoryBySlug } from "@/lib/catalog";
+import { readListing, type ListingParams } from "@/lib/listing";
 import { findRedirect } from "@/lib/redirects";
 
 /**
@@ -33,6 +34,7 @@ export function generateStaticParams() {
 
 interface PageProps {
   params: Promise<{ category: string; branch: string }>;
+  searchParams: Promise<ListingParams>;
 }
 
 /** Подраздел вместе с проверкой, что он лежит именно в этом родителе. */
@@ -45,21 +47,22 @@ function resolveSub(parentSlug: string, slug: string) {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps): Promise<Metadata> {
   const { category: parentSlug, branch } = await params;
 
   const sub = resolveSub(parentSlug, branch);
-  if (sub) return categoryMetadata(sub);
+  if (sub) return categoryMetadata(sub, readListing(await searchParams));
 
   const mark = resolveMark(parentSlug, branch);
   return mark ? categoryMarkMetadata(mark) : {};
 }
 
-export default async function CategoryBranchPage({ params }: PageProps) {
+export default async function CategoryBranchPage({ params, searchParams }: PageProps) {
   const { category: parentSlug, branch } = await params;
 
   const sub = resolveSub(parentSlug, branch);
-  if (sub) return <CategoryView category={sub} />;
+  if (sub) return <CategoryView category={sub} listing={readListing(await searchParams)} />;
 
   const mark = resolveMark(parentSlug, branch);
   if (mark) return <CategoryMarkView {...mark} />;

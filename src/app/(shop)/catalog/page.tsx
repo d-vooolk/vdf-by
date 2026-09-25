@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductListing } from "@/components/ProductListing";
 import {
   getCategories,
   getProducts,
@@ -12,20 +11,32 @@ import {
   getSite,
 } from "@/lib/catalog";
 import { pluralize } from "@/lib/format";
+import {
+  clampPage,
+  listingHref,
+  listingPage,
+  readListing,
+  type ListingParams,
+} from "@/lib/listing";
 import { buildMetadata, itemListJsonLd } from "@/lib/seo";
-import { hasAnyInStock, priceRange } from "@/lib/variant";
 
-export function generateMetadata(): Metadata {
+interface PageProps {
+  searchParams: Promise<ListingParams>;
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const site = getSite();
   const products = getProducts();
+  const page = clampPage(products.length, readListing(await searchParams).page);
   return buildMetadata({
-    title: `Каталог автосвета — ${pluralize(products.length, "товар", "товара", "товаров")} в наличии`,
+    title: `Каталог автосвета — ${pluralize(products.length, "товар", "товара", "товаров")} в наличии${page > 1 ? ` — страница ${page}` : ""}`,
     description: `Полный каталог ${site.name}: линзы, стёкла фар, лампы, блоки розжига и аксессуары. Доставка по Минску и Беларуси, оплата при получении.`,
-    path: "/catalog/",
+    path: listingHref("/catalog/", page, "default"),
   });
 }
 
-export default function CatalogPage() {
+export default async function CatalogPage({ searchParams }: PageProps) {
+  const listing = readListing(await searchParams);
   const site = getSite();
   const categories = getRootCategories();
   // Плитка показывает все разделы, включая вложенные: с этой страницы должен
@@ -34,18 +45,12 @@ export default function CatalogPage() {
   const allCategories = getCategories();
   const products = getProducts();
 
-  const items: CatalogItem[] = products.map((product, position) => ({
-    id: product.id,
-    brand: product.brand ?? "",
-    price: priceRange(product).min,
-    inStock: hasAnyInStock(product),
-    order: position,
-  }));
+  const shown = listingPage(products, listing);
 
   return (
     <div className="container-page">
       <Breadcrumbs items={[{ label: "Каталог" }]} />
-      <JsonLd data={itemListJsonLd(products, "/catalog/")} />
+      <JsonLd data={itemListJsonLd(shown.items, "/catalog/")} />
 
       <header className="mb-6">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
@@ -65,19 +70,12 @@ export default function CatalogPage() {
         <CategoryGrid categories={allCategories} priorityCount={4} />
       </nav>
 
-      <CatalogControls
-        items={items}
-        titles={products.map((product) => product.title)}
-      >
-        {products.map((product, position) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            currencySymbol={site.currencySymbol}
-            priority={position < 3}
-          />
-        ))}
-      </CatalogControls>
+      <ProductListing
+        {...shown}
+        sort={listing.sort}
+        basePath="/catalog/"
+        currencySymbol={site.currencySymbol}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { CategoryView, categoryMetadata } from "@/components/CategoryView";
 import { getCategoryBySlug, getRootCategories } from "@/lib/catalog";
+import { readListing, type ListingParams } from "@/lib/listing";
 import { findRedirect } from "@/lib/redirects";
 
 /**
@@ -20,18 +21,20 @@ export function generateStaticParams() {
 
 interface PageProps {
   params: Promise<{ category: string }>;
+  searchParams: Promise<ListingParams>;
 }
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps): Promise<Metadata> {
   const { category: slug } = await params;
   const category = getCategoryBySlug(slug);
   if (!category || category.parentId) return {};
-  return categoryMetadata(category);
+  return categoryMetadata(category, readListing(await searchParams));
 }
 
-export default async function CategoryPage({ params }: PageProps) {
+export default async function CategoryPage({ params, searchParams }: PageProps) {
   const { category: slug } = await params;
   const category = getCategoryBySlug(slug);
   if (!category || category.parentId) {
@@ -42,5 +45,5 @@ export default async function CategoryPage({ params }: PageProps) {
     notFound();
   }
 
-  return <CategoryView category={category} />;
+  return <CategoryView category={category} listing={readListing(await searchParams)} />;
 }

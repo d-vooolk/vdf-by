@@ -219,14 +219,6 @@ export function setProductPrice(id: string, price: number): SaveResult {
   return { ok: true };
 }
 
-/**
- * Складской остаток. Только в JSON: отдельной колонки под него нет и не
- * нужно — по остатку ничего не выбирается и не сортируется, а витрина о нём
- * вообще не знает. В списке админки он достаётся через json_extract.
- *
- * null — учёт не ведётся. Это не то же самое, что ноль: ноль означает «на
- * складе пусто», а null — «не считаем».
- */
 export function setProductStockQty(id: string, qty: number | null): SaveResult {
   if (qty !== null && (!Number.isInteger(qty) || qty < 0)) {
     return { ok: false, problems: ["Количество — целое число не меньше нуля"] };
@@ -810,7 +802,6 @@ export interface ProductBrief {
   categoryId: string;
   inStock: boolean;
   featured: boolean;
-  /** Складской остаток для внутреннего учёта. null — учёт не ведётся. */
   stockQty: number | null;
   /** Складской номер — где товар лежит. Пусто, если не заведён. */
   storageCode: string;

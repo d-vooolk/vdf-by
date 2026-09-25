@@ -101,13 +101,6 @@ export const productSchema = z.strictObject({
   price: money,
   oldPrice: money.nullable().optional(),
   inStock: z.boolean().default(true),
-  /**
-   * Складской остаток. Виден только в админке: покупателю показывать нечего
-   * — «осталось 2 шт.» на витрине живёт своей жизнью и врёт при первом же
-   * заказе по телефону. Здесь это внутренний учёт, не более.
-   *
-   * null — учёт по этому товару не ведётся (не то же самое, что ноль).
-   */
   stockQty: z.number().int().nonnegative().nullable().optional(),
   costPrice: money.nullable().optional(),
   wholesalePrice: money.nullable().optional(),

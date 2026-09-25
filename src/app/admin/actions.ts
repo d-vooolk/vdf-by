@@ -80,6 +80,12 @@ import {
   type SmsConnection,
   type SmsSettings,
 } from "@/lib/sms";
+import {
+  forgetVdfSession,
+  requestVdfCode,
+  syncVdfPrices,
+  verifyVdfCode,
+} from "@/lib/vdf-prices";
 import { normalizePhone } from "@/lib/phone";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { getUsdRate, type UsdRate } from "@/lib/rates";
@@ -288,10 +294,6 @@ export async function setProductPriceAction(
   return ok();
 }
 
-/**
- * Складской остаток. Пересобирать страницы не нужно: на витрине этого
- * числа нет, оно только для внутреннего учёта.
- */
 export async function setProductStockQtyAction(
   id: string,
   qty: number | null,
@@ -707,6 +709,48 @@ export async function sendTestSmsAction(phone: string, message: string): Promise
   try {
     await sendSms(digits, message.trim() || `Тестовое сообщение от ${getSite().name}`);
     return ok();
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
+}
+
+export async function requestVdfCodeAction(email: string): Promise<FormState> {
+  await requireAdmin();
+  const address = String(email ?? "").trim();
+  if (!address.includes("@")) return fail(["Укажите почту, на которую заведён кабинет vdf-light.ru"]);
+  try {
+    await requestVdfCode(address);
+    return ok();
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
+}
+
+export async function verifyVdfCodeAction(email: string, code: string): Promise<FormState> {
+  await requireAdmin();
+  const digits = String(code ?? "").replace(/\D/g, "");
+  if (!digits) return fail(["Введите код из письма"]);
+  try {
+    const session = await verifyVdfCode(String(email ?? "").trim(), digits);
+    return session.wholesale
+      ? ok()
+      : fail(["Вход выполнен, но кабинет не оптовый — себестоимость заполняться не будет"]);
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
+}
+
+export async function forgetVdfSessionAction(): Promise<FormState> {
+  await requireAdmin();
+  forgetVdfSession();
+  return ok();
+}
+
+export async function syncVdfPricesAction(): Promise<FormState> {
+  await requireAdmin();
+  try {
+    const report = await syncVdfPrices();
+    return report.ok ? ok() : fail([report.error]);
   } catch (error) {
     return fail([(error as Error).message]);
   }

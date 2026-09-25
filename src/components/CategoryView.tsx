@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MarkChips } from "@/components/CarTiles";
-import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
 import { getCarTree } from "@/lib/cars";
 import {
@@ -17,9 +16,10 @@ import {
   getSite,
 } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
+import { clampPage, listingHref, listingPage, type ListingState } from "@/lib/listing";
 import type { Category } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
-import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
+import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
 
 /**
  * Страница раздела — одна на оба адреса.
@@ -38,16 +38,17 @@ import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
  * /product/…, так что склейки в поиске это не создаёт.
  */
 
-export function categoryMetadata(category: Category): Metadata {
+export function categoryMetadata(category: Category, listing: ListingState): Metadata {
   const site = getSite();
   const products = getProductsInCategory(category.id);
   const children = getChildCategories(category.id);
   const marks = category.carFitment ? getCarTree(category.id) : [];
   const cheapest = cheapestPrice(products);
   const available = products.filter(hasAnyInStock).length;
+  const page = clampPage(products.length, listing.page);
 
   return buildMetadata({
-    title: category.seoTitle ?? `${category.name} купить в Минске`,
+    title: `${category.seoTitle ?? `${category.name} купить в Минске`}${page > 1 ? ` — страница ${page}` : ""}`,
     description:
       category.seoDescription ??
       sentences(
@@ -67,12 +68,18 @@ export function categoryMetadata(category: Category): Metadata {
           }${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
         "Доставка по Минску и Беларуси, оплата при получении",
       ),
-    path: categoryUrl(category),
+    path: listingHref(categoryUrl(category), page, "default"),
     image: category.image,
   });
 }
 
-export function CategoryView({ category }: { category: Category }) {
+export function CategoryView({
+  category,
+  listing,
+}: {
+  category: Category;
+  listing: ListingState;
+}) {
   const site = getSite();
   const url = categoryUrl(category);
   const children = getChildCategories(category.id);
@@ -81,14 +88,7 @@ export function CategoryView({ category }: { category: Category }) {
   // и без них его страница была бы пустой в разметке ItemList.
   const products = getProductsInCategory(category.id);
   const marks = category.carFitment ? getCarTree(category.id) : [];
-
-  const items: CatalogItem[] = products.map((product, position) => ({
-    id: product.id,
-    brand: product.brand ?? "",
-    price: priceRange(product).min,
-    inStock: hasAnyInStock(product),
-    order: position,
-  }));
+  const shown = listingPage(products, listing);
 
   return (
     <div className="container-page">
@@ -103,7 +103,7 @@ export function CategoryView({ category }: { category: Category }) {
           })),
         ]}
       />
-      <JsonLd data={itemListJsonLd(products, url)} />
+      <JsonLd data={itemListJsonLd(shown.items, url)} />
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
@@ -150,19 +150,12 @@ export function CategoryView({ category }: { category: Category }) {
           </p>
         </div>
       ) : (
-        <CatalogControls
-          items={items}
-          titles={products.map((product) => product.title)}
-        >
-          {products.map((product, position) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              currencySymbol={site.currencySymbol}
-              priority={position < 3}
-            />
-          ))}
-        </CatalogControls>
+        <ProductListing
+          {...shown}
+          sort={listing.sort}
+          basePath={url}
+          currencySymbol={site.currencySymbol}
+        />
       )}
 
       {/* Текст под сеткой, а не над ней: пользователю нужны товары сразу,
@@ -171,7 +164,7 @@ export function CategoryView({ category }: { category: Category }) {
           заголовком и отодвигало вниз плитку подразделов и сами товары.
           В описание страницы для поиска оно идёт из categoryMetadata, так что
           на выдачу перенос не влияет. */}
-      {(category.excerpt || category.description) && (
+      {shown.page === 1 && (category.excerpt || category.description) && (
         <section className="prose-shop mt-14 max-w-3xl border-t border-brand-100 pt-10">
           <h2 className="mb-3 text-xl font-semibold text-brand-900">
             О разделе «{category.name}»
@@ -185,7 +178,7 @@ export function CategoryView({ category }: { category: Category }) {
         </section>
       )}
 
-      <Faq items={category.faq ?? []} schema />
+      {shown.page === 1 && <Faq items={category.faq ?? []} schema />}
     </div>
   );
 }
