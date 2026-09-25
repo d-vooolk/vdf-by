@@ -3,6 +3,7 @@ import type { Product } from "./schema";
 
 export const GAPS = {
   price: "нет цены",
+  wholesale: "нет оптовой цены",
   description: "нет описания",
   photo: "нет фото",
   faq: "нет вопросов-ответов",
@@ -31,6 +32,7 @@ function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): G
   if (!((product.price ?? 0) > 0 || values.some((value) => (value.price ?? 0) > 0))) {
     gaps.push("price");
   }
+  if (product.inStock !== false && !((product.wholesalePrice ?? 0) > 0)) gaps.push("wholesale");
   if (!product.description?.trim()) gaps.push("description");
   if (!product.images?.length && !values.some((value) => value.images?.length)) {
     gaps.push("photo");

@@ -18,6 +18,7 @@ const LINKS = [
   { href: "/admin/", label: "Сводка", exact: true },
   { href: "/admin/products/", label: "Товары" },
   { href: "/admin/incomplete/", label: "Незаполненные" },
+  { href: "/admin/frame-types/", label: "Типы рамок" },
   { href: "/admin/frames/", label: "Импорт рамок" },
   { href: "/admin/categories/", label: "Разделы" },
   { href: "/admin/cars/", label: "Автомобили" },

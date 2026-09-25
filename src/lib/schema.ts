@@ -110,6 +110,7 @@ export const productSchema = z.strictObject({
    */
   stockQty: z.number().int().nonnegative().nullable().optional(),
   costPrice: money.nullable().optional(),
+  wholesalePrice: money.nullable().optional(),
   costUsd: money.nullable().optional(),
   storageCode: z.string().min(1).optional(),
   badge: z.string().optional(),

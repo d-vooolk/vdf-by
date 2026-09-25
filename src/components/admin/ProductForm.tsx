@@ -66,6 +66,7 @@ interface ProductFormProps {
   currencySymbol: string;
   usdRate?: UsdRate | null;
   savedCostPrice?: number | null;
+  copiedFrom?: string;
   ai: AiSettings;
 }
 
@@ -81,6 +82,7 @@ export function ProductForm({
   currencySymbol,
   usdRate = null,
   savedCostPrice = null,
+  copiedFrom,
   ai,
 }: ProductFormProps) {
   const router = useRouter();
@@ -252,7 +254,11 @@ export function ProductForm({
           ← К списку
         </Link>
         <h1 className="text-xl font-semibold text-brand-900">
-          {creating ? "Новый товар" : draft.title || "Без названия"}
+          {copiedFrom
+            ? `Копия товара «${copiedFrom}»`
+            : creating
+              ? "Новый товар"
+              : draft.title || "Без названия"}
         </h1>
         {!creating && (
           // Сохранённый адрес, а не из черновика: правка slug'а в форме ещё
@@ -352,6 +358,17 @@ export function ProductForm({
               value={draft.price > 0 ? draft.price : null}
               onChange={(price) => patch({ price: price ?? 0 })}
               placeholder="не указана"
+            />
+          </Field>
+
+          <Field
+            label={`Оптовая цена, ${currencySymbol}`}
+            hint="Видят только подтверждённые оптовики. У товара с опциями — для базового варианта"
+          >
+            <NumberInput
+              value={draft.wholesalePrice ?? null}
+              onChange={(wholesalePrice) => patch({ wholesalePrice })}
+              placeholder="нет"
             />
           </Field>
 

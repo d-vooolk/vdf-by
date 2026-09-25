@@ -134,6 +134,14 @@ export function ProductRow({
       />
 
       <Link
+        href={`/admin/products/new/?copy=${encodeURIComponent(product.id)}`}
+        title="Копировать — откроется новый товар с данными этого"
+        className="btn-ghost shrink-0 px-2 py-1 text-xs"
+      >
+        Копировать
+      </Link>
+
+      <Link
         href={`/product/${product.slug}/`}
         target="_blank"
         rel="noopener"

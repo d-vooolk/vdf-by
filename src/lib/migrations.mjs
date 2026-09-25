@@ -265,6 +265,20 @@ export const MIGRATIONS = [
 
     CREATE INDEX vdf_frames_by_status ON vdf_frames(status);
   `,
+
+  /* 10 — общие цены и остатки по типу переходной рамки */ `
+    CREATE TABLE frame_types (
+      category_id     TEXT NOT NULL,
+      type            TEXT NOT NULL,
+      cost_price      REAL,
+      price           REAL,
+      wholesale_price REAL,
+      stock_qty       INTEGER,
+      in_stock        INTEGER NOT NULL DEFAULT 0,
+      updated_at      INTEGER NOT NULL,
+      PRIMARY KEY (category_id, type)
+    );
+  `,
 ];
 
 /**

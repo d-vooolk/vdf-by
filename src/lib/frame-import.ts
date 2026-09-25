@@ -5,6 +5,7 @@ import { categoryPaths, invalidateCatalog } from "./catalog";
 import { getDb } from "./db";
 import { downloadDonorImages } from "./donor-images";
 import { carCatalog, matchVdfCars } from "./frame-cars";
+import { applyToProduct, frameTypeOfSku, savedFrameType } from "./frame-types";
 import { revalidateProduct } from "./revalidate";
 import type { FaqItem } from "./schema";
 import { toSlug } from "./slug.mjs";
@@ -475,6 +476,8 @@ export async function importNextFrame(
       ...(faq.length ? { faq } : {}),
     });
     if (!saved.ok) throw new Error(saved.problems.join(" "));
+    const typeValues = savedFrameType(categoryId, frameTypeOfSku(row.article));
+    if (typeValues) applyToProduct(id, typeValues);
 
     const generationIds = JSON.parse(row.generation_ids) as string[];
     if (generationIds.length) {

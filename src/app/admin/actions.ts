@@ -62,6 +62,7 @@ import {
   type AiTask,
 } from "@/lib/ai";
 import { LAST_CATEGORY_COOKIE } from "@/lib/admin-prefs";
+import { applyFrameType, validFrameTypeValues } from "@/lib/frame-types";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { getUsdRate, type UsdRate } from "@/lib/rates";
 
@@ -580,4 +581,20 @@ export async function checkAiConnectionAction(): Promise<AiCheckResult> {
   } catch (error) {
     return aiFailure(error);
   }
+}
+
+export async function applyFrameTypeAction(
+  categoryId: string,
+  type: string,
+  input: unknown,
+): Promise<FormState & { updated?: number }> {
+  await requireAdmin();
+  if (!/^\d{3}$/.test(type)) return fail(["Тип рамки — три цифры"]);
+  if (!isCarFitmentCategory(categoryId)) return fail(["Раздел не найден"]);
+  const values = validFrameTypeValues(input);
+  if (typeof values === "string") return fail([values]);
+  const updated = applyFrameType(categoryId, type, values);
+  invalidateCatalog();
+  revalidateSite();
+  return { ...ok(), updated };
 }
