@@ -279,6 +279,54 @@ export const MIGRATIONS = [
       PRIMARY KEY (category_id, type)
     );
   `,
+
+  /* 11 — покупатели: вход по SMS, оптовики */ `
+    CREATE TABLE customers (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone            TEXT NOT NULL UNIQUE,
+      name             TEXT NOT NULL,
+      kind             TEXT NOT NULL DEFAULT 'retail',
+      address          TEXT NOT NULL DEFAULT '',
+      wholesale_status TEXT NOT NULL DEFAULT 'none',
+      consent_at       INTEGER NOT NULL,
+      created_at       INTEGER NOT NULL,
+      last_login_at    INTEGER,
+      reviewed_at      INTEGER,
+      admin_note       TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE INDEX customers_by_wholesale ON customers(wholesale_status, created_at DESC);
+
+    CREATE TABLE customer_sessions (
+      token_hash  TEXT PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      created_at  INTEGER NOT NULL,
+      expires_at  INTEGER NOT NULL
+    );
+
+    CREATE INDEX customer_sessions_by_expiry ON customer_sessions(expires_at);
+
+    CREATE TABLE sms_codes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone      TEXT NOT NULL,
+      purpose    TEXT NOT NULL,
+      code_hash  TEXT NOT NULL,
+      payload    TEXT NOT NULL DEFAULT '{}',
+      ip         TEXT NOT NULL DEFAULT '',
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      used       INTEGER NOT NULL DEFAULT 0,
+      sent       INTEGER NOT NULL DEFAULT 0,
+      error      TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX sms_codes_by_phone ON sms_codes(phone, created_at DESC);
+    CREATE INDEX sms_codes_by_ip ON sms_codes(ip, created_at DESC);
+
+    ALTER TABLE orders ADD COLUMN customer_id INTEGER;
+    ALTER TABLE orders ADD COLUMN wholesale INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /**

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AccountLink } from "@/components/AccountLink";
 import { CartBadge } from "@/components/CartBadge";
 import { HomeLink } from "@/components/HomeLink";
 import { PhoneIcon } from "@/components/icons";
@@ -66,7 +67,10 @@ export function Header() {
               ),
             )}
           </nav>
-          <span className="shrink-0">{site.workHours}</span>
+          <span className="flex shrink-0 items-center gap-5">
+            <span>{site.workHours}</span>
+            <AccountLink />
+          </span>
         </div>
       </div>
 
@@ -111,6 +115,7 @@ export function Header() {
           </span>
         </a>
 
+        <AccountLink compact />
         <CartBadge currencySymbol={site.currencySymbol} />
       </div>
     </header>

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
+import { countPendingWholesale } from "@/lib/customers";
 import { orderStats } from "@/lib/orders";
 
 /**
@@ -34,6 +35,7 @@ export default async function PanelLayout({
         siteName={site.name}
         login={admin.login}
         newOrders={newCount}
+        pendingWholesale={countPendingWholesale()}
       />
       <main className="container-page flex-1 py-6 sm:py-8">{children}</main>
     </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { CartIcon, MinusIcon, PlusIcon } from "@/components/icons";
+import { useWholesalePrice } from "@/store/account";
 import { useCart, useHydrated, type CartItem } from "@/store/cart";
 
 /**
@@ -32,13 +33,15 @@ interface AddToCartButtonProps {
 }
 
 export function AddToCartButton({
-  item,
+  item: retailItem,
   qty = 1,
   disabled = false,
   className = "btn-primary w-full",
   label = "В корзину",
   compact = false,
 }: AddToCartButtonProps) {
+  const wholesale = useWholesalePrice(retailItem.key);
+  const item = wholesale ? { ...retailItem, price: wholesale } : retailItem;
   const add = useCart((state) => state.add);
   const setQty = useCart((state) => state.setQty);
   const inCart = useCart(

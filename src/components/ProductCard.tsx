@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { Picture } from "@/components/Picture";
+import { PriceTag } from "@/components/PriceTag";
 import { formatPrice } from "@/lib/format";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
@@ -123,9 +124,14 @@ export function ProductCard({
             }`}
           >
             {priced ? (
-              <span className="tnum text-sm font-semibold text-brand-900 sm:text-lg">
-                {formatPrice(range.min, currencySymbol)}
-              </span>
+              <PriceTag
+                variantKey={variant.key}
+                price={range.min}
+                currencySymbol={currencySymbol}
+                className="tnum text-sm font-semibold text-brand-900 sm:text-lg"
+                wholesaleClassName="tnum text-sm font-semibold text-green-800 sm:text-lg"
+                retailClassName="tnum text-[10px] text-brand-300 line-through sm:text-sm"
+              />
             ) : (
               <span className="text-xs font-semibold text-brand-600 sm:text-base">
                 {PRICE_ON_REQUEST}

@@ -1,7 +1,10 @@
 import { getSite } from "@/lib/catalog";
 import { env, envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
+import { getCustomer } from "@/lib/customer-auth";
+import { isWholesale } from "@/lib/customers";
 import { buildPriceList } from "@/lib/prices";
+import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
 /**
  * Приём заказа с витрины.
@@ -109,7 +112,10 @@ interface ValidatedOrder {
  * карточку заказа — так менеджер видит, что что-то не сходится, а покупатель
  * с честной корзиной не получает отказ на ровном месте.
  */
-function validate(payload: unknown): { order?: ValidatedOrder; error?: string } {
+function validate(
+  payload: unknown,
+  wholesale: WholesaleList | null,
+): { order?: ValidatedOrder; error?: string } {
   if (typeof payload !== "object" || payload === null) {
     return { error: "Пустой запрос" };
   }
@@ -153,7 +159,9 @@ function validate(payload: unknown): { order?: ValidatedOrder; error?: string } 
     const claimed = Number(line.price) || 0;
     const title = clean(line.title, 200);
 
-    const actual = hasPrices ? prices[key] : undefined;
+    const retail = hasPrices ? prices[key] : undefined;
+    const actual =
+      retail && wholesale?.[key] ? { ...retail, price: wholesale[key] } : retail;
     const price = actual ? actual.price : claimed;
 
     if (hasPrices && !actual) {
@@ -390,7 +398,9 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  const { order, error } = validate(payload);
+  const customer = await getCustomer();
+  const wholesaleBuyer = isWholesale(customer);
+  const { order, error } = validate(payload, wholesaleBuyer ? buildWholesaleList() : null);
   if (error || !order) {
     // Квоту на заказы не списываем: опечатка в телефоне не должна приближать
     // живого клиента к блокировке.
@@ -403,7 +413,14 @@ export async function POST(request: Request) {
 
   let id: number;
   try {
-    id = createOrder({ ...order, ip, referer });
+    if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
+    id = createOrder({
+      ...order,
+      ip,
+      referer,
+      customerId: customer?.id ?? null,
+      wholesale: wholesaleBuyer,
+    });
   } catch (dbError) {
     console.error("[order] не удалось записать заказ:", dbError);
     return Response.json(

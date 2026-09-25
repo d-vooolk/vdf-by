@@ -16,6 +16,7 @@ import {
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { DeliveryMethod } from "@/lib/schema";
+import { useAccount } from "@/store/account";
 import { cartTotal, useCart, useHydrated } from "@/store/cart";
 
 /**
@@ -80,8 +81,22 @@ export function CartCheckout({
   const items = useCart((state) => state.items);
   const reprice = useCart((state) => state.reprice);
   const clear = useCart((state) => state.clear);
+  const accountStatus = useAccount((state) => state.status);
+  const wholesale = useAccount((state) => state.wholesale);
+  const customer = useAccount((state) => state.customer);
+  const loadAccount = useAccount((state) => state.load);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [prefilled, setPrefilled] = useState(false);
+  if (customer && !prefilled) {
+    setPrefilled(true);
+    setForm((current) => ({
+      ...current,
+      name: current.name || customer.name,
+      phone: current.phone || customer.phone,
+      address: current.address || customer.address,
+    }));
+  }
   const [methodId, setMethodId] = useState(deliveryMethods[0]?.id ?? "");
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>(
     {},
@@ -109,12 +124,20 @@ export function CartCheckout({
    * клиент увидит одну сумму, а менеджер посчитает другую.
    */
   useEffect(() => {
-    if (!hydrated) return;
+    void loadAccount();
+  }, [loadAccount]);
+
+  useEffect(() => {
+    if (!hydrated || accountStatus === "unknown" || accountStatus === "loading") return;
     let cancelled = false;
     fetch("/variants.json")
       .then((response) => (response.ok ? response.json() : null))
-      .then((prices) => {
-        if (cancelled || !prices) return;
+      .then((retail: Record<string, { price: number; inStock: boolean }> | null) => {
+        if (cancelled || !retail) return;
+        const prices = { ...retail };
+        for (const [key, price] of Object.entries(wholesale ?? {})) {
+          if (prices[key]) prices[key] = { ...prices[key], price };
+        }
         const changes = reprice(prices);
         if (changes.length) setPriceChanges(changes);
       })
@@ -127,7 +150,7 @@ export function CartCheckout({
     // Сверяем один раз при заходе на страницу: за время правки количества
     // цены в собранном файле измениться не могут.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
+  }, [hydrated, accountStatus]);
 
   const validate = (): boolean => {
     const next: Partial<Record<keyof FormState, string>> = {};

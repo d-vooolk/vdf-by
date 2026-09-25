@@ -33,6 +33,7 @@ import {
   variantQuery,
   type Selection,
 } from "@/lib/variant";
+import { useWholesalePrice } from "@/store/account";
 import { useCart, useHydrated } from "@/store/cart";
 
 /**
@@ -158,6 +159,7 @@ export function ProductPurchase({
 
   const variant = resolveVariant(product, selection);
   const priced = hasPrice(variant.price);
+  const wholesale = useWholesalePrice(variant.key);
 
   /*
    * Сколько этого варианта уже лежит в корзине.
@@ -376,7 +378,17 @@ export function ProductPurchase({
       {/* ------------------------ Цена и опции -------------------------- */}
       <div>
         <div className="mb-5 flex flex-wrap items-baseline gap-3">
-          {priced ? (
+          {priced && wholesale ? (
+            <>
+              <span className="tnum text-3xl font-semibold text-green-800">
+                {formatPrice(wholesale, currencySymbol)}
+              </span>
+              <span className="tnum text-lg text-brand-300 line-through">
+                {formatPrice(variant.price, currencySymbol)}
+              </span>
+              <span className="badge bg-green-50 text-green-800">оптовая цена</span>
+            </>
+          ) : priced ? (
             <span className="tnum text-3xl font-semibold text-brand-900">
               {formatPrice(variant.price, currencySymbol)}
             </span>
@@ -390,7 +402,7 @@ export function ProductPurchase({
               </span>
             </>
           )}
-          {priced && variant.oldPrice && (
+          {priced && !wholesale && variant.oldPrice && (
             <>
               <span className="tnum text-lg text-brand-300 line-through">
                 {formatPrice(variant.oldPrice, currencySymbol)}
@@ -545,7 +557,7 @@ export function ProductPurchase({
                   title: product.title,
                   options: variant.label,
                   sku: variant.sku,
-                  price: variant.price,
+                  price: wholesale ?? variant.price,
                 }}
               />
             </div>

@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         // Корзина у каждого своя, страница успеха существует лишь секунду
         // после отправки — в индексе им делать нечего. Админка отдаёт
         // краулеру только редирект на форму входа, но и ей в выдаче не место.
-        disallow: ["/cart/", "/order/", "/admin/"],
+        disallow: ["/cart/", "/order/", "/admin/", "/account/"],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),

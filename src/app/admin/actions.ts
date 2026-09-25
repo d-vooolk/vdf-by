@@ -63,6 +63,14 @@ import {
 } from "@/lib/ai";
 import { LAST_CATEGORY_COOKIE } from "@/lib/admin-prefs";
 import { applyFrameType, validFrameTypeValues } from "@/lib/frame-types";
+import { getSite } from "@/lib/catalog";
+import {
+  deleteCustomer,
+  getCustomerById,
+  setCustomerNote,
+  setWholesaleStatus,
+} from "@/lib/customers";
+import { sendSms, smsConfigured } from "@/lib/sms";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { getUsdRate, type UsdRate } from "@/lib/rates";
 
@@ -597,4 +605,37 @@ export async function applyFrameTypeAction(
   invalidateCatalog();
   revalidateSite();
   return { ...ok(), updated };
+}
+
+export async function setWholesaleStatusAction(
+  customerId: number,
+  status: "approved" | "rejected" | "none",
+): Promise<FormState> {
+  await requireAdmin();
+  const customer = getCustomerById(customerId);
+  if (!customer) return fail(["Покупатель не найден"]);
+  setWholesaleStatus(customerId, status);
+  if (status === "approved" && customer.wholesaleStatus !== "approved" && smsConfigured()) {
+    try {
+      await sendSms(
+        customer.phone,
+        `Оптовые цены на ${getSite().name} открыты. Войдите в личный кабинет по номеру телефона.`,
+      );
+    } catch (error) {
+      console.error("[customers] SMS об опте не ушло:", (error as Error).message);
+    }
+  }
+  return ok();
+}
+
+export async function setCustomerNoteAction(customerId: number, note: string): Promise<FormState> {
+  await requireAdmin();
+  setCustomerNote(customerId, typeof note === "string" ? note : "");
+  return ok();
+}
+
+export async function deleteCustomerAction(customerId: number): Promise<FormState> {
+  await requireAdmin();
+  deleteCustomer(customerId);
+  return ok();
 }

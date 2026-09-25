@@ -363,7 +363,7 @@ export function ProductForm({
 
           <Field
             label={`Оптовая цена, ${currencySymbol}`}
-            hint="Видят только подтверждённые оптовики. У товара с опциями — для базового варианта"
+            hint="Видят только подтверждённые оптовики. У вариантов опций разница с этой ценой — как в рознице"
           >
             <NumberInput
               value={draft.wholesalePrice ?? null}

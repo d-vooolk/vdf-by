@@ -22,7 +22,8 @@ const LINKS = [
   { href: "/admin/frames/", label: "Импорт рамок" },
   { href: "/admin/categories/", label: "Разделы" },
   { href: "/admin/cars/", label: "Автомобили" },
-  { href: "/admin/orders/", label: "Заказы", badge: true },
+  { href: "/admin/orders/", label: "Заказы", badge: "orders" },
+  { href: "/admin/customers/", label: "Покупатели", badge: "customers" },
   { href: "/admin/media/", label: "Фото" },
   { href: "/admin/ai/", label: "Нейросеть" },
   { href: "/admin/settings/", label: "Настройки" },
@@ -32,9 +33,10 @@ interface AdminNavProps {
   siteName: string;
   login: string;
   newOrders: number;
+  pendingWholesale: number;
 }
 
-export function AdminNav({ siteName, login, newOrders }: AdminNavProps) {
+export function AdminNav({ siteName, login, newOrders, pendingWholesale }: AdminNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -57,13 +59,13 @@ export function AdminNav({ siteName, login, newOrders }: AdminNavProps) {
         }`}
       >
         {link.label}
-        {link.badge && newOrders > 0 && (
+        {link.badge && (link.badge === "orders" ? newOrders : pendingWholesale) > 0 && (
           <span
             className={`badge tnum ${
               active ? "bg-white text-brand-800" : "bg-amber-400 text-amber-950"
             }`}
           >
-            {newOrders}
+            {link.badge === "orders" ? newOrders : pendingWholesale}
           </span>
         )}
       </Link>
