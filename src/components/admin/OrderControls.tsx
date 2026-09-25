@@ -65,6 +65,11 @@ export function OrderControls({ id, status: initial, note: initialNote }: OrderC
 
       <Problems items={problems} />
 
+      <p className="mb-2 text-xs text-brand-400">
+        «Выполнен» списывает заказанное количество с остатков на складе. Если потом сменить
+        статус, списанное вернётся на склад.
+      </p>
+
       <div className="mb-4 flex flex-wrap gap-1.5">
         {ORDER_STATUSES.map((entry) => (
           <button

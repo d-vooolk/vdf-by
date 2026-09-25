@@ -21,7 +21,7 @@ const BLANK: Product = {
   categoryId: "",
   title: "",
   price: 0,
-  inStock: true,
+  inStock: false,
   images: [],
   specs: [],
   optionGroups: [],

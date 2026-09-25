@@ -201,6 +201,10 @@ export function priceRange(product: Product): PriceRange {
 
 export const PRICE_ON_REQUEST = "Цену уточняйте";
 
+export function stockedByQty(qty: number | null | undefined): boolean {
+  return (qty ?? 0) > 0;
+}
+
 export function hasPrice(price: number): boolean {
   return price > 0;
 }

@@ -33,6 +33,7 @@ import type { UsdRate } from "@/lib/rates";
 import type { Product, Spec } from "@/lib/schema";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
+import { stockedByQty } from "@/lib/variant";
 
 /**
  * Карточка товара.
@@ -465,24 +466,18 @@ export function ProductForm({
               шаблона их всё равно было бы видно в исходном коде. */}
           <Field
             label="Остаток на складе"
-            hint="Только для вас — на сайте не показывается. Пусто = не считаем"
+            hint="Виден на сайте. Больше нуля — в наличии, пусто или 0 — нет в наличии и кнопки заказа нет"
           >
             <NumberInput
               integer
               value={draft.stockQty ?? null}
-              onChange={(stockQty) => patch({ stockQty })}
-              placeholder="не считаем"
+              onChange={(stockQty) => patch({ stockQty, inStock: stockedByQty(stockQty) })}
+              placeholder="нет в наличии"
             />
           </Field>
         </div>
 
         <div className="flex flex-wrap gap-5">
-          <Checkbox
-            checked={draft.inStock}
-            onChange={(value) => patch({ inStock: value })}
-            label="В наличии"
-            hint="Выключено — кнопки заказа не будет"
-          />
           <Checkbox
             checked={Boolean(draft.featured)}
             onChange={(value) => patch({ featured: value })}

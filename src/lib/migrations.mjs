@@ -327,6 +327,19 @@ export const MIGRATIONS = [
     ALTER TABLE orders ADD COLUMN customer_id INTEGER;
     ALTER TABLE orders ADD COLUMN wholesale INTEGER NOT NULL DEFAULT 0;
   `,
+
+  `
+    ALTER TABLE orders ADD COLUMN stock_moves TEXT;
+
+    UPDATE products
+       SET in_stock = CASE WHEN COALESCE(json_extract(data, '$.stockQty'), 0) > 0 THEN 1 ELSE 0 END,
+           data = json_set(data, '$.inStock', json(
+             CASE WHEN COALESCE(json_extract(data, '$.stockQty'), 0) > 0 THEN 'true' ELSE 'false' END
+           ));
+
+    UPDATE frame_types
+       SET in_stock = CASE WHEN COALESCE(stock_qty, 0) > 0 THEN 1 ELSE 0 END;
+  `,
 ];
 
 /**

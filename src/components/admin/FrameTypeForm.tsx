@@ -82,19 +82,10 @@ export function FrameTypeForm({
         </label>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-brand-800">
-        <input
-          type="checkbox"
-          checked={values.inStock}
-          onChange={(event) => patch({ inStock: event.target.checked })}
-          className="h-4 w-4 rounded border-brand-300 text-brand-700"
-        />
-        В наличии
-      </label>
-
       <p className="text-xs text-brand-400">
         Остаток общий для типа: рамка одна и та же на все машины, поэтому у каждого товара будет
-        записано одно и то же число. Пустая цена — на сайте «Цену уточняйте».
+        записано одно и то же число. Наличие считается по остатку: больше нуля — в наличии,
+        пусто или ноль — нет в наличии. Пустая цена — на сайте «Цену уточняйте».
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

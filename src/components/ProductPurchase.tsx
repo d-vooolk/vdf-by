@@ -423,7 +423,11 @@ export function ProductPurchase({
           {variant.inStock ? (
             <>
               <CheckIcon className="h-4 w-4 text-green-600" />
-              <span className="text-green-700">В наличии, отправим сегодня</span>
+              <span className="tnum text-green-700">
+                {product.stockQty
+                  ? `В наличии: ${product.stockQty} шт., отправим сегодня`
+                  : "В наличии, отправим сегодня"}
+              </span>
             </>
           ) : (
             <>

@@ -89,7 +89,7 @@ export function ProductRow({
         <p className="truncate text-xs text-brand-400">
           {categoryName}
           {product.brand ? ` · ${product.brand}` : ""} · /{product.slug}/
-          {product.inStock ? "" : " · снят с продажи"}
+          {product.inStock ? "" : " · нет в наличии"}
         </p>
         {error && <p className="mt-0.5 text-xs text-red-600">{error}</p>}
       </div>
@@ -121,7 +121,7 @@ export function ProductRow({
       <InlineNumber
         value={product.stockQty}
         suffix="шт."
-        title="Остаток на складе — виден только в админке"
+        title="Остаток на складе — виден на сайте, 0 или пусто — нет в наличии"
         placeholder="—"
         className="w-20"
         onSave={(next) =>

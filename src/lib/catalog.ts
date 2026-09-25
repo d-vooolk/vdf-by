@@ -102,7 +102,6 @@ function load(): Catalog {
     // складской номер уехали бы в исходный код страницы, где их видно
     // любому. Админка читает товары в обход этого снимка
     // (src/lib/store.ts), так что учёт не страдает.
-    delete product.stockQty;
     delete product.costPrice;
     delete product.wholesalePrice;
     delete product.costUsd;

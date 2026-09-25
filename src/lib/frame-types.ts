@@ -1,6 +1,7 @@
 import { bumpCatalogVersion, getDb } from "./db";
 import type { Product } from "./schema";
 import { listCategoriesBrief } from "./store";
+import { stockedByQty } from "./variant";
 
 export interface FrameTypeValues {
   costPrice: number | null;
@@ -48,7 +49,7 @@ function toValues(row: TypeRow): FrameTypeValues {
     price: row.price,
     wholesalePrice: row.wholesale_price,
     stockQty: row.stock_qty,
-    inStock: row.in_stock === 1,
+    inStock: stockedByQty(row.stock_qty),
   };
 }
 
@@ -155,12 +156,16 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
     price: price as number | null,
     wholesalePrice: wholesalePrice as number | null,
     stockQty: stockQty as number | null,
-    inStock: value.inStock === true,
+    inStock: stockedByQty(stockQty as number | null),
   };
 }
 
 function writeValues(product: Product, values: FrameTypeValues): Product {
-  const next: Product = { ...product, price: values.price ?? 0, inStock: values.inStock };
+  const next: Product = {
+    ...product,
+    price: values.price ?? 0,
+    inStock: stockedByQty(values.stockQty),
+  };
   delete next.costUsd;
   if (values.costPrice === null) delete next.costPrice;
   else next.costPrice = values.costPrice;

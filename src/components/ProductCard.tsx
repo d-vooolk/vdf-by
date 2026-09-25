@@ -118,6 +118,11 @@ export function ProductCard({
         {/* mt-auto прижимает цену и кнопку к низу — карточки в сетке
             выравниваются по нижнему краю независимо от длины названия. */}
         <div className="mt-auto pt-1 sm:pt-2">
+          {inStock && product.stockQty ? (
+            <p className="tnum mb-1 text-[10px] font-medium text-green-700 sm:text-xs">
+              В наличии: {product.stockQty} шт.
+            </p>
+          ) : null}
           <div
             className={`flex flex-wrap items-baseline gap-x-1.5 sm:gap-x-2 ${
               hasOptions && inStock && priced ? "" : "mb-2 sm:mb-3"

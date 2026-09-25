@@ -5,6 +5,7 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "./order-types";
+import { returnToStock, takeFromStock, type StockMove } from "./store";
 
 /**
  * Заказы: приём с витрины и работа с ними в админке.
@@ -209,8 +210,43 @@ export function listOrders(filter: {
   return { total, rows: rows.map(toOrder) };
 }
 
-export function setOrderStatus(id: number, status: OrderStatus): void {
-  getDb().prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
+export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
+  const db = getDb();
+  return db.transaction(() => {
+    const row = db
+      .prepare("SELECT items, stock_moves FROM orders WHERE id = ?")
+      .get(id) as { items: string; stock_moves: string | null } | undefined;
+    if (!row) return [];
+
+    let moves: StockMove[] | null = row.stock_moves
+      ? (JSON.parse(row.stock_moves) as StockMove[])
+      : null;
+    let changed: StockMove[] = [];
+
+    if (status === "done" && moves === null) {
+      moves = takeFromStock(orderedQuantities(JSON.parse(row.items) as OrderItem[]));
+      changed = moves;
+    } else if (status !== "done" && moves !== null) {
+      changed = returnToStock(moves);
+      moves = null;
+    }
+
+    db.prepare("UPDATE orders SET status = ?, stock_moves = ? WHERE id = ?").run(
+      status,
+      moves === null ? null : JSON.stringify(moves),
+      id,
+    );
+    return changed;
+  })();
+}
+
+function orderedQuantities(items: OrderItem[]): StockMove[] {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const productId = item.key.split("|")[0];
+    if (productId) totals.set(productId, (totals.get(productId) ?? 0) + item.qty);
+  }
+  return [...totals].map(([productId, qty]) => ({ productId, qty }));
 }
 
 export function setOrderNote(id: number, note: string): void {

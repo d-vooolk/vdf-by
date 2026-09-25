@@ -13,6 +13,7 @@ import {
   type Product,
   type Site,
 } from "./schema";
+import { stockedByQty } from "./variant";
 
 /**
  * Запись каталога. Всё, что меняет товары, категории и настройки, проходит
@@ -44,7 +45,7 @@ export function saveProduct(input: unknown, previousId?: string): SaveResult {
   if (!parsed.success) {
     return { ok: false, problems: describe(parsed.error.issues) };
   }
-  const product = parsed.data;
+  const product = { ...parsed.data, inStock: stockedByQty(parsed.data.stockQty) };
   const db = getDb();
   const problems: string[] = [];
 
@@ -240,15 +241,52 @@ export function setProductStockQty(id: string, qty: number | null): SaveResult {
   const product = JSON.parse(row.data) as Product;
   if (qty === null) delete product.stockQty;
   else product.stockQty = qty;
+  product.inStock = stockedByQty(qty);
 
-  db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?").run(
-    JSON.stringify(product),
-    Date.now(),
-    id,
-  );
+  db.prepare(
+    "UPDATE products SET in_stock = ?, data = ?, updated_at = ? WHERE id = ?",
+  ).run(product.inStock ? 1 : 0, JSON.stringify(product), Date.now(), id);
 
   bumpCatalogVersion();
   return { ok: true };
+}
+
+export interface StockMove {
+  productId: string;
+  qty: number;
+}
+
+export function takeFromStock(wanted: StockMove[]): StockMove[] {
+  return moveStock(wanted, -1);
+}
+
+export function returnToStock(moves: StockMove[]): StockMove[] {
+  return moveStock(moves, 1);
+}
+
+function moveStock(moves: StockMove[], direction: 1 | -1): StockMove[] {
+  const db = getDb();
+  const read = db.prepare("SELECT data FROM products WHERE id = ?");
+  const write = db.prepare(
+    "UPDATE products SET in_stock = ?, data = ?, updated_at = ? WHERE id = ?",
+  );
+  const done: StockMove[] = [];
+
+  for (const { productId, qty } of moves) {
+    const row = read.get(productId) as { data: string } | undefined;
+    if (!row || qty <= 0) continue;
+    const product = JSON.parse(row.data) as Product;
+    const before = product.stockQty ?? 0;
+    const moved = direction === -1 ? Math.min(before, qty) : qty;
+    if (moved === 0) continue;
+    product.stockQty = before + direction * moved;
+    product.inStock = stockedByQty(product.stockQty);
+    write.run(product.inStock ? 1 : 0, JSON.stringify(product), Date.now(), productId);
+    done.push({ productId, qty: moved });
+  }
+
+  if (done.length) bumpCatalogVersion();
+  return done;
 }
 
 /**
@@ -787,6 +825,7 @@ export interface ProductBrief {
 export function listProducts(filter: {
   categoryId?: string;
   query?: string;
+  outOfStock?: boolean;
   limit?: number;
   offset?: number;
 }): { rows: ProductBrief[]; total: number } {
@@ -797,8 +836,11 @@ export function listProducts(filter: {
     where.push("category_id = @categoryId");
     params.categoryId = filter.categoryId;
   }
+  if (filter.outOfStock) where.push("in_stock = 0");
   if (filter.query?.trim()) {
-    where.push("(title LIKE @q OR brand LIKE @q OR id LIKE @q OR slug LIKE @q)");
+    where.push(
+      "(title LIKE @q OR brand LIKE @q OR id LIKE @q OR slug LIKE @q OR json_extract(data, '$.sku') LIKE @q)",
+    );
     params.q = `%${filter.query.trim()}%`;
   }
 

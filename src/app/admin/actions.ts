@@ -298,10 +298,19 @@ export async function setProductStockQtyAction(
 ): Promise<FormState> {
   await requireAdmin();
 
+  const product = getProductRaw(id);
+  if (!product) return fail(["Товар не найден"]);
+
   const result = setProductStockQty(id, qty);
   if (!result.ok) return toState(result);
 
   invalidateCatalog();
+  revalidateProduct(
+    product.slug,
+    categoryPaths(product.categoryId),
+    undefined,
+    carPathsForProduct(product.id),
+  );
   return ok();
 }
 
@@ -435,7 +444,20 @@ export async function setOrderStatusAction(
   await requireAdmin();
   if (!isOrderStatus(status)) return fail(["Неизвестный статус"]);
 
-  setOrderStatus(id, status);
+  const moved = setOrderStatus(id, status);
+  if (moved.length) {
+    invalidateCatalog();
+    for (const { productId } of moved) {
+      const product = getProductRaw(productId);
+      if (!product) continue;
+      revalidateProduct(
+        product.slug,
+        categoryPaths(product.categoryId),
+        undefined,
+        carPathsForProduct(product.id),
+      );
+    }
+  }
   return ok();
 }
 

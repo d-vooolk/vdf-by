@@ -121,8 +121,10 @@ export default function DashboardPage() {
 
           {outOfStock > 0 && (
             <p className="border-t border-brand-100 px-4 py-3 text-xs text-brand-400">
-              Выключено из продажи товаров: <b className="tnum">{outOfStock}</b>.
-              Кнопки заказа у них нет.
+              <Link href="/admin/out-of-stock/" className="underline">
+                Нет в наличии товаров: <b className="tnum">{outOfStock}</b>
+              </Link>
+              . Кнопки заказа у них нет.
             </p>
           )}
         </section>
