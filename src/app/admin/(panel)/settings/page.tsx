@@ -1,4 +1,5 @@
 import { SettingsForm } from "@/components/admin/SettingsForm";
+import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { getSiteRaw } from "@/lib/store";
 
 export const metadata = { title: "Настройки" };
@@ -15,5 +16,10 @@ export default function SettingsPage() {
     );
   }
 
-  return <SettingsForm site={site} />;
+  return (
+    <>
+      <SettingsTabs active="site" />
+      <SettingsForm site={site} />
+    </>
+  );
 }

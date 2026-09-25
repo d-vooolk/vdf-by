@@ -61,7 +61,10 @@ export default async function CustomersPage({ searchParams }: PageProps) {
         </p>
         {!smsConfigured() && (
           <p className="mt-2 text-sm text-red-700">
-            SMS не настроены: в .env на сервере нет SMS_BY_TOKEN — коды входа не отправляются.
+            SMS не настроены или выключены — коды входа не отправляются.{" "}
+            <Link href="/admin/settings/sms/" className="underline">
+              Настроить SMS
+            </Link>
           </p>
         )}
       </div>

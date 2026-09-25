@@ -13,7 +13,7 @@ import {
   type Registration,
 } from "@/lib/customers";
 import { formatPhone, normalizePhone } from "@/lib/phone";
-import { sendSms, SmsError, smsConfigured } from "@/lib/sms";
+import { getSmsSettings, renderTemplate, sendSms, SmsError, smsConfigured } from "@/lib/sms";
 import { escapeTelegram, sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList } from "@/lib/wholesale";
 
@@ -73,7 +73,7 @@ async function deliverCode(
   }
 
   try {
-    await sendSms(phone, `Код для входа на ${siteName}: ${code}`);
+    await sendSms(phone, renderTemplate(getSmsSettings().codeTemplate, { code, siteName }));
     markCodeSent(id, null);
     return Response.json({ sent: true, retryIn: 60 });
   } catch (error) {

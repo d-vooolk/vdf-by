@@ -70,7 +70,17 @@ import {
   setCustomerNote,
   setWholesaleStatus,
 } from "@/lib/customers";
-import { sendSms, smsConfigured } from "@/lib/sms";
+import {
+  checkSmsConnection,
+  getSmsSettings,
+  renderTemplate,
+  saveSmsSettings,
+  sendSms,
+  smsConfigured,
+  type SmsConnection,
+  type SmsSettings,
+} from "@/lib/sms";
+import { normalizePhone } from "@/lib/phone";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { getUsdRate, type UsdRate } from "@/lib/rates";
 
@@ -619,7 +629,10 @@ export async function setWholesaleStatusAction(
     try {
       await sendSms(
         customer.phone,
-        `Оптовые цены на ${getSite().name} открыты. Войдите в личный кабинет по номеру телефона.`,
+        renderTemplate(getSmsSettings().approvedTemplate, {
+          name: customer.name,
+          siteName: getSite().name,
+        }),
       );
     } catch (error) {
       console.error("[customers] SMS об опте не ушло:", (error as Error).message);
@@ -638,4 +651,41 @@ export async function deleteCustomerAction(customerId: number): Promise<FormStat
   await requireAdmin();
   deleteCustomer(customerId);
   return ok();
+}
+
+export async function saveSmsSettingsAction(input: Partial<SmsSettings>): Promise<FormState> {
+  await requireAdmin();
+  saveSmsSettings({
+    enabled: input.enabled === true,
+    token: typeof input.token === "string" ? input.token : "",
+    alphanameId: typeof input.alphanameId === "string" ? input.alphanameId : "",
+    alphaname: typeof input.alphaname === "string" ? input.alphaname : "",
+    codeTemplate: typeof input.codeTemplate === "string" ? input.codeTemplate : "",
+    approvedTemplate: typeof input.approvedTemplate === "string" ? input.approvedTemplate : "",
+  });
+  return ok();
+}
+
+export async function checkSmsAction(
+  token: string,
+): Promise<{ ok: true; info: SmsConnection } | { ok: false; error: string }> {
+  await requireAdmin();
+  try {
+    const info = await checkSmsConnection(token.trim() || getSmsSettings().token);
+    return { ok: true, info };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+export async function sendTestSmsAction(phone: string, message: string): Promise<FormState> {
+  await requireAdmin();
+  const digits = normalizePhone(phone);
+  if (!digits) return fail(["Номер нужен белорусский: 375XXXXXXXXX"]);
+  try {
+    await sendSms(digits, message.trim() || `Тестовое сообщение от ${getSite().name}`);
+    return ok();
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
 }
