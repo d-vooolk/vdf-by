@@ -84,7 +84,7 @@ export function Header() {
         />
 
         <HomeLink
-          className="flex shrink-0 items-center transition-opacity hover:opacity-80"
+          className="flex shrink-0 flex-col items-center transition-opacity hover:opacity-80"
           ariaLabel={`${site.name} — на главную`}
         >
           <img
@@ -94,6 +94,9 @@ export function Header() {
             height={100}
             className="h-5 w-auto sm:h-6 lg:h-7"
           />
+          <span className="mt-1 text-[9px] leading-none font-semibold tracking-[0.12em] whitespace-nowrap text-brand-500 uppercase sm:text-[10px] lg:text-[11px]">
+            Автосвет Беларусь
+          </span>
         </HomeLink>
 
         <div className="min-w-0 flex-1">
