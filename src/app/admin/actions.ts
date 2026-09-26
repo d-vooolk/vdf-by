@@ -23,7 +23,7 @@ import {
   invalidateCatalog,
 } from "@/lib/catalog";
 import { removeImageFiles } from "@/lib/image-pipeline.mjs";
-import { deleteImage, getImage, imageUsage } from "@/lib/images";
+import { deleteImage, getImage, imageUsage, usedImagePaths } from "@/lib/images";
 import { isOrderStatus } from "@/lib/order-types";
 import { deleteOrder, setOrderNote, setOrderStatus } from "@/lib/orders";
 import {
@@ -507,6 +507,40 @@ export async function deleteImageAction(path: string): Promise<FormState> {
 
   revalidateImages();
   return ok();
+}
+
+const UNUSED_BATCH = 200;
+
+export async function deleteUnusedImagesAction(
+  paths: string[],
+): Promise<FormState & { deleted: string[] }> {
+  await requireAdmin();
+  if (!Array.isArray(paths) || paths.length > UNUSED_BATCH) {
+    return { ...fail(["Некорректный запрос"]), deleted: [] };
+  }
+
+  const used = usedImagePaths();
+  const deleted: string[] = [];
+  const skipped: string[] = [];
+  const publicDir = join(process.cwd(), "public");
+
+  for (const path of paths) {
+    const entry = typeof path === "string" ? getImage(path) : null;
+    if (!entry) continue;
+    if (used.has(path)) {
+      skipped.push(path);
+      continue;
+    }
+    deleteImage(path);
+    await removeImageFiles(entry, publicDir);
+    deleted.push(path);
+  }
+
+  if (deleted.length) revalidateImages();
+  const problems = skipped.length
+    ? [`Пропущено ${skipped.length}: эти фото успели снова начать использоваться`]
+    : [];
+  return { ok: true, problems, at: Date.now(), deleted };
 }
 
 export async function saveCarEntryAction(

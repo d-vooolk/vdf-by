@@ -175,3 +175,56 @@ export function imageUsage(imagePath: string): string[] {
     ...cars.map((row) => `фото автомобиля для генератора: ${row.name}`),
   ];
 }
+
+const FRESH_MS = 24 * 60 * 60 * 1000;
+
+function collectStrings(value: unknown, into: Set<string>): void {
+  if (typeof value === "string") into.add(value);
+  else if (Array.isArray(value)) for (const item of value) collectStrings(item, into);
+  else if (value && typeof value === "object") {
+    for (const item of Object.values(value)) collectStrings(item, into);
+  }
+}
+
+export function usedImagePaths(): Set<string> {
+  const db = getDb();
+  const used = new Set<string>();
+
+  const jsonSources = [
+    "SELECT data AS json FROM products",
+    "SELECT data AS json FROM categories",
+    "SELECT value AS json FROM settings",
+  ];
+  for (const sql of jsonSources) {
+    for (const row of db.prepare(sql).all() as Array<{ json: string }>) {
+      try {
+        collectStrings(JSON.parse(row.json), used);
+      } catch {
+        used.add(row.json);
+      }
+    }
+  }
+
+  const columnSources = [
+    "SELECT logo AS path FROM car_marks WHERE logo <> ''",
+    "SELECT photo AS path FROM car_generations WHERE photo <> ''",
+    "SELECT image AS path FROM car_front_photos",
+  ];
+  for (const sql of columnSources) {
+    for (const row of db.prepare(sql).all() as Array<{ path: string }>) used.add(row.path);
+  }
+
+  return used;
+}
+
+export interface UnusedImages {
+  images: StoredImage[];
+  freshSkipped: number;
+}
+
+export function unusedImages(now = Date.now()): UnusedImages {
+  const used = usedImagePaths();
+  const unused = listImages().filter((image) => !used.has(image.path));
+  const images = unused.filter((image) => now - image.createdAt >= FRESH_MS);
+  return { images, freshSkipped: unused.length - images.length };
+}

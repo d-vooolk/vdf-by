@@ -52,6 +52,7 @@ const NAV: Array<NavLink | NavGroup> = [
     links: [
       { href: "/admin/cars/", label: "Автомобили" },
       { href: "/admin/media/", label: "Фото" },
+      { href: "/admin/unused-photos/", label: "Неиспользуемые фото" },
       { href: "/admin/ai/", label: "Нейросеть для текста" },
       { href: "/admin/composer/", label: "Генератор картинок" },
     ],
