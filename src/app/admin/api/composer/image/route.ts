@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const url = largestVariantUrl(getImage(new URL(request.url).searchParams.get("path") ?? ""));
   if (!url) return new Response("Фото не найдено", { status: 404 });
 
-  const file = path.join(process.cwd(), "public", url.replace(/^\//, ""));
+  const file = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", url.replace(/^\//, ""));
   const data = await fsp.readFile(file).catch(() => null);
   if (!data) return new Response("Файл фото не найден", { status: 404 });
 

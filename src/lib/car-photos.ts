@@ -200,7 +200,7 @@ export async function deleteCarFrontPhoto(generationId: string): Promise<void> {
 export async function readCarFrontPhoto(photo: CarFrontPhoto): Promise<Buffer> {
   const url = largestVariantUrl(getImage(photo.image));
   if (!url) throw new Error("Файлы фото автомобиля не найдены — загрузите его заново");
-  return fsp.readFile(path.join(PUBLIC_DIR, url.replace(/^\//, "")));
+  return fsp.readFile(path.join(/*turbopackIgnore: true*/ PUBLIC_DIR, url.replace(/^\//, "")));
 }
 
 export function describeCarPhoto(photo: CarFrontPhoto | null) {
