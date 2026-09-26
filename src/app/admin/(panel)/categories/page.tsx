@@ -3,7 +3,7 @@ import Link from "next/link";
 import { categoryUrl, getCategories } from "@/lib/catalog";
 import { listCategoriesBrief } from "@/lib/store";
 
-export const metadata = { title: "Разделы" };
+export const metadata = { title: "Категории" };
 
 /**
  * Разделы каталога.
@@ -24,19 +24,19 @@ export default function CategoriesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-brand-900">
-          Разделы{" "}
+          Категории{" "}
           <span className="tnum text-base font-medium text-brand-400">
             {brief.length}
           </span>
         </h1>
         <Link href="/admin/categories/new/" className="btn-primary py-2 text-sm">
-          Добавить раздел
+          Добавить категорию
         </Link>
       </div>
 
       {brief.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
-          Разделов пока нет. Без них товар создать не получится — начните
+          Категорий пока нет. Без них товар создать не получится — начните
           отсюда.
         </p>
       ) : (

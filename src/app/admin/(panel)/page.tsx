@@ -92,7 +92,7 @@ export default function DashboardPage() {
         {/* ------------------------- Каталог ------------------------ */}
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between border-b border-brand-100 px-4 py-3">
-            <h2 className="text-sm font-bold text-brand-900">Разделы каталога</h2>
+            <h2 className="text-sm font-bold text-brand-900">Категории каталога</h2>
             <Link
               href="/admin/products/new/"
               className="text-xs font-medium text-brand-700 hover:underline"

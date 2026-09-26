@@ -428,6 +428,10 @@ export const MIGRATIONS = [
       created_at    INTEGER NOT NULL
     );
   `,
+
+  `
+    DROP TABLE IF EXISTS vdf_frames;
+  `,
 ];
 
 /**

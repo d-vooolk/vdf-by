@@ -135,7 +135,7 @@ export function CategoryForm({
           ← К разделам
         </Link>
         <h1 className="text-xl font-semibold text-brand-900">
-          {creating ? "Новый раздел" : draft.name || "Без названия"}
+          {creating ? "Новая категория" : draft.name || "Без названия"}
         </h1>
         {!creating && (
           // Адрес берём сохранённый, а не из черновика: несохранённый slug
@@ -200,7 +200,7 @@ export function CategoryForm({
         </Field>
 
         <Field
-          label="Родительский раздел"
+          label="Родительская категория"
           hint={
             hasOwnChildren
               ? "У раздела есть свои подразделы — вложить его никуда нельзя"
@@ -369,7 +369,7 @@ export function CategoryForm({
         <FaqEditor value={draft.faq ?? []} onChange={(faq) => patch({ faq })} />
       </Section>
 
-      <Section title="Картинка раздела">
+      <Section title="Картинка категории">
         <ImagePicker
           value={draft.image ? [draft.image] : []}
           onChange={(images) => patch({ image: images[0] })}
@@ -446,8 +446,8 @@ export function CategoryForm({
                   className="btn-primary bg-red-700 py-2 text-sm hover:bg-red-800"
                 >
                   {productCount > 0
-                    ? "Перенести и удалить раздел"
-                    : "Да, удалить раздел"}
+                    ? "Перенести и удалить категорию"
+                    : "Да, удалить категорию"}
                 </button>
                 <button
                   type="button"
@@ -491,7 +491,7 @@ export function CategoryForm({
                 Сохраняем…
               </>
             ) : creating ? (
-              "Создать раздел"
+              "Создать категорию"
             ) : (
               "Сохранить"
             )}

@@ -8,29 +8,6 @@ export const VDF_PAUSE_MS = 1200;
 
 export class VdfError extends Error {}
 
-export interface VdfFrameLink {
-  url: string;
-  article: string;
-  modelFrame: string;
-  name: string;
-}
-
-export interface VdfFrame {
-  url: string;
-  article: string;
-  modelFrame: string;
-  frameType: string;
-  name: string;
-  mark: string;
-  model: string;
-  years: number[];
-  cars: string[];
-  categoryPath: string[];
-  description: string;
-  specs: Array<{ name: string; value: string }>;
-  images: string[];
-}
-
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 const WRAPPERS = new Set([
@@ -85,25 +62,6 @@ export function nuxtPayload(html: string): Json {
   };
 
   return resolve(0);
-}
-
-function field(value: Json | undefined, key: string): Json | undefined {
-  return value && typeof value === "object" && !Array.isArray(value) ? value[key] : undefined;
-}
-
-function text(value: Json | undefined): string {
-  return typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
-}
-
-function list(value: Json | undefined): Json[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function dataEntry(payload: Json, prefix: string): Json | undefined {
-  const data = field(payload, "data");
-  if (!data || typeof data !== "object" || Array.isArray(data)) return undefined;
-  const key = Object.keys(data).find((name) => name.startsWith(prefix));
-  return key ? data[key] : undefined;
 }
 
 const ENTITIES: Record<string, string> = {
@@ -172,75 +130,4 @@ export async function fetchVdfHtml(path: string): Promise<string> {
     await pause(1500 * attempt);
   }
   throw new VdfError(`Не удалось открыть ${url}: ${lastError}`);
-}
-
-export function frameTypeOf(modelFrame: string, article: string): string {
-  const source = modelFrame || article;
-  return source.match(/(\d{3})\s*$/)?.[1] ?? "";
-}
-
-export interface VdfCategoryPage {
-  children: string[];
-  products: VdfFrameLink[];
-  total: number;
-}
-
-export async function readVdfCategory(slug: string): Promise<VdfCategoryPage> {
-  const payload = nuxtPayload(await fetchVdfHtml(`/catalog/${slug}`));
-  const category = dataEntry(payload, "catalog-category-");
-  const products = dataEntry(payload, "catalog-products-");
-  return {
-    children: list(field(category, "children"))
-      .map((child) => text(field(child, "slug_url")))
-      .filter(Boolean),
-    products: list(field(products, "results")).map((item) => ({
-      url: text(field(item, "url")),
-      article: text(field(item, "article")) || text(field(item, "model_frame")),
-      modelFrame: text(field(item, "model_frame")),
-      name: text(field(item, "name")),
-    })),
-    total: Number(field(products, "count")) || 0,
-  };
-}
-
-export async function readVdfFrame(url: string): Promise<VdfFrame> {
-  const path = new URL(url, VDF_ORIGIN).pathname;
-  const payload = nuxtPayload(await fetchVdfHtml(path));
-  const product = dataEntry(payload, "product-");
-  if (!product) throw new VdfError(`На странице ${path} нет карточки товара`);
-
-  const article = text(field(product, "article"));
-  const modelFrame = text(field(product, "model_frame"));
-  const years = text(field(product, "year"))
-    .split(/[;,\s]+/)
-    .map(Number)
-    .filter((year) => Number.isInteger(year) && year > 1900);
-  const categoryPath = list(field(field(product, "category"), "path")).map((step) =>
-    text(field(step, "name")),
-  );
-
-  return {
-    url: `${VDF_ORIGIN}${path}`,
-    article,
-    modelFrame,
-    frameType: frameTypeOf(modelFrame, article),
-    name: text(field(product, "name")),
-    mark: text(field(product, "mark_auto")),
-    model: text(field(product, "model_auto")),
-    years,
-    cars: list(field(product, "compatible_cars")).map(text).filter(Boolean),
-    categoryPath,
-    description: htmlToText(text(field(product, "description"))),
-    specs: list(field(product, "attributes"))
-      .map((attribute) => ({
-        name: text(field(attribute, "name")).replace(/:\s*$/, ""),
-        value: text(field(attribute, "value")),
-      }))
-      .filter((spec) => spec.name && spec.value),
-    images: list(field(product, "images"))
-      .filter((image) => text(field(image, "media_type")) !== "video")
-      .map((image) => text(field(image, "image")))
-      .filter(Boolean)
-      .map((image) => new URL(image, VDF_ORIGIN).toString()),
-  };
 }

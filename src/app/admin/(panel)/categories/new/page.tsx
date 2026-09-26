@@ -2,7 +2,7 @@ import { CategoryForm } from "@/components/admin/CategoryForm";
 import { getCategories } from "@/lib/catalog";
 import { listCategoriesBrief } from "@/lib/store";
 
-export const metadata = { title: "Новый раздел" };
+export const metadata = { title: "Новая категория" };
 
 export default function NewCategoryPage() {
   const categories = getCategories();

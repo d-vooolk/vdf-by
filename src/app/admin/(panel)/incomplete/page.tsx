@@ -86,9 +86,9 @@ export default async function IncompletePage({ searchParams }: PageProps) {
             name="category"
             defaultValue={categoryId}
             className="field py-1.5 text-sm"
-            aria-label="Раздел"
+            aria-label="Категория"
           >
-            <option value="">Все разделы</option>
+            <option value="">Все категории</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}

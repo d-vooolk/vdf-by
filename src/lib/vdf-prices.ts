@@ -234,17 +234,10 @@ function applyPrices(frames: ListedFrame[], rate: number) {
   const db = getDb();
   const rows = db
     .prepare(
-      "SELECT id, data, json_extract(data, '$.sku') AS sku FROM products WHERE json_extract(data, '$.sku') IS NOT NULL",
+      "SELECT id, category_id AS categoryId, data, json_extract(data, '$.sku') AS sku FROM products WHERE json_extract(data, '$.sku') IS NOT NULL",
     )
-    .all() as Array<{ id: string; data: string; sku: string }>;
+    .all() as Array<{ id: string; categoryId: string; data: string; sku: string }>;
   const bySku = new Map(rows.map((row) => [row.sku, row]));
-  const imported = new Set(
-    (
-      db.prepare("SELECT product_id FROM vdf_frames WHERE product_id IS NOT NULL").all() as Array<{
-        product_id: string;
-      }>
-    ).map((row) => row.product_id),
-  );
 
   const write = db.prepare("UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?");
   const seen = new Set<string>();
@@ -280,8 +273,11 @@ function applyPrices(frames: ListedFrame[], rate: number) {
     }
   })();
 
+  const frameCategories = new Set(
+    rows.filter((row) => seen.has(row.id)).map((row) => row.categoryId),
+  );
   const missingOnVdf = rows
-    .filter((row) => imported.has(row.id) && !seen.has(row.id))
+    .filter((row) => frameCategories.has(row.categoryId) && !seen.has(row.id))
     .map((row) => row.sku)
     .sort();
 

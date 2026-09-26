@@ -10,7 +10,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
-  return { title: getCategoryRaw(id)?.name ?? "Раздел" };
+  return { title: getCategoryRaw(id)?.name ?? "Категория" };
 }
 
 export default async function EditCategoryPage({ params }: PageProps) {

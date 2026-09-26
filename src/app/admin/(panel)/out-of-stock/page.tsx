@@ -86,7 +86,7 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
             defaultValue={categoryId}
             className="field py-2 text-sm"
           >
-            <option value="">Все разделы</option>
+            <option value="">Все категории</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
