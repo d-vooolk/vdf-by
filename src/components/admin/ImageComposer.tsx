@@ -3,12 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Combobox, type ComboOption } from "@/components/Combobox";
-import { SpinnerIcon } from "@/components/icons";
+import {
+  DownloadIcon,
+  FlipIcon,
+  ImagePlusIcon,
+  SlopeDownIcon,
+  SlopeUpIcon,
+  SpinnerIcon,
+  UploadIcon,
+} from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
 import type { Background } from "@/lib/composer";
 import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
+import { Segmented, Switch } from "./Toggles";
 
 const THIS_YEAR = new Date().getFullYear();
 const PRODUCT_MAX_SIDE = 2000;
@@ -442,6 +451,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               className="btn-secondary py-2 text-sm"
               onClick={() => productFileRef.current?.click()}
             >
+              <UploadIcon className="h-4 w-4" />
               {productImages.length ? "Загрузить другое фото" : "Загрузить фото товара"}
             </button>
             {productName && <span className="truncate text-sm text-brand-500">{productName}</span>}
@@ -456,11 +466,10 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               }}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-brand-800">
-            <input type="checkbox" checked={removeBackground} onChange={(event) => toggleBackground(event.target.checked)} />
-            Убрать фон нейросетью
-            {cutting && <SpinnerIcon className="h-4 w-4 animate-spin" />}
-          </label>
+          <div className="flex items-center gap-2">
+            <Switch checked={removeBackground} onChange={toggleBackground} label="Убрать фон нейросетью" />
+            {cutting && <SpinnerIcon className="h-4 w-4 animate-spin text-brand-500" />}
+          </div>
           <p className="text-xs text-brand-500">
             Фон убирается на сервере, 3–5 секунд на фото. Самый первый запуск дольше: сервер
             скачивает модель (180 МБ). Если край товара срезался, выключите галочку: тогда
@@ -474,39 +483,46 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
             <span className="label">Надпись на линии</span>
             <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={120} className="field py-2 text-sm" />
           </label>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-brand-800">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={mirrorProduct} onChange={(event) => setMirrorProduct(event.target.checked)} />
-              Отразить товар
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={mirrorCar} onChange={(event) => setMirrorCar(event.target.checked)} />
-              Отразить автомобиль
-            </label>
-            <span className="flex items-center gap-3">
-              Линия:
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name="slope" checked={slope === "up"} onChange={() => setSlope("up")} />↗
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name="slope" checked={slope === "down"} onChange={() => setSlope("down")} />↘
-              </label>
-            </span>
+          <div className="flex flex-wrap gap-x-8 gap-y-5">
+            <div>
+              <span className="label">Наклон линии</span>
+              <Segmented
+                label="Наклон линии"
+                value={slope}
+                onChange={setSlope}
+                options={[
+                  { value: "up", label: "Вверх", icon: <SlopeUpIcon className="h-4 w-4" /> },
+                  { value: "down", label: "Вниз", icon: <SlopeDownIcon className="h-4 w-4" /> },
+                ]}
+              />
+            </div>
+            <div>
+              <span className="label">Фон под товаром</span>
+              <Segmented
+                label="Фон под товаром"
+                value={background}
+                onChange={setBackground}
+                options={BACKGROUND_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  icon: <span className={`h-3.5 w-3.5 rounded-full ring-1 ring-brand-300 ${option.swatch}`} />,
+                }))}
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-brand-800">
-            Фон под товаром:
-            {BACKGROUND_OPTIONS.map((option) => (
-              <label key={option.value} className="flex items-center gap-1.5">
-                <input
-                  type="radio"
-                  name="background"
-                  checked={background === option.value}
-                  onChange={() => setBackground(option.value)}
-                />
-                <span className={`h-4 w-4 rounded border border-brand-300 ${option.swatch}`} />
-                {option.label}
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            <Switch
+              checked={mirrorProduct}
+              onChange={setMirrorProduct}
+              icon={<FlipIcon className="h-4 w-4 text-brand-400" />}
+              label="Отразить товар"
+            />
+            <Switch
+              checked={mirrorCar}
+              onChange={setMirrorCar}
+              icon={<FlipIcon className="h-4 w-4 text-brand-400" />}
+              label="Отразить автомобиль"
+            />
           </div>
           {background !== "white" && !removeBackground && (
             <p className="text-xs text-amber-700">
@@ -524,7 +540,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
                 step={0.05}
                 value={productScale}
                 onChange={(event) => setProductScale(Number(event.target.value))}
-                className="w-full"
+                className="w-full accent-brand-700"
               />
             </label>
             <label className="block text-sm">
@@ -536,7 +552,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
                 step={0.05}
                 value={carShift}
                 onChange={(event) => setCarShift(Number(event.target.value))}
-                className="w-full"
+                className="w-full accent-brand-700"
               />
             </label>
           </div>
@@ -558,10 +574,11 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-secondary" onClick={download} disabled={!preview || rendering}>
+            <DownloadIcon className="h-4 w-4" />
             Скачать JPG
           </button>
-          <button type="button" className="btn-primary" onClick={save} disabled={!preview || rendering || saving}>
-            {saving && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+          <button type="button" className="btn-primary flex-1" onClick={save} disabled={!preview || rendering || saving}>
+            {saving ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <ImagePlusIcon className="h-4 w-4" />}
             {onSaved ? "Добавить в фото товара" : "Сохранить в «Фото»"}
           </button>
         </div>

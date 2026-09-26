@@ -16,6 +16,11 @@ const ACCENT = "#f59e0b";
 const ACCENT_LINE = 4;
 const HAIRLINE = 1.5;
 const SHADOW_DEPTH = 48;
+const BEAM_GAP = 14;
+const BEAMS: Array<{ thickness: number; share: number; opacity: number }> = [
+  { thickness: 9, share: 0.46, opacity: 1 },
+  { thickness: 4, share: 0.3, opacity: 0.75 },
+];
 const TEXT_HEIGHT = 0.34;
 const TEXT_TRACKING = 3200;
 const LOW = 0.66;
@@ -213,6 +218,55 @@ function bandEdges(left: number, right: number): Buffer {
   );
 }
 
+function segment(
+  left: number,
+  right: number,
+  fromX: number,
+  toX: number,
+  fromOffset: number,
+  toOffset: number,
+): Array<[number, number]> {
+  const y = (x: number) => left + ((right - left) * x) / CANVAS;
+  return [
+    [fromX, y(fromX) + fromOffset],
+    [toX, y(toX) + fromOffset],
+    [toX, y(toX) + toOffset],
+    [fromX, y(fromX) + toOffset],
+  ];
+}
+
+function bandBeams(left: number, right: number): Buffer {
+  const half = BAND / 2;
+  const gradients: string[] = [];
+  const shapes: string[] = [];
+
+  let above = -half - ACCENT_LINE - BEAM_GAP;
+  let below = half + HAIRLINE + BEAM_GAP;
+  BEAMS.forEach((beam, index) => {
+    const length = CANVAS * beam.share;
+    gradients.push(
+      `<linearGradient id="u${index}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${length}" y2="0">` +
+        `<stop offset="0" stop-color="${ACCENT}" stop-opacity="${beam.opacity}"/>` +
+        `<stop offset="0.55" stop-color="${ACCENT_LIGHT}" stop-opacity="${beam.opacity * 0.8}"/>` +
+        `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
+        `</linearGradient>` +
+        `<linearGradient id="d${index}" gradientUnits="userSpaceOnUse" x1="${CANVAS}" y1="0" x2="${CANVAS - length}" y2="0">` +
+        `<stop offset="0" stop-color="${ACCENT}" stop-opacity="${beam.opacity}"/>` +
+        `<stop offset="0.55" stop-color="${ACCENT_LIGHT}" stop-opacity="${beam.opacity * 0.8}"/>` +
+        `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
+        `</linearGradient>`,
+    );
+    shapes.push(
+      polygon(segment(left, right, 0, length, above - beam.thickness, above), `url(#u${index})`),
+      polygon(segment(left, right, CANVAS - length, CANVAS, below, below + beam.thickness), `url(#d${index})`),
+    );
+    above -= beam.thickness + BEAM_GAP * 0.6;
+    below += beam.thickness + BEAM_GAP * 0.6;
+  });
+
+  return svg(`<defs>${gradients.join("")}</defs>${shapes.join("")}`);
+}
+
 function labelMarkup(label: string): string {
   const text = label.trim().toUpperCase();
   const period = text.match(/\s+((?:С\s+)?\d{4}(?:\s*[–-]\s*\d{4})?)$/);
@@ -359,6 +413,7 @@ export async function composeProductImage(options: ComposeOptions): Promise<Buff
     .composite([
       { input: await glassBand(base, left, right), top: 0, left: 0 },
       { input: bandEdges(left, right), top: 0, left: 0 },
+      { input: bandBeams(left, right), top: 0, left: 0 },
       ...(label ? [label] : []),
     ])
     .jpeg({ quality: 90, mozjpeg: true })

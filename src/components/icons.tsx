@@ -145,3 +145,62 @@ export const SpinnerIcon = (props: IconProps) => (
     />
   </svg>
 );
+
+export const UploadIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 15V4" />
+    <path d="m7 9 5-5 5 5" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+
+export const DownloadIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 4v11" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </Icon>
+);
+
+export const ImagePlusIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6" />
+    <path d="m4 16 4.5-4.5a1.5 1.5 0 0 1 2.1 0L16 17" />
+    <path d="m14 15 1.5-1.5a1.5 1.5 0 0 1 2.1 0L20 16" />
+    <path d="M18 3v6M15 6h6" />
+  </Icon>
+);
+
+export const UndoIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+    <path d="m8 5-4 4 4 4" />
+  </Icon>
+);
+
+export const BlurIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 3.5c3 3.6 5.5 6.8 5.5 10a5.5 5.5 0 0 1-11 0c0-3.2 2.5-6.4 5.5-10Z" />
+    <path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" />
+  </Icon>
+);
+
+export const FlipIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 3v18" strokeDasharray="2 2.5" />
+    <path d="M9 7 4 17h5V7Z" />
+    <path d="M15 7l5 10h-5V7Z" />
+  </Icon>
+);
+
+export const SlopeUpIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 17 21 7" strokeWidth="2.5" />
+  </Icon>
+);
+
+export const SlopeDownIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 7l18 10" strokeWidth="2.5" />
+  </Icon>
+);

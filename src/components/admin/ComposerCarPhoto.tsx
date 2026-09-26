@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { SpinnerIcon } from "@/components/icons";
+import { BlurIcon, SpinnerIcon, UndoIcon, UploadIcon } from "@/components/icons";
 
 import { RegionSelector, type Region } from "./RegionSelector";
 
@@ -200,7 +200,7 @@ export function ComposerCarPhoto({
           onClick={() => fileRef.current?.click()}
           disabled={Boolean(busy)}
         >
-          {busy === "upload" && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+          {busy === "upload" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <UploadIcon className="h-4 w-4" />}
           Загрузить своё фото
         </button>
         <input
@@ -217,13 +217,13 @@ export function ComposerCarPhoto({
             onClick={blurRegion}
             disabled={!region || Boolean(busy)}
           >
-            {busy === "blur" && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+            {busy === "blur" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <BlurIcon className="h-4 w-4" />}
             Размыть выделенное
           </button>
         )}
         {photo && photo.origin !== "catalog" && hasCatalogPhoto && (
           <button type="button" className="btn-ghost py-2 text-sm" onClick={resetToCatalog} disabled={Boolean(busy)}>
-            {busy === "reset" && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+            {busy === "reset" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <UndoIcon className="h-4 w-4" />}
             Вернуть фото из справочника
           </button>
         )}
