@@ -9,8 +9,6 @@ const LOGO_FILE = path.join(process.cwd(), "public", "brand", "logo.png");
 
 const BAND = 96;
 const GLASS_BLUR = 22;
-const GLASS_TINT = "#0b1020";
-const GLASS_OPACITY = 0.76;
 const ACCENT_LIGHT = "#fcd34d";
 const ACCENT = "#f59e0b";
 const ACCENT_LINE = 4;
@@ -47,6 +45,16 @@ export type Background = keyof typeof BACKGROUNDS;
 export function isBackground(value: unknown): value is Background {
   return typeof value === "string" && value in BACKGROUNDS;
 }
+
+const BAND_GRADIENT =
+  `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">` +
+  `<stop offset="0" stop-color="#f7c948"/><stop offset="0.5" stop-color="#fbbf24"/>` +
+  `<stop offset="1" stop-color="#e09a12"/></linearGradient></defs>`;
+const BAND_OPACITY = 0.94;
+const BAND_MARK = "#0b1020";
+const BAND_TEXT = "#3b2a04";
+const BAND_HIGHLIGHT = "#fff6d5";
+const BAND_SHADE = "#0b1020";
 
 export interface ComposeOptions {
   product: Buffer;
@@ -191,7 +199,9 @@ async function glassBand(base: Buffer, left: number, right: number): Promise<Buf
     .blur(GLASS_BLUR)
     .composite([
       {
-        input: svg(`<rect width="${CANVAS}" height="${CANVAS}" fill="${GLASS_TINT}" fill-opacity="${GLASS_OPACITY}"/>`),
+        input: svg(
+          `${BAND_GRADIENT}<rect width="${CANVAS}" height="${CANVAS}" fill="url(#g)" fill-opacity="${BAND_OPACITY}"/>`,
+        ),
       },
     ])
     .png()
@@ -206,15 +216,13 @@ async function glassBand(base: Buffer, left: number, right: number): Promise<Buf
 function bandEdges(left: number, right: number): Buffer {
   const half = BAND / 2;
   return svg(
-    `<defs><linearGradient id="a" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CANVAS}" y2="0">` +
-      `<stop offset="0" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
-      `<stop offset="0.2" stop-color="${ACCENT_LIGHT}"/>` +
-      `<stop offset="0.5" stop-color="${ACCENT}"/>` +
-      `<stop offset="0.8" stop-color="${ACCENT_LIGHT}"/>` +
-      `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
+    `<defs><linearGradient id="h" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CANVAS}" y2="0">` +
+      `<stop offset="0" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.2"/>` +
+      `<stop offset="0.5" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.95"/>` +
+      `<stop offset="1" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.2"/>` +
       `</linearGradient></defs>` +
-      polygon(strip(left, right, -half - ACCENT_LINE, -half), "url(#a)") +
-      `<g opacity="0.22">${polygon(strip(left, right, half, half + HAIRLINE), "#fff")}</g>`,
+      polygon(strip(left, right, -half, -half + ACCENT_LINE / 2), "url(#h)") +
+      `<g opacity="0.35">${polygon(strip(left, right, half - HAIRLINE, half), BAND_SHADE)}</g>`,
   );
 }
 
@@ -272,10 +280,10 @@ function labelMarkup(label: string): string {
   const period = text.match(/\s+((?:С\s+)?\d{4}(?:\s*[–-]\s*\d{4})?)$/);
   const main = period ? text.slice(0, period.index).trim() : text;
   const [mark, ...rest] = main.split(/\s+/);
-  const parts = [`<span foreground="${ACCENT_LIGHT}">${escapeMarkup(mark ?? "")}</span>`];
-  if (rest.length) parts.push(`<span foreground="#ffffff">${escapeMarkup(rest.join(" "))}</span>`);
+  const parts = [`<span foreground="${BAND_MARK}">${escapeMarkup(mark ?? "")}</span>`];
+  if (rest.length) parts.push(`<span foreground="${BAND_TEXT}">${escapeMarkup(rest.join(" "))}</span>`);
   if (period) {
-    parts.push(`<span foreground="#ffffff" fgalpha="58%">·  ${escapeMarkup(period[1])}</span>`);
+    parts.push(`<span foreground="${BAND_TEXT}" fgalpha="62%">·  ${escapeMarkup(period[1])}</span>`);
   }
   return `<span letter_spacing="${TEXT_TRACKING}">${parts.join("  ")}</span>`;
 }
