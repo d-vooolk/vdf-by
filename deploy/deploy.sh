@@ -120,6 +120,7 @@ echo "==> Собираю сайт в $build_slot (сейчас работает 
 # работать со старой сборкой. Сайт не заметит неудачного деплоя.
 rm -rf "$build_slot" "$current_slot/types" "$current_slot/dev/types"
 NODE_ENV=production NEXT_DIST_DIR="$build_slot" npm run build
+rm -rf "$build_slot/cache/turbopack"
 printf '%s\n' "$build_slot" > var/dist-slot
 
 echo "==> Ежедневный пересчёт цен по курсу НБРБ"
