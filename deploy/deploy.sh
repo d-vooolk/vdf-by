@@ -115,7 +115,7 @@ echo "==> Собираю сайт в $build_slot (сейчас работает 
 # Сборка идёт до перезапуска намеренно: если она упадёт (опечатка в
 # шаблоне, ошибка типов), скрипт прервётся здесь и старый процесс продолжит
 # работать со старой сборкой. Сайт не заметит неудачного деплоя.
-rm -rf "$build_slot"
+rm -rf "$build_slot" "$current_slot/types" "$current_slot/dev/types"
 NODE_ENV=production NEXT_DIST_DIR="$build_slot" npm run build
 printf '%s\n' "$build_slot" > var/dist-slot
 
