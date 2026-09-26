@@ -21,9 +21,9 @@ const BEAMS: Array<{ thickness: number; share: number; opacity: number }> = [
 ];
 const TEXT_HEIGHT = 0.34;
 const TEXT_TRACKING = 3200;
-const LOW = 0.66;
-const HIGH = 0.46;
-const PRODUCT_TOP = 120;
+const LOW = 0.58;
+const HIGH = 0.42;
+const PRODUCT_TOP = 60;
 const PRODUCT_SIDE = 80;
 const PRODUCT_GAP = 36;
 const WATERMARK_WIDTH = 230;
