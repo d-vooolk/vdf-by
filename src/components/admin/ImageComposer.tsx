@@ -72,6 +72,8 @@ interface RenderSettings {
   slope: "up" | "down";
   productScale: number;
   carShift: number;
+  carShiftX: number;
+  carZoom: number;
   background: Background;
 }
 
@@ -133,6 +135,8 @@ function renderForm(settings: RenderSettings): FormData {
   form.set("slope", settings.slope);
   form.set("productScale", String(settings.productScale));
   form.set("carShift", String(settings.carShift));
+  form.set("carShiftX", String(settings.carShiftX));
+  form.set("carZoom", String(settings.carZoom));
   form.set("background", settings.background);
   return form;
 }
@@ -160,6 +164,8 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
   const [slope, setSlope] = useState<"up" | "down">("up");
   const [productScale, setProductScale] = useState(1);
   const [carShift, setCarShift] = useState(0.5);
+  const [carShiftX, setCarShiftX] = useState(0.5);
+  const [carZoom, setCarZoom] = useState(1.2);
   const [background, setBackground] = useState<Background>("white");
 
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
@@ -220,7 +226,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
       setRendering(true);
       setError("");
       try {
-        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background });
+        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background });
         const response = await fetch("/admin/api/composer/render/", { method: "POST", body: form });
         if (!response.ok) throw new Error(await readError(response));
         const blob = await response.blob();
@@ -234,7 +240,20 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
       }
     }, PREVIEW_DELAY);
     return () => clearTimeout(timer);
-  }, [product, generationId, photo, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background]);
+  }, [
+    product,
+    generationId,
+    photo,
+    label,
+    mirrorProduct,
+    mirrorCar,
+    slope,
+    productScale,
+    carShift,
+    carShiftX,
+    carZoom,
+    background,
+  ]);
 
   const runCutout = async (image: Blob) => {
     const id = ++cutoutId.current;
@@ -341,7 +360,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
     setSaving(true);
     setError("");
     try {
-      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background });
+      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background });
       form.set("save", "1");
       form.set("filename", filename);
       if (folder) form.set("folder", folder);
@@ -544,14 +563,38 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               />
             </label>
             <label className="block text-sm">
+              <span className="label">Масштаб автомобиля: {Math.round(carZoom * 100)}%</span>
+              <input
+                type="range"
+                min={1}
+                max={1.8}
+                step={0.05}
+                value={carZoom}
+                onChange={(event) => setCarZoom(Number(event.target.value))}
+                className="w-full accent-brand-700"
+              />
+            </label>
+            <label className="block text-sm">
               <span className="label">Автомобиль выше / ниже</span>
               <input
                 type="range"
                 min={0}
                 max={1}
-                step={0.05}
+                step={0.02}
                 value={carShift}
                 onChange={(event) => setCarShift(Number(event.target.value))}
+                className="w-full accent-brand-700"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="label">Автомобиль левее / правее</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.02}
+                value={carShiftX}
+                onChange={(event) => setCarShiftX(Number(event.target.value))}
                 className="w-full accent-brand-700"
               />
             </label>

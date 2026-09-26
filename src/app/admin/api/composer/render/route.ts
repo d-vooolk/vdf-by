@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       slope: form.get("slope") === "down" ? "down" : "up",
       productScale: numberField(form, "productScale", 1),
       carShift: numberField(form, "carShift", 0.5),
+      carShiftX: numberField(form, "carShiftX", 0.5),
+      carZoom: numberField(form, "carZoom", 1.2),
       background: isBackground(background) ? background : "white",
     });
 

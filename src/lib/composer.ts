@@ -24,6 +24,8 @@ const TEXT_TRACKING = 3200;
 const LOW = 0.58;
 const HIGH = 0.42;
 const PRODUCT_TOP = 60;
+const CAR_ZOOM_MIN = 1;
+const CAR_ZOOM_MAX = 1.8;
 const PRODUCT_SIDE = 80;
 const PRODUCT_GAP = 36;
 const WATERMARK_WIDTH = 230;
@@ -65,6 +67,8 @@ export interface ComposeOptions {
   slope: Slope;
   productScale: number;
   carShift: number;
+  carShiftX: number;
+  carZoom: number;
   background: Background;
 }
 
@@ -88,32 +92,35 @@ function svg(body: string): Buffer {
   );
 }
 
-async function coverRegion(car: Buffer, height: number, shift: number): Promise<Sharp> {
+const clampShare = (value: number) => Math.min(Math.max(value, 0), 1);
+
+interface CarFraming {
+  mirror: boolean;
+  shiftX: number;
+  shiftY: number;
+  zoom: number;
+}
+
+async function coverRegion(car: Buffer, height: number, framing: CarFraming): Promise<Sharp> {
   const upright = await sharp(car).rotate().png().toBuffer({ resolveWithObject: true });
-  const scale = Math.max(CANVAS / upright.info.width, height / upright.info.height);
-  const width = Math.ceil(upright.info.width * scale);
-  const scaledHeight = Math.ceil(upright.info.height * scale);
-  const share = Math.min(Math.max(shift, 0), 1);
-  const resized = await sharp(upright.data).resize(width, scaledHeight).png().toBuffer();
-  return sharp(resized).extract({
-    left: Math.floor((width - CANVAS) / 2),
-    top: Math.round((scaledHeight - height) * share),
+  const zoom = Math.min(Math.max(framing.zoom, CAR_ZOOM_MIN), CAR_ZOOM_MAX);
+  const scale = Math.max(CANVAS / upright.info.width, height / upright.info.height) * zoom;
+  const width = Math.max(CANVAS, Math.ceil(upright.info.width * scale));
+  const scaledHeight = Math.max(height, Math.ceil(upright.info.height * scale));
+  let resized = sharp(upright.data).resize(width, scaledHeight, { fit: "fill" });
+  if (framing.mirror) resized = resized.flop();
+  return sharp(await resized.png().toBuffer()).extract({
+    left: Math.round((width - CANVAS) * (1 - clampShare(framing.shiftX))),
+    top: Math.round((scaledHeight - height) * (1 - clampShare(framing.shiftY))),
     width: CANVAS,
     height,
   });
 }
 
-async function carLayer(
-  car: Buffer,
-  mirror: boolean,
-  shift: number,
-  left: number,
-  right: number,
-): Promise<Buffer> {
+async function carLayer(car: Buffer, framing: CarFraming, left: number, right: number): Promise<Buffer> {
   const top = Math.min(left, right) - BAND;
   const height = CANVAS - top;
-  let image = await coverRegion(car, height, shift);
-  if (mirror) image = image.flop();
+  const image = await coverRegion(car, height, framing);
   const photo = await image.png().toBuffer();
 
   const below = polygon(
@@ -399,7 +406,12 @@ export async function composeProductImage(options: ComposeOptions): Promise<Buff
   const { left, right } = divider(options.slope);
 
   const [car, product, label, watermark] = await Promise.all([
-    carLayer(options.car, options.mirrorCar, options.carShift, left, right),
+    carLayer(
+      options.car,
+      { mirror: options.mirrorCar, shiftX: options.carShiftX, shiftY: options.carShift, zoom: options.carZoom },
+      left,
+      right,
+    ),
     productLayer(options.product, options.mirrorProduct, options.productScale, left, right),
     labelLayer(options.label, left, right),
     watermarkLayer(),
