@@ -1,5 +1,6 @@
+import type { MoneySource } from "./currency";
 import { bumpCatalogVersion, getDb } from "./db";
-import type { Product } from "./schema";
+import { moneySourceSchema, type Product } from "./schema";
 import { listCategoriesBrief } from "./store";
 import { stockedByQty } from "./variant";
 
@@ -9,6 +10,9 @@ export interface FrameTypeValues {
   wholesalePrice: number | null;
   stockQty: number | null;
   inStock: boolean;
+  priceSource: MoneySource | null;
+  costSource: MoneySource | null;
+  wholesaleSource: MoneySource | null;
 }
 
 export interface FrameTypeProduct {
@@ -21,6 +25,9 @@ export interface FrameTypeProduct {
   wholesalePrice: number | null;
   stockQty: number | null;
   inStock: boolean;
+  priceSource: MoneySource | null;
+  costSource: MoneySource | null;
+  wholesaleSource: MoneySource | null;
 }
 
 export interface FrameTypeGroup {
@@ -41,6 +48,13 @@ interface TypeRow {
   wholesale_price: number | null;
   stock_qty: number | null;
   in_stock: number;
+  price_source: string | null;
+  cost_source: string | null;
+  wholesale_source: string | null;
+}
+
+function parseSource(raw: string | null): MoneySource | null {
+  return raw ? (JSON.parse(raw) as MoneySource) : null;
 }
 
 function toValues(row: TypeRow): FrameTypeValues {
@@ -50,6 +64,9 @@ function toValues(row: TypeRow): FrameTypeValues {
     wholesalePrice: row.wholesale_price,
     stockQty: row.stock_qty,
     inStock: stockedByQty(row.stock_qty),
+    priceSource: parseSource(row.price_source),
+    costSource: parseSource(row.cost_source),
+    wholesaleSource: parseSource(row.wholesale_source),
   };
 }
 
@@ -60,6 +77,9 @@ function productValues(product: FrameTypeProduct): FrameTypeValues {
     wholesalePrice: product.wholesalePrice,
     stockQty: product.stockQty,
     inStock: product.inStock,
+    priceSource: product.priceSource,
+    costSource: product.costSource,
+    wholesaleSource: product.wholesaleSource,
   };
 }
 
@@ -69,7 +89,9 @@ function sameValues(a: FrameTypeValues, b: FrameTypeValues): boolean {
     a.price === b.price &&
     a.wholesalePrice === b.wholesalePrice &&
     a.stockQty === b.stockQty &&
-    a.inStock === b.inStock
+    a.inStock === b.inStock &&
+    JSON.stringify([a.priceSource, a.costSource, a.wholesaleSource]) ===
+      JSON.stringify([b.priceSource, b.costSource, b.wholesaleSource])
   );
 }
 
@@ -107,6 +129,9 @@ export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
       wholesalePrice: data.wholesalePrice ?? null,
       stockQty: data.stockQty ?? null,
       inStock: row.in_stock === 1,
+      priceSource: data.priceSource ?? null,
+      costSource: data.costSource ?? null,
+      wholesaleSource: data.wholesaleSource ?? null,
     });
     groups.set(type, list);
   }
@@ -151,12 +176,26 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
   for (const item of [costPrice, price, wholesalePrice, stockQty]) {
     if (typeof item === "string") return item;
   }
+  const source = (raw: unknown): MoneySource | null | string => {
+    if (raw === null || raw === undefined) return null;
+    const parsed = moneySourceSchema.safeParse(raw);
+    return parsed.success ? parsed.data : "Сумма в валюте указана неверно";
+  };
+  const priceSource = source(value.priceSource);
+  const costSource = source(value.costSource);
+  const wholesaleSource = source(value.wholesaleSource);
+  for (const item of [priceSource, costSource, wholesaleSource]) {
+    if (typeof item === "string") return item;
+  }
   return {
     costPrice: costPrice as number | null,
     price: price as number | null,
     wholesalePrice: wholesalePrice as number | null,
     stockQty: stockQty as number | null,
     inStock: stockedByQty(stockQty as number | null),
+    priceSource: priceSource as MoneySource | null,
+    costSource: costSource as MoneySource | null,
+    wholesaleSource: wholesaleSource as MoneySource | null,
   };
 }
 
@@ -166,7 +205,11 @@ function writeValues(product: Product, values: FrameTypeValues): Product {
     price: values.price ?? 0,
     inStock: stockedByQty(values.stockQty),
   };
-  delete next.costUsd;
+  for (const key of ["priceSource", "costSource", "wholesaleSource"] as const) {
+    const source = values[key];
+    if (source) next[key] = source;
+    else delete next[key];
+  }
   if (values.costPrice === null) delete next.costPrice;
   else next.costPrice = values.costPrice;
   if (values.wholesalePrice === null) delete next.wholesalePrice;
@@ -200,17 +243,24 @@ export function applyFrameType(
   db.transaction(() => {
     db.prepare(
       `INSERT INTO frame_types
-         (category_id, type, cost_price, price, wholesale_price, stock_qty, in_stock, updated_at)
-       VALUES (@categoryId, @type, @costPrice, @price, @wholesalePrice, @stockQty, @inStock, @now)
+         (category_id, type, cost_price, price, wholesale_price, stock_qty, in_stock,
+          price_source, cost_source, wholesale_source, updated_at)
+       VALUES (@categoryId, @type, @costPrice, @price, @wholesalePrice, @stockQty, @inStock,
+          @priceSource, @costSource, @wholesaleSource, @now)
        ON CONFLICT(category_id, type) DO UPDATE SET
          cost_price = excluded.cost_price, price = excluded.price,
          wholesale_price = excluded.wholesale_price, stock_qty = excluded.stock_qty,
-         in_stock = excluded.in_stock, updated_at = excluded.updated_at`,
+         in_stock = excluded.in_stock, price_source = excluded.price_source,
+         cost_source = excluded.cost_source, wholesale_source = excluded.wholesale_source,
+         updated_at = excluded.updated_at`,
     ).run({
       categoryId,
       type,
       ...values,
       inStock: values.inStock ? 1 : 0,
+      priceSource: values.priceSource ? JSON.stringify(values.priceSource) : null,
+      costSource: values.costSource ? JSON.stringify(values.costSource) : null,
+      wholesaleSource: values.wholesaleSource ? JSON.stringify(values.wholesaleSource) : null,
       now: Date.now(),
     });
     for (const product of products) applyToProduct(product.id, values);

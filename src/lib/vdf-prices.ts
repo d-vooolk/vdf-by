@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { invalidateCatalog } from "./catalog";
+import { convertToByn } from "./currency";
 import { bumpCatalogVersion, getDb } from "./db";
 import { getRubRate } from "./rates";
 import type { Product } from "./schema";
@@ -199,14 +200,6 @@ async function listVdfFrames(token: string): Promise<ListedFrame[]> {
   return frames;
 }
 
-export function retailToByn(rub: number, rate: number): number {
-  return Math.ceil(Math.round(rub * rate * 100) / 100);
-}
-
-export function costToByn(rub: number, rate: number): number {
-  return Math.round(rub * rate * 100) / 100;
-}
-
 function applyPrices(frames: ListedFrame[], rate: number) {
   const db = getDb();
   const rows = db
@@ -240,16 +233,18 @@ function applyPrices(frames: ListedFrame[], rate: number) {
       seen.add(row.id);
 
       const product = JSON.parse(row.data) as Product;
-      const price = frame.retail > 0 ? retailToByn(frame.retail, rate) : 0;
-      const costPrice = frame.wholesale ? costToByn(frame.wholesale, rate) : null;
-      if (!costPrice) withoutWholesale.push(row.sku);
-
-      const next: Product = { ...product, price };
-      if (costPrice) {
-        next.costPrice = costPrice;
-        delete next.costUsd;
+      const next: Product = { ...product };
+      if (frame.retail > 0) {
+        next.priceSource = { amount: frame.retail, currency: "RUB" };
+        next.price = convertToByn(frame.retail, rate, "ruble");
       }
-      if (next.price === product.price && next.costPrice === product.costPrice) continue;
+      if (frame.wholesale) {
+        next.costSource = { amount: frame.wholesale, currency: "RUB" };
+        next.costPrice = convertToByn(frame.wholesale, rate, "kopeck");
+      } else {
+        withoutWholesale.push(row.sku);
+      }
+      if (JSON.stringify(next) === JSON.stringify(product)) continue;
       write.run(next.price, JSON.stringify(next), Date.now(), row.id);
       updated += 1;
     }
@@ -263,10 +258,10 @@ function applyPrices(frames: ListedFrame[], rate: number) {
   return { matched: seen.size, updated, withoutWholesale, missingOnVdf, notInShop };
 }
 
-export async function syncVdfPrices(): Promise<VdfPriceReport> {
+export async function loadVdfPrices(): Promise<VdfPriceReport> {
   const lock = readSetting<number>(LOCK_KEY);
   if (lock !== null && Date.now() - lock < LOCK_TTL_MS) {
-    throw new Error("Обновление цен уже идёт — дождитесь окончания");
+    throw new Error("Загрузка цен уже идёт — дождитесь окончания");
   }
   writeSetting(LOCK_KEY, Date.now());
 

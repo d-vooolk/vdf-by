@@ -278,6 +278,22 @@ export function getProductsForMark(
   return productsByIds(ids, categoryId);
 }
 
+export function getProductsForSameCars(productId: string, limit: number): Product[] {
+  const ids = new Set(
+    (
+      getDb()
+        .prepare(
+          `SELECT DISTINCT other.product_id
+             FROM product_cars own
+             JOIN product_cars other ON other.generation_id = own.generation_id
+            WHERE own.product_id = ? AND other.product_id <> own.product_id`,
+        )
+        .all(productId) as Array<{ product_id: string }>
+    ).map((row) => row.product_id),
+  );
+  return ids.size ? productsByIds(ids).slice(0, limit) : [];
+}
+
 export interface CarCategoryGroup {
   category: Category;
   products: Product[];

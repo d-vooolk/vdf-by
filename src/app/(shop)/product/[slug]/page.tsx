@@ -17,7 +17,7 @@ import {
   getSite,
 } from "@/lib/catalog";
 import { carsRoot } from "@/lib/car-types";
-import { getProductCars } from "@/lib/cars";
+import { getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickImages } from "@/lib/images";
@@ -91,7 +91,11 @@ export default async function ProductPage({ params }: PageProps) {
 
   const site = getSite();
   const category = getCategoryById(product.categoryId);
-  const related = getRelatedProducts(product, 5);
+  const sameCar = getProductsForSameCars(product.id, 10);
+  const sameCarIds = new Set(sameCar.map((item) => item.id));
+  const related = getRelatedProducts(product, 5 + sameCar.length)
+    .filter((item) => !sameCarIds.has(item.id))
+    .slice(0, 5);
   const cars = category?.carFitment ? getProductCars(product.id) : [];
 
   // В клиентский компонент уходят записи манифеста только для фото этого
@@ -204,6 +208,19 @@ export default async function ProductPage({ params }: PageProps) {
         )}
         <ProductCars cars={cars} base={carsRoot(category?.slug)} />
       </div>
+
+      {sameCar.length > 0 && (
+        <section className="mt-14 border-t border-brand-100 pt-10">
+          <h2 className="mb-6 text-xl font-semibold text-brand-900 sm:text-2xl">
+            Товары для этого же авто
+          </h2>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+            {sameCar.map((item) => (
+              <ProductCard key={item.id} product={item} currencySymbol={site.currencySymbol} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <Faq items={product.faq ?? []} schema />
 

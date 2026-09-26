@@ -7,6 +7,7 @@ import {
   setProductPriceAction,
   setProductStockQtyAction,
 } from "@/app/admin/actions";
+import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { ProductBrief } from "@/lib/store";
 
 /**
@@ -85,6 +86,9 @@ export function ProductRow({
           {categoryName}
           {product.brand ? ` · ${product.brand}` : ""} · /{product.slug}/
           {product.inStock ? "" : " · нет в наличии"}
+          {product.priceSource
+            ? ` · цена по курсу из ${product.priceSource.amount} ${FOREIGN_CURRENCIES[product.priceSource.currency]}`
+            : ""}
         </p>
         {error && <p className="mt-0.5 text-xs text-red-600">{error}</p>}
       </div>
@@ -101,7 +105,11 @@ export function ProductRow({
       <InlineNumber
         value={product.price > 0 ? product.price : null}
         suffix={currencySymbol}
-        title="Цена"
+        title={
+          product.priceSource
+            ? `Цена по курсу: ${product.priceSource.amount} ${FOREIGN_CURRENCIES[product.priceSource.currency]}. Правка здесь отвяжет её от курса`
+            : "Цена"
+        }
         placeholder="нет"
         className="w-24"
         onSave={(next) =>

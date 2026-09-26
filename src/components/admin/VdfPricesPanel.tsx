@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import {
   forgetVdfSessionAction,
   requestVdfCodeAction,
-  syncVdfPricesAction,
+  loadVdfPricesAction,
   verifyVdfCodeAction,
 } from "@/app/admin/actions";
 import { SpinnerIcon } from "@/components/icons";
@@ -46,11 +46,11 @@ export function VdfPricesPanel({ email, wholesale, running }: VdfPricesPanelProp
     setSyncing(true);
     run(async () => {
       try {
-        return await syncVdfPricesAction();
+        return await loadVdfPricesAction();
       } finally {
         setSyncing(false);
       }
-    }, "Цены обновлены");
+    }, "Цены загружены и привязаны к курсу рубля");
   };
 
   return (
@@ -72,7 +72,7 @@ export function VdfPricesPanel({ email, wholesale, running }: VdfPricesPanelProp
         </div>
       ) : (
         <p className="text-sm text-amber-800">
-          Нет входа на vdf-light.ru. Без него ежедневное обновление не работает.
+          Нет входа на vdf-light.ru. Он нужен только для загрузки цен, ежедневный пересчёт работает без него.
         </p>
       )}
 
@@ -135,12 +135,12 @@ export function VdfPricesPanel({ email, wholesale, running }: VdfPricesPanelProp
         >
           {syncing ? (
             <>
-              <SpinnerIcon className="h-4 w-4 animate-spin" /> Обновляем, около минуты…
+              <SpinnerIcon className="h-4 w-4 animate-spin" /> Загружаем, около минуты…
             </>
           ) : running ? (
-            "Обновление уже идёт"
+            "Загрузка уже идёт"
           ) : (
-            "Обновить цены сейчас"
+            "Загрузить цены с vdf-light.ru"
           )}
         </button>
         {message && <span className="text-sm text-green-700">{message}</span>}

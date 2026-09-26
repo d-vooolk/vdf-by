@@ -13,6 +13,7 @@ import {
   type Product,
   type Site,
 } from "./schema";
+import type { MoneySource } from "./currency";
 import { stockedByQty } from "./variant";
 
 /**
@@ -210,6 +211,7 @@ export function setProductPrice(id: string, price: number): SaveResult {
 
   const product = JSON.parse(row.data) as Product;
   product.price = price;
+  delete product.priceSource;
 
   db.prepare(
     "UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?",
@@ -803,6 +805,7 @@ export interface ProductBrief {
   inStock: boolean;
   featured: boolean;
   stockQty: number | null;
+  priceSource: MoneySource | null;
   /** Складской номер — где товар лежит. Пусто, если не заведён. */
   storageCode: string;
   updatedAt: number;
@@ -848,6 +851,7 @@ export function listProducts(filter: {
       `SELECT id, slug, title, brand, price, category_id, in_stock, featured,
               updated_at, json_extract(data, '$.images[0]') AS image,
               json_extract(data, '$.stockQty') AS stock_qty,
+              json_extract(data, '$.priceSource') AS price_source,
               json_extract(data, '$.storageCode') AS storage_code
          FROM products ${clause}
         ORDER BY updated_at DESC
@@ -869,6 +873,7 @@ export function listProducts(filter: {
     updated_at: number;
     image: string | null;
     stock_qty: number | null;
+    price_source: string | null;
     storage_code: string | null;
   }>;
 
@@ -884,6 +889,7 @@ export function listProducts(filter: {
       inStock: row.in_stock === 1,
       featured: row.featured === 1,
       stockQty: row.stock_qty ?? null,
+      priceSource: row.price_source ? (JSON.parse(row.price_source) as MoneySource) : null,
       storageCode: row.storage_code ?? "",
       updatedAt: row.updated_at,
       image: row.image,

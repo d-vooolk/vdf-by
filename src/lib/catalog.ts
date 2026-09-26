@@ -98,7 +98,8 @@ function load(): Catalog {
     );
     delete product.costPrice;
     delete product.wholesalePrice;
-    delete product.costUsd;
+    delete product.costSource;
+    delete product.wholesaleSource;
     delete product.storageCode;
     return product;
   });

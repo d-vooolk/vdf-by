@@ -49,6 +49,11 @@ const money = z
   .nonnegative("цена не может быть отрицательной")
   .finite();
 
+export const moneySourceSchema = z.strictObject({
+  amount: z.number().positive("сумма в валюте должна быть больше нуля").finite(),
+  currency: z.enum(["RUB", "USD"]),
+});
+
 /** Пара «характеристика — значение» в таблице на странице товара. */
 export const specSchema = z.strictObject({
   name: z.string().min(1),
@@ -104,7 +109,9 @@ export const productSchema = z.strictObject({
   stockQty: z.number().int().nonnegative().nullable().optional(),
   costPrice: money.nullable().optional(),
   wholesalePrice: money.nullable().optional(),
-  costUsd: money.nullable().optional(),
+  priceSource: moneySourceSchema.optional(),
+  wholesaleSource: moneySourceSchema.optional(),
+  costSource: moneySourceSchema.optional(),
   storageCode: z.string().min(1).optional(),
   badge: z.string().optional(),
   featured: z.boolean().optional(),

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { applyFrameTypeAction } from "@/app/admin/actions";
 import { NumberInput } from "@/components/admin/form-parts";
+import { MoneyField } from "@/components/admin/MoneyField";
 import { AlertIcon, CheckIcon } from "@/components/icons";
 import type { FrameTypeValues } from "@/lib/frame-types";
 
@@ -47,30 +48,30 @@ export function FrameTypeForm({
   return (
     <div className="card space-y-4 p-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="block">
-          <span className="label">Себестоимость, {currencySymbol}</span>
-          <NumberInput
-            value={values.costPrice}
-            onChange={(costPrice) => patch({ costPrice })}
-            placeholder="не указана"
-          />
-        </label>
-        <label className="block">
-          <span className="label">Цена розницы, {currencySymbol}</span>
-          <NumberInput
-            value={values.price}
-            onChange={(price) => patch({ price })}
-            placeholder="не указана"
-          />
-        </label>
-        <label className="block">
-          <span className="label">Оптовая цена, {currencySymbol}</span>
-          <NumberInput
-            value={values.wholesalePrice}
-            onChange={(wholesalePrice) => patch({ wholesalePrice })}
-            placeholder="не указана"
-          />
-        </label>
+        <MoneyField
+          label="Себестоимость"
+          value={values.costPrice}
+          source={values.costSource}
+          rounding="kopeck"
+          currencySymbol={currencySymbol}
+          onChange={(costPrice, costSource) => patch({ costPrice, costSource })}
+        />
+        <MoneyField
+          label="Цена розницы"
+          value={values.price}
+          source={values.priceSource}
+          rounding="ruble"
+          currencySymbol={currencySymbol}
+          onChange={(price, priceSource) => patch({ price, priceSource })}
+        />
+        <MoneyField
+          label="Оптовая цена"
+          value={values.wholesalePrice}
+          source={values.wholesaleSource}
+          rounding="ruble"
+          currencySymbol={currencySymbol}
+          onChange={(wholesalePrice, wholesaleSource) => patch({ wholesalePrice, wholesaleSource })}
+        />
         <label className="block">
           <span className="label">Остаток на складе, шт.</span>
           <NumberInput

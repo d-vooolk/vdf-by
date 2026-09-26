@@ -119,15 +119,16 @@ rm -rf "$build_slot"
 NODE_ENV=production NEXT_DIST_DIR="$build_slot" npm run build
 printf '%s\n' "$build_slot" > var/dist-slot
 
-echo "==> Ежедневное обновление цен с vdf-light.ru"
+echo "==> Ежедневный пересчёт цен по курсу НБРБ"
 if [ ! -s var/cron-key ]; then
   (umask 077 && openssl rand -hex 32 > var/cron-key)
 fi
-cat > /etc/cron.d/vdf-prices <<CRON
+rm -f /etc/cron.d/vdf-prices
+cat > /etc/cron.d/vdf-rates <<CRON
 SHELL=/bin/bash
-30 1 * * * root curl -s -X POST --max-time 900 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/vdf-prices/ -o $APP/var/vdf-prices.log
+30 1 * * * root curl -s -X POST --max-time 300 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/rates/ -o $APP/var/rates.log
 CRON
-chmod 644 /etc/cron.d/vdf-prices
+chmod 644 /etc/cron.d/vdf-rates
 
 echo "==> Перезапускаю $PM2_APP"
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then

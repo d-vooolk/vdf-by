@@ -340,6 +340,26 @@ export const MIGRATIONS = [
     UPDATE frame_types
        SET in_stock = CASE WHEN COALESCE(stock_qty, 0) > 0 THEN 1 ELSE 0 END;
   `,
+
+  `
+    UPDATE products
+       SET data = json_remove(
+             json_set(data, '$.costSource', json_object(
+               'amount', json_extract(data, '$.costUsd'),
+               'currency', 'USD'
+             )),
+             '$.costUsd'
+           )
+     WHERE COALESCE(json_extract(data, '$.costUsd'), 0) > 0;
+
+    UPDATE products
+       SET data = json_remove(data, '$.costUsd')
+     WHERE json_extract(data, '$.costUsd') IS NOT NULL;
+
+    ALTER TABLE frame_types ADD COLUMN price_source TEXT;
+    ALTER TABLE frame_types ADD COLUMN cost_source TEXT;
+    ALTER TABLE frame_types ADD COLUMN wholesale_source TEXT;
+  `,
 ];
 
 /**

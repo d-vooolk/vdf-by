@@ -109,6 +109,14 @@ revalidatePath('/', 'layout')                // сброс всего + клие
 - Из Server Action — UI обновляется сразу; из Route Handler — путь лишь
   помечается, пересборка произойдёт при следующем заходе.
 - `'layout'` инвалидирует и все вложенные страницы, `'page'` — нет.
+- Вне запроса (таймер, `setInterval`, скрипт через jiti) `revalidatePath`
+  падает с `Invariant: static generation store missing`. Фоновые задачи по
+  расписанию поэтому идут через cron → Route Handler (`/api/cron/rates/`,
+  ключ в `var/cron-key`), а не через таймер в процессе.
+- Страница, читающая `searchParams`, рендерится на каждый запрос, даже если
+  у маршрута есть `generateStaticParams`. Так устроены `/catalog/` и
+  разделы с `?page=` и `?sort=`; чтение только в одной ветке (подраздел в
+  `[branch]`) оставляет остальные пути маршрута статическими.
 
 ### revalidateTag / updateTag / refresh
 

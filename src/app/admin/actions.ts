@@ -83,12 +83,13 @@ import {
 import {
   forgetVdfSession,
   requestVdfCode,
-  syncVdfPrices,
+  loadVdfPrices,
   verifyVdfCode,
 } from "@/lib/vdf-prices";
 import { normalizePhone } from "@/lib/phone";
 import { login, logout, requireAdmin } from "@/lib/auth";
-import { getUsdRate, type UsdRate } from "@/lib/rates";
+import { relinkValues, type CurrencyRates } from "@/lib/currency";
+import { currentRates, refreshLinkedPrices, relinkInput } from "@/lib/linked-prices";
 
 /**
  * Действия админки.
@@ -170,7 +171,7 @@ export async function saveProductAction(
   const beforePaths = before ? categoryPaths(before.categoryId) : [];
   const beforeCarPaths = previousId ? carPathsForProduct(previousId) : [];
 
-  const result = saveProduct(input, previousId);
+  const result = saveProduct(await relinkInput(input), previousId);
   if (!result.ok) return toState(result);
 
   const product = input as { id: string; slug: string; categoryId: string };
@@ -552,9 +553,9 @@ export async function deleteCarEntryAction(
   return ok();
 }
 
-export async function getUsdRateAction(): Promise<UsdRate | null> {
+export async function getRatesAction(): Promise<CurrencyRates> {
   await requireAdmin();
-  return getUsdRate();
+  return currentRates();
 }
 
 export type { AiProductInput } from "@/lib/ai";
@@ -635,7 +636,9 @@ export async function applyFrameTypeAction(
   if (!isCarFitmentCategory(categoryId)) return fail(["Раздел не найден"]);
   const values = validFrameTypeValues(input);
   if (typeof values === "string") return fail([values]);
-  const updated = applyFrameType(categoryId, type, values);
+  const linked = values.priceSource || values.costSource || values.wholesaleSource;
+  const priced = linked ? relinkValues(values, await currentRates()) : values;
+  const updated = applyFrameType(categoryId, type, priced);
   invalidateCatalog();
   revalidateSite();
   return { ...ok(), updated };
@@ -746,12 +749,22 @@ export async function forgetVdfSessionAction(): Promise<FormState> {
   return ok();
 }
 
-export async function syncVdfPricesAction(): Promise<FormState> {
+export async function loadVdfPricesAction(): Promise<FormState> {
   await requireAdmin();
   try {
-    const report = await syncVdfPrices();
+    const report = await loadVdfPrices();
     return report.ok ? ok() : fail([report.error]);
   } catch (error) {
     return fail([(error as Error).message]);
   }
+}
+
+export async function refreshRatesAction(): Promise<FormState> {
+  await requireAdmin();
+  const report = await refreshLinkedPrices();
+  if (report.products) {
+    invalidateCatalog();
+    revalidateSite();
+  }
+  return report.ok ? ok() : fail([report.error]);
 }

@@ -43,8 +43,20 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
           wholesalePrice: first.wholesalePrice,
           stockQty: first.stockQty,
           inStock: first.inStock,
+          priceSource: first.priceSource,
+          costSource: first.costSource,
+          wholesaleSource: first.wholesaleSource,
         }
-      : { costPrice: null, price: null, wholesalePrice: null, stockQty: null, inStock: false });
+      : {
+          costPrice: null,
+          price: null,
+          wholesalePrice: null,
+          stockQty: null,
+          inStock: false,
+          priceSource: null,
+          costSource: null,
+          wholesaleSource: null,
+        });
 
   return (
     <div className="space-y-5">

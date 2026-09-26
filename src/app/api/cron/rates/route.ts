@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { syncVdfPrices } from "@/lib/vdf-prices";
+import { invalidateCatalog } from "@/lib/catalog";
+import { refreshLinkedPrices } from "@/lib/linked-prices";
+import { revalidateSite } from "@/lib/revalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,10 @@ function authorized(request: Request): boolean {
 
 export async function POST(request: Request) {
   if (!authorized(request)) return Response.json({ error: "forbidden" }, { status: 403 });
-  const report = await syncVdfPrices();
+  const report = await refreshLinkedPrices();
+  if (report.products) {
+    invalidateCatalog();
+    revalidateSite();
+  }
   return Response.json(report, { status: report.ok ? 200 : 500 });
 }
