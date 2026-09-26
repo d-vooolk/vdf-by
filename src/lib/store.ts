@@ -14,6 +14,7 @@ import {
   type Site,
 } from "./schema";
 import type { MoneySource } from "./currency";
+import { setGroupStock, stockGroupOf } from "./shared-stock";
 import { stockedByQty } from "./variant";
 
 /**
@@ -232,6 +233,13 @@ export function setProductStockQty(id: string, qty: number | null): SaveResult {
     | undefined;
   if (!row) return { ok: false, problems: ["Товар не найден"] };
 
+  const group = stockGroupOf(id);
+  if (group) {
+    setGroupStock(group, qty);
+    bumpCatalogVersion();
+    return { ok: true };
+  }
+
   const product = JSON.parse(row.data) as Product;
   if (qty === null) delete product.stockQty;
   else product.stockQty = qty;
@@ -269,6 +277,17 @@ function moveStock(moves: StockMove[], direction: 1 | -1): StockMove[] {
   for (const { productId, qty } of moves) {
     const row = read.get(productId) as { data: string } | undefined;
     if (!row || qty <= 0) continue;
+
+    const group = stockGroupOf(productId);
+    if (group) {
+      const stock = group.stockQty ?? 0;
+      const shared = direction === -1 ? Math.min(stock, qty) : qty;
+      if (shared === 0) continue;
+      setGroupStock(group, stock + direction * shared);
+      done.push({ productId, qty: shared });
+      continue;
+    }
+
     const product = JSON.parse(row.data) as Product;
     const before = product.stockQty ?? 0;
     const moved = direction === -1 ? Math.min(before, qty) : qty;

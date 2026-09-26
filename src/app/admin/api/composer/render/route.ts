@@ -1,7 +1,8 @@
 import { getAdmin } from "@/lib/auth";
 import { getCarFrontPhoto, readCarFrontPhoto } from "@/lib/car-photos";
-import { composeProductImage, isBackground } from "@/lib/composer";
+import { isBackground } from "@/lib/composer";
 import { storeImage } from "@/lib/image-store";
+import { composeInWorker } from "@/lib/ml";
 import { revalidateImages } from "@/lib/revalidate";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   const background = form.get("background");
 
   try {
-    const image = await composeProductImage({
+    const image = await composeInWorker({
       product: Buffer.from(await product.arrayBuffer()),
       car: await readCarFrontPhoto(photo),
       label: String(form.get("label") ?? "").slice(0, MAX_LABEL),

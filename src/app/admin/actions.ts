@@ -87,6 +87,7 @@ import {
   verifyVdfCode,
 } from "@/lib/vdf-prices";
 import { normalizePhone } from "@/lib/phone";
+import { productsSharingStock, setGroupStock, stockGroupOf } from "@/lib/shared-stock";
 import { login, logout, requireAdmin } from "@/lib/auth";
 import { relinkValues, type CurrencyRates } from "@/lib/currency";
 import { currentRates, refreshLinkedPrices, relinkInput } from "@/lib/linked-prices";
@@ -157,6 +158,14 @@ export async function logoutAction(): Promise<void> {
 /* Товары                                                              */
 /* ------------------------------------------------------------------ */
 
+function revalidateProductsById(ids: Iterable<string>): void {
+  for (const id of new Set(ids)) {
+    const product = getProductRaw(id);
+    if (!product) continue;
+    revalidateProduct(product.slug, categoryPaths(product.categoryId), undefined, carPathsForProduct(id));
+  }
+}
+
 export async function saveProductAction(
   input: unknown,
   previousId?: string,
@@ -174,7 +183,11 @@ export async function saveProductAction(
   const result = saveProduct(await relinkInput(input), previousId);
   if (!result.ok) return toState(result);
 
-  const product = input as { id: string; slug: string; categoryId: string };
+  const product = input as { id: string; slug: string; categoryId: string; stockQty?: number | null };
+
+  const group = stockGroupOf(product.id);
+  const stockQty = product.stockQty ?? null;
+  const siblings = group && group.stockQty !== stockQty ? setGroupStock(group, stockQty) : [];
 
   // Привязки к машинам — после товара: у нового товара строки в products
   // до этого момента ещё нет, а внешний ключ на неё ссылается.
@@ -198,6 +211,7 @@ export async function saveProductAction(
     },
     carPathsForProduct(product.id),
   );
+  revalidateProductsById(siblings.filter((id) => id !== product.id));
 
   if (!previousId) {
     (await cookies()).set(LAST_CATEGORY_COOKIE, product.categoryId, {
@@ -308,12 +322,7 @@ export async function setProductStockQtyAction(
   if (!result.ok) return toState(result);
 
   invalidateCatalog();
-  revalidateProduct(
-    product.slug,
-    categoryPaths(product.categoryId),
-    undefined,
-    carPathsForProduct(product.id),
-  );
+  revalidateProductsById(productsSharingStock(id));
   return ok();
 }
 
@@ -450,16 +459,7 @@ export async function setOrderStatusAction(
   const moved = setOrderStatus(id, status);
   if (moved.length) {
     invalidateCatalog();
-    for (const { productId } of moved) {
-      const product = getProductRaw(productId);
-      if (!product) continue;
-      revalidateProduct(
-        product.slug,
-        categoryPaths(product.categoryId),
-        undefined,
-        carPathsForProduct(product.id),
-      );
-    }
+    revalidateProductsById(moved.flatMap(({ productId }) => productsSharingStock(productId)));
   }
   return ok();
 }

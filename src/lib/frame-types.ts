@@ -1,6 +1,7 @@
 import type { MoneySource } from "./currency";
 import { bumpCatalogVersion, getDb } from "./db";
 import { moneySourceSchema, type Product } from "./schema";
+import { frameTypeOfSku } from "./shared-stock";
 import { listCategoriesBrief } from "./store";
 import { stockedByQty } from "./variant";
 
@@ -37,9 +38,7 @@ export interface FrameTypeGroup {
   uniform: boolean;
 }
 
-export function frameTypeOfSku(sku: string | undefined): string {
-  return sku?.trim().match(/(\d{3})$/)?.[1] ?? "";
-}
+export { frameTypeOfSku };
 
 interface TypeRow {
   type: string;

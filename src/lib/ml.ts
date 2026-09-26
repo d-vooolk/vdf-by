@@ -3,6 +3,8 @@ import path from "node:path";
 
 import sharp from "sharp";
 
+import type { ComposeOptions } from "./composer";
+
 const TASK_TIMEOUT_MS = 10 * 60 * 1000;
 const PLATE_MARGIN = 0.18;
 
@@ -52,6 +54,7 @@ function worker(): ChildProcess {
 
   const script = path.join(/*turbopackIgnore: true*/ process.cwd(), "scripts", "ml-worker.mjs");
   const child = fork(script, [], {
+    execArgv: [...process.execArgv, "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON"],
     serialization: "advanced",
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
@@ -79,7 +82,7 @@ function worker(): ChildProcess {
   return child;
 }
 
-function run<T>(task: "cutout" | "plates", image: Buffer): Promise<T> {
+function run<T>(task: "cutout" | "plates" | "compose", payload: unknown): Promise<T> {
   const id = (state.__mlNextId = (state.__mlNextId ?? 0) + 1);
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -87,7 +90,7 @@ function run<T>(task: "cutout" | "plates", image: Buffer): Promise<T> {
       reject(new Error("Нейросеть не ответила за 10 минут"));
     }, TASK_TIMEOUT_MS);
     pending().set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
-    worker().send({ id, task, image: new Uint8Array(image) });
+    worker().send({ id, task, payload });
   });
 }
 
@@ -96,12 +99,12 @@ async function upright(image: Buffer): Promise<Buffer> {
 }
 
 export async function removeBackground(image: Buffer): Promise<Buffer> {
-  const result = await run<Uint8Array>("cutout", await upright(image));
+  const result = await run<Uint8Array>("cutout", new Uint8Array(await upright(image)));
   return Buffer.from(result);
 }
 
 export async function findPlates(image: Buffer): Promise<PlateBox[]> {
-  return run<PlateBox[]>("plates", await upright(image));
+  return run<PlateBox[]>("plates", new Uint8Array(await upright(image)));
 }
 
 export interface BlurRegion {
@@ -149,4 +152,13 @@ export async function blurRegions(image: Buffer, regions: BlurRegion[]): Promise
 export async function blurPlates(image: Buffer): Promise<{ image: Buffer; count: number }> {
   const boxes = await findPlates(image);
   return { image: await blurRegions(image, boxes), count: boxes.length };
+}
+
+export async function composeInWorker(options: ComposeOptions): Promise<Buffer> {
+  const result = await run<Uint8Array>("compose", {
+    ...options,
+    product: new Uint8Array(options.product),
+    car: new Uint8Array(options.car),
+  });
+  return Buffer.from(result);
 }

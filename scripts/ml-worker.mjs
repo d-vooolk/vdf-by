@@ -4,10 +4,13 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import ort from "onnxruntime-node";
 import sharp from "sharp";
+
+sharp.cache(false);
+sharp.concurrency(2);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODELS_DIR = path.join(ROOT, "var", "models");
@@ -197,7 +200,22 @@ async function plates(image) {
   return boxes;
 }
 
-const TASKS = { cutout, plates };
+let composer = null;
+
+async function compose(options) {
+  composer ??= await import(pathToFileURL(path.join(ROOT, "src", "lib", "composer.ts")).href);
+  return composer.composeProductImage({
+    ...options,
+    product: Buffer.from(options.product),
+    car: Buffer.from(options.car),
+  });
+}
+
+const TASKS = {
+  cutout: (payload) => cutout(Buffer.from(payload)),
+  plates: (payload) => plates(Buffer.from(payload)),
+  compose,
+};
 
 if (process.argv.includes("--download")) {
   for (const name of Object.keys(MODELS)) {
@@ -214,6 +232,7 @@ if (!process.send) {
 
 let active = 0;
 let idleTimer = null;
+let queue = Promise.resolve();
 
 function scheduleExit() {
   clearTimeout(idleTimer);
@@ -222,14 +241,11 @@ function scheduleExit() {
   }, IDLE_MS);
 }
 
-process.on("message", async (message) => {
-  const { id, task, image } = message;
-  active += 1;
-  clearTimeout(idleTimer);
+async function handle({ id, task, payload }) {
   try {
     const handler = TASKS[task];
     if (!handler) throw new Error(`Неизвестная задача ${task}`);
-    const result = await handler(Buffer.from(image));
+    const result = await handler(payload);
     process.send({ id, ok: true, result });
   } catch (error) {
     process.send({ id, ok: false, error: error instanceof Error ? error.message : String(error) });
@@ -237,6 +253,12 @@ process.on("message", async (message) => {
     active -= 1;
     scheduleExit();
   }
+}
+
+process.on("message", (message) => {
+  active += 1;
+  clearTimeout(idleTimer);
+  queue = queue.then(() => handle(message));
 });
 
 process.on("disconnect", () => process.exit(0));
