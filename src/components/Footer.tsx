@@ -117,6 +117,9 @@ export function Footer() {
           <Link href="/privacy/" className="transition-colors hover:text-brand-700">
             Политика обработки персональных данных
           </Link>
+          <Link href="/istochniki-foto/" className="transition-colors hover:text-brand-700">
+            Источники фотографий
+          </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
       </div>

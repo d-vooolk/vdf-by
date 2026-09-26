@@ -30,14 +30,16 @@ export default async function PanelLayout({
   const { newCount } = orderStats();
 
   return (
-    <div className="flex min-h-dvh flex-col bg-brand-50">
+    <div className="flex min-h-dvh flex-col bg-brand-50 lg:flex-row">
       <AdminNav
         siteName={site.name}
         login={admin.login}
         newOrders={newCount}
         pendingWholesale={countPendingWholesale()}
       />
-      <main className="container-page flex-1 py-6 sm:py-8">{children}</main>
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+      </main>
     </div>
   );
 }

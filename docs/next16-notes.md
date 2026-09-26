@@ -215,6 +215,21 @@ revalidatePath('/', 'layout')                // сброс всего + клие
   общий `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` и `deploymentId`.
 - Для стриминга через nginx нужен `X-Accel-Buffering: no` (у нас стриминга нет).
 
+### Дочерние процессы и пути к файлам в рантайме
+
+Turbopack статически разбирает `child_process.fork()` и `path.join()` с
+`process.cwd()` и пытается включить файл в сборку. Для скрипта, который
+должен запускаться как есть (`scripts/ml-worker.mjs`), сборка падает с
+`Module not found: Can't resolve '/ROOT/scripts/…'`. Лечится директивой
+в первом аргументе `path.join`:
+
+```ts
+path.join(/*turbopackIgnore: true*/ process.cwd(), "scripts", "ml-worker.mjs")
+```
+
+Так же сделано в `src/lib/image-pipeline.mjs`. Источник:
+`01-app/03-api-reference/08-turbopack.md` (таблица magic comments).
+
 ---
 
 ## 10. Удалено и переименовано в 16 (не предлагать)

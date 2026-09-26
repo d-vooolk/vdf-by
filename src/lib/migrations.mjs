@@ -415,6 +415,19 @@ export const MIGRATIONS = [
 
     CREATE INDEX vdf_import_items_by_status ON vdf_import_items(import_id, status, position);
   `,
+
+  `
+    CREATE TABLE car_front_photos (
+      generation_id TEXT PRIMARY KEY REFERENCES car_generations(id) ON DELETE CASCADE,
+      image         TEXT NOT NULL,
+      title         TEXT NOT NULL DEFAULT '',
+      author        TEXT NOT NULL DEFAULT '',
+      license       TEXT NOT NULL DEFAULT '',
+      license_url   TEXT NOT NULL DEFAULT '',
+      source_url    TEXT NOT NULL DEFAULT '',
+      created_at    INTEGER NOT NULL
+    );
+  `,
 ];
 
 /**

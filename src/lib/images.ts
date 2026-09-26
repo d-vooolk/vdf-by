@@ -158,8 +158,20 @@ export function imageUsage(imagePath: string): string[] {
     .prepare("SELECT name FROM categories WHERE data LIKE ? ORDER BY name LIMIT 20")
     .all(needle) as Array<{ name: string }>;
 
+  const cars = db
+    .prepare(
+      `SELECT k.name || ' ' || m.name || ' ' || g.name AS name
+         FROM car_front_photos p
+         JOIN car_generations g ON g.id = p.generation_id
+         JOIN car_models m ON m.id = g.model_id
+         JOIN car_marks  k ON k.id = m.mark_id
+        WHERE p.image = ?`,
+    )
+    .all(imagePath) as Array<{ name: string }>;
+
   return [
     ...products.map((row) => row.title),
     ...categories.map((row) => `раздел «${row.name}»`),
+    ...cars.map((row) => `фото автомобиля для генератора: ${row.name}`),
   ];
 }

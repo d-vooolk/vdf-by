@@ -13,6 +13,7 @@ import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTool
 import { ImportFromUrl, type ImportTarget } from "@/components/admin/ImportFromUrl";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { CategoryPicker, type CategoryChoice } from "@/components/admin/CategoryPicker";
+import { ComposerDialog } from "@/components/admin/ComposerDialog";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker, UploadTrackerContext } from "@/components/admin/ImagePicker";
 import { MoneyField } from "@/components/admin/MoneyField";
@@ -70,6 +71,10 @@ interface ProductFormProps {
 
 const UNITS = ["комплект", "шт."];
 
+function newestCar(cars: ProductCar[]): ProductCar | undefined {
+  return [...cars].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
+}
+
 export function ProductForm({
   product: initial,
   categories,
@@ -91,12 +96,14 @@ export function ProductForm({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [skuPending, setSkuPending] = useState(false);
   const [uploads, setUploads] = useState(0);
+  const [composerOpen, setComposerOpen] = useState(false);
   const trackUpload = useCallback(
     (delta: number) => setUploads((count) => count + delta),
     [],
   );
 
   const creating = !previousId;
+  const closeComposer = useCallback(() => setComposerOpen(false), []);
 
   const patch = (changes: Partial<Product>) => {
     setDraft((current) => ({ ...current, ...changes }));
@@ -553,6 +560,30 @@ export function ProductForm({
           thumbs={{ ...thumbs, ...importedThumbs }}
           label="Общая галерея"
         />
+
+        <button type="button" className="btn-secondary" onClick={() => setComposerOpen(true)}>
+          Сделать картинку с автомобилем
+        </button>
+
+        {composerOpen && (
+          <ComposerDialog
+            initialGenerationId={newestCar(cars)?.generationId}
+            productImages={draft.images.map((path) => ({
+              path,
+              thumb: importedThumbs[path] ?? thumbs[path] ?? "",
+            }))}
+            folder={folder}
+            onClose={closeComposer}
+            onSaved={(image) => {
+              setImportedThumbs((current) => ({ ...current, [image.path]: image.thumb }));
+              setDraft((current) => ({
+                ...current,
+                images: current.images.includes(image.path) ? current.images : [...current.images, image.path],
+              }));
+              setSaved(false);
+            }}
+          />
+        )}
 
         <VideoPicker
           value={draft.videos ?? []}

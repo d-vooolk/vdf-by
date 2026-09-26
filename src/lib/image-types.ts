@@ -43,3 +43,13 @@ export function pickUrl(
   const suitable = variants.find((variant) => variant.w >= width);
   return (suitable ?? variants[variants.length - 1]).url;
 }
+
+export function largestVariantUrl(entry: ImageEntry | null | undefined): string | null {
+  if (!entry) return null;
+  const variants = entry.sources.webp ?? Object.values(entry.sources)[0] ?? [];
+  const largest = variants.reduce<ImageVariant | undefined>(
+    (best, variant) => (!best || variant.w > best.w ? variant : best),
+    undefined,
+  );
+  return largest?.url ?? (entry.fallback || null);
+}
