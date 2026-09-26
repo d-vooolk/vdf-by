@@ -432,6 +432,12 @@ export const MIGRATIONS = [
   `
     DROP TABLE IF EXISTS vdf_frames;
   `,
+
+  `
+    ALTER TABLE car_front_photos ADD COLUMN origin TEXT NOT NULL DEFAULT 'upload';
+    UPDATE car_front_photos SET origin = 'wikimedia'
+     WHERE source_url LIKE 'https://commons.wikimedia.org/%';
+  `,
 ];
 
 /**

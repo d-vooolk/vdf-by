@@ -32,6 +32,8 @@ interface CarInfo {
   label: string;
   query: string;
   photo: CarPhotoInfo | null;
+  plates: number | null;
+  hasCatalogPhoto: boolean;
 }
 
 export interface ComposerProductImage {
@@ -131,6 +133,8 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
   const [removeBackground, setRemoveBackground] = useState(true);
   const [cutting, setCutting] = useState(false);
   const [pickedImage, setPickedImage] = useState("");
+  const [productName, setProductName] = useState("");
+  const productFileRef = useRef<HTMLInputElement>(null);
 
   const [label, setLabel] = useState("");
   const [mirrorProduct, setMirrorProduct] = useState(false);
@@ -245,11 +249,13 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
   const chooseFile = (file: File | undefined) => {
     if (!file) return;
     setPickedImage("");
+    setProductName(file.name);
     void applyProduct(file);
   };
 
   const chooseProductImage = async (image: ComposerProductImage) => {
     setPickedImage(image.path);
+    setProductName("");
     try {
       const response = await fetch(`/admin/api/composer/image/?path=${encodeURIComponent(image.path)}`);
       if (!response.ok) throw new Error("Не удалось загрузить фото товара");
@@ -379,12 +385,20 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               />
             </div>
           )}
+          {generationId && !car && (
+            <p className="flex items-center gap-2 text-sm text-brand-400">
+              <SpinnerIcon className="h-4 w-4 animate-spin" />
+              Готовим фото автомобиля…
+            </p>
+          )}
           {generationId && car && (
             <ComposerCarPhoto
               key={generationId}
               generationId={generationId}
               initialQuery={car.query}
               photo={car.photo}
+              plates={car.plates}
+              hasCatalogPhoto={car.hasCatalogPhoto}
               onChange={(next) => setCar({ ...car, photo: next })}
             />
           )}
@@ -412,15 +426,26 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               </ul>
             </div>
           )}
-          <label className="block text-sm">
-            <span className="label">{productImages.length ? "Или загрузить другое фото" : "Фото товара"}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn-secondary py-2 text-sm"
+              onClick={() => productFileRef.current?.click()}
+            >
+              {productImages.length ? "Загрузить другое фото" : "Загрузить фото товара"}
+            </button>
+            {productName && <span className="truncate text-sm text-brand-500">{productName}</span>}
             <input
+              ref={productFileRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={(event) => chooseFile(event.target.files?.[0])}
-              className="block w-full text-sm"
+              hidden
+              onChange={(event) => {
+                chooseFile(event.target.files?.[0]);
+                event.target.value = "";
+              }}
             />
-          </label>
+          </div>
           <label className="flex items-center gap-2 text-sm text-brand-800">
             <input type="checkbox" checked={removeBackground} onChange={(event) => toggleBackground(event.target.checked)} />
             Убрать фон нейросетью

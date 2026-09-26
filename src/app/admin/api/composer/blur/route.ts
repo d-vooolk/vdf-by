@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       license: photo.license,
       licenseUrl: photo.licenseUrl,
       sourceUrl: photo.sourceUrl,
-    });
+    }, photo.origin);
     return Response.json({ photo: describeCarPhoto(saved) });
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 500 });

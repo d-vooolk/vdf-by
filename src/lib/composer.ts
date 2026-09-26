@@ -16,8 +16,11 @@ const HIGH = 0.46;
 const PRODUCT_TOP = 120;
 const PRODUCT_SIDE = 80;
 const PRODUCT_GAP = 36;
-const LOGO_WIDTH = 300;
-const LOGO_MARGIN = 44;
+const WATERMARK_WIDTH = 230;
+const WATERMARK_OPACITY = 0.2;
+const WATERMARK_STEP_X = 420;
+const WATERMARK_STEP_Y = 210;
+const WATERMARK_ANGLE = -30;
 
 export type Slope = "up" | "down";
 
@@ -196,40 +199,86 @@ async function labelLayer(
   };
 }
 
-async function logoLayer(opacity: number): Promise<Buffer> {
-  const { data, info } = await sharp(LOGO_FILE)
-    .resize({ width: LOGO_WIDTH })
-    .ensureAlpha()
+async function watermarkTile(): Promise<{ data: Buffer; width: number; height: number }> {
+  const logo = await sharp(LOGO_FILE).resize({ width: WATERMARK_WIDTH }).ensureAlpha().png().toBuffer();
+  const pad = 6;
+  const shadow = await sharp(logo)
+    .tint("#0b1020")
+    .extend({ top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .blur(2.5)
+    .png()
+    .toBuffer();
+  const { data, info } = await sharp(shadow)
+    .composite([{ input: logo, top: pad, left: pad }])
     .raw()
     .toBuffer({ resolveWithObject: true });
   for (let index = 3; index < data.length; index += 4) {
-    data[index] = Math.round(data[index] * opacity);
+    data[index] = Math.round(data[index] * WATERMARK_OPACITY);
   }
-  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+  return { data, width: info.width, height: info.height };
+}
+
+let watermarkCache: Promise<Buffer> | null = null;
+
+async function buildWatermark(): Promise<Buffer> {
+  const tile = await watermarkTile();
+  const tileImage = await sharp(tile.data, {
+    raw: { width: tile.width, height: tile.height, channels: 4 },
+  })
     .png()
     .toBuffer();
+
+  const field = Math.ceil(CANVAS * 1.6);
+  const tiles: Array<{ input: Buffer; top: number; left: number }> = [];
+  for (let row = 0, top = 0; top < field; row += 1, top += WATERMARK_STEP_Y) {
+    const offset = row % 2 ? WATERMARK_STEP_X / 2 : 0;
+    for (let left = -offset; left < field; left += WATERMARK_STEP_X) {
+      if (left + tile.width <= 0) continue;
+      tiles.push({ input: tileImage, top, left: Math.max(0, Math.round(left)) });
+    }
+  }
+
+  const rotated = await sharp({
+    create: { width: field, height: field, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite(tiles)
+    .png()
+    .toBuffer()
+    .then((buffer) =>
+      sharp(buffer)
+        .rotate(WATERMARK_ANGLE, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toBuffer({ resolveWithObject: true }),
+    );
+
+  return sharp(rotated.data)
+    .extract({
+      left: Math.round((rotated.info.width - CANVAS) / 2),
+      top: Math.round((rotated.info.height - CANVAS) / 2),
+      width: CANVAS,
+      height: CANVAS,
+    })
+    .png()
+    .toBuffer();
+}
+
+function watermarkLayer(): Promise<Buffer> {
+  watermarkCache ??= buildWatermark().catch((error) => {
+    watermarkCache = null;
+    throw error;
+  });
+  return watermarkCache;
 }
 
 export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
   const { left, right } = divider(options.slope);
 
-  const [car, product, label, logo] = await Promise.all([
+  const [car, product, label, watermark] = await Promise.all([
     carLayer(options.car, options.mirrorCar, options.carShift, left, right),
     productLayer(options.product, options.mirrorProduct, options.productScale, left, right),
     labelLayer(options.label, left, right),
-    logoLayer(0.85),
+    watermarkLayer(),
   ]);
-  const logoHeight = (await sharp(logo).metadata()).height ?? 50;
-
-  const logoOnProduct =
-    options.slope === "up"
-      ? { input: logo, top: LOGO_MARGIN, left: LOGO_MARGIN }
-      : { input: logo, top: LOGO_MARGIN, left: CANVAS - LOGO_WIDTH - LOGO_MARGIN };
-  const logoOnCar = {
-    input: logo,
-    top: CANVAS - logoHeight - LOGO_MARGIN,
-    left: options.slope === "up" ? CANVAS - LOGO_WIDTH - LOGO_MARGIN : LOGO_MARGIN,
-  };
 
   return sharp({
     create: { width: CANVAS, height: CANVAS, channels: 3, background: "#ffffff" },
@@ -237,10 +286,9 @@ export async function composeProductImage(options: ComposeOptions): Promise<Buff
     .composite([
       { input: car, top: 0, left: 0 },
       product,
+      { input: watermark, top: 0, left: 0 },
       { input: svg(bandShapes(left, right)), top: 0, left: 0 },
       ...(label ? [label] : []),
-      logoOnProduct,
-      logoOnCar,
     ])
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();

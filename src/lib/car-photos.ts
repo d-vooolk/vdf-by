@@ -4,10 +4,12 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { years } from "./car-types";
+import { fetchCarImages } from "./cars";
 import { getDb } from "./db";
 import { processImage, removeImageFiles } from "./image-pipeline.mjs";
 import { largestVariantUrl, pickUrl, type ImageEntry } from "./image-types";
 import { deleteImage, getImage, saveImage } from "./images";
+import { blurPlates } from "./ml";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 
@@ -22,9 +24,12 @@ export interface GenerationInfo {
   yearTo: number | null;
 }
 
+export type PhotoOrigin = "catalog" | "wikimedia" | "upload";
+
 export interface CarFrontPhoto {
   generationId: string;
   image: string;
+  origin: PhotoOrigin;
   title: string;
   author: string;
   license: string;
@@ -48,6 +53,7 @@ export interface PhotoCredit {
 interface PhotoRow {
   generation_id: string;
   image: string;
+  origin: string;
   title: string;
   author: string;
   license: string;
@@ -60,6 +66,7 @@ function toPhoto(row: PhotoRow): CarFrontPhoto {
   return {
     generationId: row.generation_id,
     image: row.image,
+    origin: row.origin === "catalog" || row.origin === "wikimedia" ? row.origin : "upload",
     title: row.title,
     author: row.author,
     license: row.license,
@@ -160,6 +167,7 @@ export async function saveCarFrontPhoto(
   generationId: string,
   source: Buffer,
   credit: PhotoCredit,
+  origin: PhotoOrigin,
 ): Promise<CarFrontPhoto> {
   const stamp = Date.now().toString(36);
   const relativePath = `cars/front/${generationId}-${stamp}.jpg`;
@@ -177,17 +185,17 @@ export async function saveCarFrontPhoto(
   getDb()
     .prepare(
       `INSERT INTO car_front_photos
-         (generation_id, image, title, author, license, license_url, source_url, created_at)
-       VALUES (@generationId, @image, @title, @author, @license, @licenseUrl, @sourceUrl, @createdAt)
+         (generation_id, image, origin, title, author, license, license_url, source_url, created_at)
+       VALUES (@generationId, @image, @origin, @title, @author, @license, @licenseUrl, @sourceUrl, @createdAt)
        ON CONFLICT(generation_id) DO UPDATE SET
-         image = @image, title = @title, author = @author, license = @license,
+         image = @image, origin = @origin, title = @title, author = @author, license = @license,
          license_url = @licenseUrl, source_url = @sourceUrl, created_at = @createdAt`,
     )
-    .run({ generationId, image: relativePath, ...credit, createdAt });
+    .run({ generationId, image: relativePath, origin, ...credit, createdAt });
 
   if (previous && previous.image !== relativePath) await dropImage(previous.image);
 
-  return { generationId, image: relativePath, ...credit, createdAt };
+  return { generationId, image: relativePath, origin, ...credit, createdAt };
 }
 
 export async function deleteCarFrontPhoto(generationId: string): Promise<void> {
@@ -197,16 +205,67 @@ export async function deleteCarFrontPhoto(generationId: string): Promise<void> {
   await dropImage(previous.image);
 }
 
-export async function readCarFrontPhoto(photo: CarFrontPhoto): Promise<Buffer> {
-  const url = largestVariantUrl(getImage(photo.image));
+async function readStoredImage(imagePath: string): Promise<Buffer> {
+  const url = largestVariantUrl(getImage(imagePath));
   if (!url) throw new Error("Файлы фото автомобиля не найдены — загрузите его заново");
   return fsp.readFile(path.join(/*turbopackIgnore: true*/ PUBLIC_DIR, url.replace(/^\//, "")));
+}
+
+export function readCarFrontPhoto(photo: CarFrontPhoto): Promise<Buffer> {
+  return readStoredImage(photo.image);
+}
+
+async function catalogPhoto(generationId: string): Promise<string> {
+  const read = () =>
+    (
+      getDb().prepare("SELECT photo FROM car_generations WHERE id = ?").get(generationId) as
+        | { photo: string }
+        | undefined
+    )?.photo ?? "";
+  if (!read()) await fetchCarImages([generationId]);
+  return read();
+}
+
+export async function hasCatalogPhoto(generationId: string): Promise<boolean> {
+  return Boolean(await catalogPhoto(generationId));
+}
+
+export interface EnsuredPhoto {
+  photo: CarFrontPhoto | null;
+  plates: number | null;
+}
+
+export async function ensureCarFrontPhoto(generationId: string): Promise<EnsuredPhoto> {
+  const existing = getCarFrontPhoto(generationId);
+  if (existing) return { photo: existing, plates: null };
+
+  const imagePath = await catalogPhoto(generationId);
+  if (!imagePath) return { photo: null, plates: null };
+
+  let source = await readStoredImage(imagePath);
+  let plates: number | null = null;
+  try {
+    const blurred = await blurPlates(source);
+    source = blurred.image;
+    plates = blurred.count;
+  } catch (error) {
+    console.error("[car-photos] номера не размыты", error);
+  }
+
+  const photo = await saveCarFrontPhoto(
+    generationId,
+    source,
+    { title: "", author: "", license: "", licenseUrl: "", sourceUrl: "" },
+    "catalog",
+  );
+  return { photo, plates };
 }
 
 export function describeCarPhoto(photo: CarFrontPhoto | null) {
   if (!photo) return null;
   return {
     thumb: pickUrl(getImage(photo.image), 800),
+    origin: photo.origin,
     title: photo.title,
     author: photo.author,
     license: photo.license,

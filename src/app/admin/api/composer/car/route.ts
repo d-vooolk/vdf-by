@@ -6,10 +6,12 @@ import {
   composerLabel,
   deleteCarFrontPhoto,
   describeCarPhoto,
-  getCarFrontPhoto,
+  ensureCarFrontPhoto,
   getGenerationInfo,
+  hasCatalogPhoto,
   saveCarFrontPhoto,
   type PhotoCredit,
+  type PhotoOrigin,
 } from "@/lib/car-photos";
 import { ACCEPTED } from "@/lib/image-pipeline.mjs";
 import { blurPlates } from "@/lib/ml";
@@ -31,16 +33,29 @@ export async function GET(request: Request) {
   const info = getGenerationInfo(generationId);
   if (!info) return Response.json({ error: "Поколение не найдено" }, { status: 404 });
 
-  return Response.json({
-    markId: info.markId,
-    modelId: info.modelId,
-    label: composerLabel(info, new Date().getFullYear()),
-    query: commonsQueries(info)[0] ?? "",
-    photo: describeCarPhoto(getCarFrontPhoto(generationId)),
-  });
+  try {
+    const ensured = await ensureCarFrontPhoto(generationId);
+    return Response.json({
+      markId: info.markId,
+      modelId: info.modelId,
+      label: composerLabel(info, new Date().getFullYear()),
+      query: commonsQueries(info)[0] ?? "",
+      photo: describeCarPhoto(ensured.photo),
+      plates: ensured.plates,
+      hasCatalogPhoto: await hasCatalogPhoto(generationId),
+    });
+  } catch (error) {
+    return Response.json({ error: (error as Error).message }, { status: 500 });
+  }
 }
 
-async function fromCommons(title: string): Promise<{ source: Buffer; credit: PhotoCredit }> {
+interface Picked {
+  source: Buffer;
+  credit: PhotoCredit;
+  origin: PhotoOrigin;
+}
+
+async function fromCommons(title: string): Promise<Picked> {
   const file = await commonsFile(title);
   const response = await commonsFetch(file.downloadUrl);
   if (!response.ok) throw new Error(`Wikimedia отдала файл с ошибкой ${response.status}`);
@@ -53,10 +68,11 @@ async function fromCommons(title: string): Promise<{ source: Buffer; credit: Pho
       licenseUrl: file.licenseUrl,
       sourceUrl: file.sourceUrl,
     },
+    origin: "wikimedia",
   };
 }
 
-async function fromUpload(form: FormData): Promise<{ source: Buffer; credit: PhotoCredit }> {
+async function fromUpload(form: FormData): Promise<Picked> {
   const file = form.get("file");
   if (!(file instanceof File)) throw new Error("Файл не выбран");
   if (file.size > MAX_BYTES) throw new Error("Файл больше 20 МБ");
@@ -73,6 +89,7 @@ async function fromUpload(form: FormData): Promise<{ source: Buffer; credit: Pho
       licenseUrl: "",
       sourceUrl: /^https?:\/\//i.test(sourceUrl) ? sourceUrl : "",
     },
+    origin: "upload",
   };
 }
 
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
     const isJson = (request.headers.get("Content-Type") ?? "").includes("application/json");
     let generationId: string;
     let blur: boolean;
-    let picked: { source: Buffer; credit: PhotoCredit };
+    let picked: Picked;
 
     if (isJson) {
       const body = (await request.json()) as { generationId?: string; title?: string; blur?: boolean };
@@ -112,7 +129,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const photo = await saveCarFrontPhoto(generationId, source, picked.credit);
+    const photo = await saveCarFrontPhoto(generationId, source, picked.credit, picked.origin);
     revalidatePath(CREDITS_PATH);
     return Response.json({ photo: describeCarPhoto(photo), plates, warning });
   } catch (error) {
@@ -124,7 +141,12 @@ export async function DELETE(request: Request) {
   if (!(await getAdmin())) return unauthorized();
 
   const generationId = new URL(request.url).searchParams.get("generation") ?? "";
-  await deleteCarFrontPhoto(generationId);
-  revalidatePath(CREDITS_PATH);
-  return Response.json({ ok: true });
+  try {
+    await deleteCarFrontPhoto(generationId);
+    revalidatePath(CREDITS_PATH);
+    const ensured = await ensureCarFrontPhoto(generationId);
+    return Response.json({ photo: describeCarPhoto(ensured.photo), plates: ensured.plates });
+  } catch (error) {
+    return Response.json({ error: (error as Error).message }, { status: 500 });
+  }
 }
