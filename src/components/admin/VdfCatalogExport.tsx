@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AlertIcon, SpinnerIcon } from "@/components/icons";
+import { IDLE_RUN, JobProgress, type JobRun } from "@/components/admin/JobProgress";
 import type { ExportSummary, VdfCategoryNode } from "@/lib/vdf-catalog";
 
 const ENDPOINT = "/admin/api/vdf-catalog/";
@@ -99,66 +100,79 @@ function ExportRow({
   item: ExportSummary;
   onChange: (next: ExportSummary | null, removed?: boolean) => void;
 }) {
-  const [running, setRunning] = useState(false);
+  const [run, setRun] = useState<JobRun>(IDLE_RUN);
   const [error, setError] = useState("");
   const stopRef = useRef(false);
 
+  const running = run.phase !== "idle";
   const listing = item.sourcesPending > 0;
+  const progressOf = (summary: ExportSummary) =>
+    summary.sourcesPending > 0 ? summary.listed : summary.read + summary.errors;
   const toRead = item.listed - item.read - item.errors;
-  const done = !listing && toRead === 0;
-  const total = Math.max(item.listed, item.expected);
-  const percent = listing
-    ? total ? (item.listed / total) * 100 : 0
-    : item.listed ? ((item.read + item.errors) / item.listed) * 100 : 0;
+  const done = !listing && toRead === 0 && item.listed > 0;
 
-  const run = async () => {
+  const start = async () => {
     stopRef.current = false;
-    setRunning(true);
     setError("");
-    let failures = 0;
     let current = item;
+    let phase = current.sourcesPending > 0 ? "list" : "read";
+    setRun({ ...IDLE_RUN, phase: "running", startedAt: Date.now(), startDone: progressOf(current) });
+    let failures = 0;
     while (!stopRef.current) {
-      const phase = current.sourcesPending > 0 ? "list" : "read";
-      if (phase === "read" && current.listed - current.read - current.errors === 0) break;
+      const next = current.sourcesPending > 0 ? "list" : "read";
+      if (next === "read" && current.listed - current.read - current.errors === 0) break;
+      if (next !== phase) {
+        phase = next;
+        setRun((state) => ({ ...state, startedAt: Date.now(), startDone: progressOf(current) }));
+      }
       try {
-        const data = await call(phase, { id: item.id });
+        const data = await call(next, { id: item.id });
         if (!data.export) break;
         current = data.export;
         onChange(current);
         failures = 0;
+        setRun((state) => ({ ...state, failures: 0 }));
       } catch (reason) {
         failures += 1;
         setError((reason as Error).message);
         if (failures >= MAX_ERRORS) break;
+        setRun((state) => ({
+          ...state,
+          phase: "waiting",
+          failures,
+          waitUntil: Date.now() + PAUSE_AFTER_ERROR_MS,
+        }));
         await wait(PAUSE_AFTER_ERROR_MS);
+        setRun((state) => ({ ...state, phase: stopRef.current ? "stopping" : "running" }));
       }
     }
-    setRunning(false);
+    setRun(IDLE_RUN);
+  };
+
+  const stop = () => {
+    stopRef.current = true;
+    setRun((state) => ({ ...state, phase: "stopping" }));
   };
 
   return (
     <li className="space-y-2 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-brand-900">
-            №{item.id} · {item.title}
-          </p>
-          <p className="tnum text-xs text-brand-500">
-            {listing
-              ? `Собираем список: ${item.listed} из ~${item.expected}`
-              : `Прочитано карточек: ${item.read} из ${item.listed}`}
-            {item.errors > 0 && ` · с ошибкой: ${item.errors}`}
-            {running && item.next.length > 0 && ` · сейчас: ${item.next.join(", ")}`}
-          </p>
-        </div>
+        <p className="min-w-0 truncate text-sm font-medium text-brand-900">
+          №{item.id} · {item.title}
+        </p>
         <div className="flex flex-wrap gap-2">
           {!done &&
             (running ? (
-              <button type="button" onClick={() => (stopRef.current = true)} className="btn-secondary py-1.5 text-sm">
-                <SpinnerIcon className="h-4 w-4 animate-spin" /> Остановить
+              <button
+                type="button"
+                onClick={stop}
+                disabled={run.phase === "stopping"}
+                className="btn-secondary py-1.5 text-sm"
+              >
+                Остановить
               </button>
             ) : (
-              <button type="button" onClick={run} className="btn-primary py-1.5 text-sm">
+              <button type="button" onClick={start} className="btn-primary py-1.5 text-sm">
                 {item.listed || item.read ? "Продолжить" : "Начать"}
               </button>
             ))}
@@ -173,7 +187,7 @@ function ExportRow({
               onClick={async () => onChange((await call("retry-export", { id: item.id })).export ?? null)}
               className="btn-ghost py-1.5 text-sm"
             >
-              Повторить ошибки
+              Повторить ошибки ({item.errors})
             </button>
           )}
           {!running && (
@@ -191,15 +205,23 @@ function ExportRow({
           )}
         </div>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-brand-100">
-        <div
-          className={`h-full rounded-full ${done ? "bg-green-600" : "bg-brand-700"}`}
-          style={{ width: `${done ? 100 : Math.min(100, percent)}%` }}
-        />
-      </div>
+      <JobProgress
+        run={run}
+        done={listing ? item.listed : item.read + item.errors}
+        total={listing ? Math.max(item.listed, item.expected) : item.listed}
+        unit={listing ? "товаров в списке" : "карточек"}
+        failed={listing ? 0 : item.errors}
+        note={
+          listing
+            ? `Этап 1 из 2: собираем список товаров с ценами. Осталось разделов: ${item.sourcesPending}`
+            : `Этап 2 из 2: читаем карточки — описание, характеристики, фото. Прочитано: ${item.read}`
+        }
+        current={item.next}
+        finishedText="Готово — можно скачать таблицу"
+      />
       {error && (
         <p className="flex items-center gap-1.5 text-xs text-red-700">
-          <AlertIcon className="h-3.5 w-3.5" /> {error}
+          <AlertIcon className="h-3.5 w-3.5" /> Последняя ошибка: {error}
         </p>
       )}
     </li>

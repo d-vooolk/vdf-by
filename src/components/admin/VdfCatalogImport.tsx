@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AlertIcon, SpinnerIcon } from "@/components/icons";
+import { IDLE_RUN, JobProgress, type JobRun } from "@/components/admin/JobProgress";
 import type { ImportLogEntry, ImportSummary } from "@/lib/vdf-product-import";
 
 const ENDPOINT = "/admin/api/vdf-catalog/";
@@ -45,17 +46,17 @@ function ImportRow({
   item: ImportSummary;
   onChange: (next: ImportSummary | null, removed?: boolean) => void;
 }) {
-  const [running, setRunning] = useState(false);
+  const [run, setRun] = useState<JobRun>(IDLE_RUN);
   const [lanes, setLanes] = useState(2);
   const [error, setError] = useState("");
   const [log, setLog] = useState<ImportLogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const stopRef = useRef(false);
 
+  const running = run.phase !== "idle";
   const { counts } = item;
   const handled = counts.imported + counts.skipped + counts.error;
   const waiting = counts.queued + counts.importing;
-  const percent = item.total ? (handled / item.total) * 100 : 0;
 
   const loadLog = async () => {
     const data = await call("import-summary", { id: item.id });
@@ -63,10 +64,11 @@ function ImportRow({
     if (data.import) onChange(data.import);
   };
 
-  const run = async () => {
+  const start = async () => {
     stopRef.current = false;
-    setRunning(true);
     setError("");
+    setShowLog(true);
+    setRun({ ...IDLE_RUN, phase: "running", startedAt: Date.now(), startDone: handled });
     let finished = false;
     try {
       await call("release-import", { id: item.id });
@@ -90,15 +92,27 @@ function ImportRow({
               stopRef.current = true;
               return;
             }
+            setRun((state) => ({
+              ...state,
+              phase: "waiting",
+              failures,
+              waitUntil: Date.now() + PAUSE_AFTER_ERROR_MS,
+            }));
             await wait(PAUSE_AFTER_ERROR_MS);
+            setRun((state) => ({ ...state, phase: stopRef.current ? "stopping" : "running" }));
           }
         }
       };
       await Promise.all(Array.from({ length: lanes }, lane));
     } finally {
-      setRunning(false);
+      setRun(IDLE_RUN);
       loadLog().catch(() => {});
     }
+  };
+
+  const stop = () => {
+    stopRef.current = true;
+    setRun((state) => ({ ...state, phase: "stopping" }));
   };
 
   return (
@@ -108,21 +122,22 @@ function ImportRow({
           <p className="truncate text-sm font-medium text-brand-900">
             №{item.id} · {item.fileName} → {item.categoryName}
           </p>
-          <p className="tnum text-xs text-brand-500">
-            Создано: {counts.imported} · пропущено: {counts.skipped} · ошибок: {counts.error} ·
-            осталось: {waiting} из {item.total} · {item.unit}
+          <p className="text-xs text-brand-500">
+            {item.unit}
             {item.photos ? " · с фото" : " · без фото"}
-            {item.faq ? " · с вопросами-ответами" : ""}
+            {item.faq ? " · с вопросами-ответами" : " · без вопросов-ответов"}
           </p>
-          {running && item.current.length > 0 && (
-            <p className="truncate text-xs text-brand-700">Сейчас: {item.current.join(", ")}</p>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {waiting > 0 &&
             (running ? (
-              <button type="button" onClick={() => (stopRef.current = true)} className="btn-secondary py-1.5 text-sm">
-                <SpinnerIcon className="h-4 w-4 animate-spin" /> Остановить
+              <button
+                type="button"
+                onClick={stop}
+                disabled={run.phase === "stopping"}
+                className="btn-secondary py-1.5 text-sm"
+              >
+                Остановить
               </button>
             ) : (
               <>
@@ -136,8 +151,8 @@ function ImportRow({
                   <option value={2}>2 потока</option>
                   <option value={3}>3 потока</option>
                 </select>
-                <button type="button" onClick={run} className="btn-primary py-1.5 text-sm">
-                  {handled ? "Продолжить" : "Создать товары"}
+                <button type="button" onClick={start} className="btn-primary py-1.5 text-sm">
+                  {handled ? `Продолжить (${waiting})` : `Создать товары (${waiting})`}
                 </button>
               </>
             ))}
@@ -175,15 +190,19 @@ function ImportRow({
           )}
         </div>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-brand-100">
-        <div
-          className={`h-full rounded-full ${waiting === 0 ? "bg-green-600" : "bg-brand-700"}`}
-          style={{ width: `${Math.min(100, percent)}%` }}
-        />
-      </div>
+      <JobProgress
+        run={run}
+        done={handled}
+        total={item.total}
+        unit="товаров"
+        failed={counts.error}
+        note={`Создано: ${counts.imported}, пропущено (уже есть в магазине): ${counts.skipped}, ждут очереди: ${counts.queued}${counts.importing ? `, в работе или прерваны: ${counts.importing}` : ""}`}
+        current={item.current}
+        finishedText="Все товары обработаны"
+      />
       {error && (
         <p className="flex items-center gap-1.5 text-xs text-red-700">
-          <AlertIcon className="h-3.5 w-3.5" /> {error}
+          <AlertIcon className="h-3.5 w-3.5" /> Последняя ошибка: {error}
         </p>
       )}
       {showLog && (
@@ -227,7 +246,7 @@ export function VdfCatalogImport({
 }) {
   const [imports, setImports] = useState<ImportSummary[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
+  const [categoryId, setCategoryId] = useState("");
   const [unit, setUnit] = useState<"шт." | "комплект">("шт.");
   const [photos, setPhotos] = useState(true);
   const [faq, setFaq] = useState(true);
@@ -288,8 +307,11 @@ export function VdfCatalogImport({
             />
           </label>
           <label className="block text-sm">
-            <span className="label">Раздел магазина</span>
+            <span className="label">В какой раздел магазина загрузить</span>
             <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="field py-2 text-sm">
+              <option value="" disabled>
+                — выберите раздел —
+              </option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}

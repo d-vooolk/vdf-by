@@ -9,9 +9,16 @@ export const metadata = { title: "Каталог VDF" };
 export const dynamic = "force-dynamic";
 
 export default function VdfCatalogPage() {
-  const categories = listCategoriesBrief()
+  const all = listCategoriesBrief();
+  const names = new Map(all.map((category) => [category.id, category.name]));
+  const categories = all
     .filter((category) => category.children === 0)
-    .map((category) => ({ id: category.id, name: category.name }));
+    .map((category) => ({
+      id: category.id,
+      name: category.parentId
+        ? `${names.get(category.parentId) ?? ""} → ${category.name}`
+        : category.name,
+    }));
 
   return (
     <div className="space-y-6">
