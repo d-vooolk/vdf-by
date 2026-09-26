@@ -16,7 +16,7 @@ const PAGE_PAUSE_MS = 700;
 const CAPTCHA_PAUSE_MS = 30000;
 const ATTEMPTS = 4;
 const LOCK_TTL_MS = 15 * 60 * 1000;
-const USER_AGENT =
+export const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 
 export class VdfAuthError extends Error {}
@@ -128,9 +128,37 @@ export function forgetVdfSession(): void {
   removeSetting(SESSION_KEY);
 }
 
-async function accessToken(): Promise<string> {
+const ACCESS_MARGIN_MS = 3 * 60 * 1000;
+
+let cachedAccess: { token: string; expiresAt: number; refresh: string } | null = null;
+let refreshing: Promise<string> | null = null;
+
+function expiryOf(token: string): number {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8"));
+    return Number(payload.exp) * 1000 || Date.now() + 5 * 60 * 1000;
+  } catch {
+    return Date.now() + 5 * 60 * 1000;
+  }
+}
+
+export function accessToken(): Promise<string> {
   const session = readSetting<VdfSession>(SESSION_KEY);
-  if (!session) throw new VdfAuthError("Нет входа на vdf-light.ru — войдите по коду из почты");
+  if (!session) return Promise.reject(new VdfAuthError("Нет входа на vdf-light.ru — войдите по коду из почты"));
+  if (
+    cachedAccess &&
+    cachedAccess.refresh === session.refresh &&
+    cachedAccess.expiresAt - ACCESS_MARGIN_MS > Date.now()
+  ) {
+    return Promise.resolve(cachedAccess.token);
+  }
+  refreshing ??= renewAccess(session).finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function renewAccess(session: VdfSession): Promise<string> {
   let data: Record<string, unknown>;
   try {
     data = await postJson(`${AUTH}/token/refresh/`, { refresh: session.refresh });
@@ -140,13 +168,15 @@ async function accessToken(): Promise<string> {
     );
   }
   if (typeof data.access !== "string") throw new VdfAuthError("vdf-light не продлил вход");
-  if (typeof data.refresh === "string") {
-    writeSetting(SESSION_KEY, { ...session, refresh: data.refresh, savedAt: Date.now() });
+  const refresh = typeof data.refresh === "string" ? data.refresh : session.refresh;
+  if (refresh !== session.refresh) {
+    writeSetting(SESSION_KEY, { ...session, refresh, savedAt: Date.now() });
   }
+  cachedAccess = { token: data.access, expiresAt: expiryOf(data.access), refresh };
   return data.access;
 }
 
-async function fetchPage(url: string, token: string): Promise<Record<string, unknown>> {
+export async function fetchPage(url: string, token: string): Promise<Record<string, unknown>> {
   let lastError = "";
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
     try {

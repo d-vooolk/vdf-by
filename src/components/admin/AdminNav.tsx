@@ -22,6 +22,7 @@ const LINKS = [
   { href: "/admin/frame-types/", label: "Типы рамок" },
   { href: "/admin/frames/", label: "Импорт рамок" },
   { href: "/admin/vdf-prices/", label: "Курсы и цены" },
+  { href: "/admin/vdf-catalog/", label: "Каталог VDF" },
   { href: "/admin/categories/", label: "Разделы" },
   { href: "/admin/cars/", label: "Автомобили" },
   { href: "/admin/orders/", label: "Заказы", badge: "orders" },

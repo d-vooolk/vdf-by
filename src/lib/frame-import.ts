@@ -366,7 +366,7 @@ function claimNext(): FrameRow | null {
   })();
 }
 
-function freeIdentity(title: string, article: string): string {
+export function freeIdentity(title: string, article: string): string {
   const db = getDb();
   const taken = (value: string) =>
     Boolean(db.prepare("SELECT 1 FROM products WHERE id = ? OR slug = ?").get(value, value));

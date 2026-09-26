@@ -360,6 +360,61 @@ export const MIGRATIONS = [
     ALTER TABLE frame_types ADD COLUMN cost_source TEXT;
     ALTER TABLE frame_types ADD COLUMN wholesale_source TEXT;
   `,
+
+  `
+    CREATE TABLE vdf_exports (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      title      TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      total      INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE vdf_export_sources (
+      export_id INTEGER NOT NULL REFERENCES vdf_exports(id) ON DELETE CASCADE,
+      slug      TEXT NOT NULL,
+      name      TEXT NOT NULL,
+      next_url  TEXT,
+      done      INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (export_id, slug)
+    );
+
+    CREATE TABLE vdf_export_items (
+      export_id INTEGER NOT NULL REFERENCES vdf_exports(id) ON DELETE CASCADE,
+      url       TEXT NOT NULL,
+      position  INTEGER NOT NULL,
+      listed    TEXT NOT NULL,
+      card      TEXT,
+      status    TEXT NOT NULL DEFAULT 'new',
+      error     TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY (export_id, url)
+    );
+
+    CREATE INDEX vdf_export_items_by_status ON vdf_export_items(export_id, status, position);
+
+    CREATE TABLE vdf_imports (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_name   TEXT NOT NULL,
+      created_at  INTEGER NOT NULL,
+      category_id TEXT NOT NULL,
+      unit        TEXT NOT NULL,
+      photos      INTEGER NOT NULL DEFAULT 1,
+      faq         INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE vdf_import_items (
+      import_id  INTEGER NOT NULL REFERENCES vdf_imports(id) ON DELETE CASCADE,
+      position   INTEGER NOT NULL,
+      title      TEXT NOT NULL,
+      rows       TEXT NOT NULL,
+      status     TEXT NOT NULL DEFAULT 'queued',
+      product_id TEXT,
+      message    TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (import_id, position)
+    );
+
+    CREATE INDEX vdf_import_items_by_status ON vdf_import_items(import_id, status, position);
+  `,
 ];
 
 /**

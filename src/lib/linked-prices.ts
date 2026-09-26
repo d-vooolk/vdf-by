@@ -28,7 +28,10 @@ export async function currentRates(): Promise<CurrencyRates> {
 export async function relinkInput(input: unknown): Promise<unknown> {
   if (!input || typeof input !== "object") return input;
   const values = input as LinkedValues;
-  if (!LINKED_FIELDS.some((field) => values[field.source])) return input;
+  const optionLinked = values.optionGroups?.some((group) =>
+    group.values.some((value) => value.priceSource),
+  );
+  if (!optionLinked && !LINKED_FIELDS.some((field) => values[field.source])) return input;
   return relinkValues(values, await currentRates());
 }
 
@@ -48,9 +51,9 @@ function refreshProducts(rates: CurrencyRates): number {
   const rows = db
     .prepare(
       `SELECT id, data FROM products
-        WHERE json_extract(data, '$.priceSource') IS NOT NULL
-           OR json_extract(data, '$.wholesaleSource') IS NOT NULL
-           OR json_extract(data, '$.costSource') IS NOT NULL`,
+        WHERE data LIKE '%"priceSource"%'
+           OR data LIKE '%"wholesaleSource"%'
+           OR data LIKE '%"costSource"%'`,
     )
     .all() as Array<{ id: string; data: string }>;
   const write = db.prepare("UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?");
@@ -60,9 +63,7 @@ function refreshProducts(rates: CurrencyRates): number {
     for (const row of rows) {
       const product = JSON.parse(row.data) as Product;
       const next = relinkValues(product, rates);
-      if (LINKED_FIELDS.every((field) => sameNumber(next[field.value], product[field.value]))) {
-        continue;
-      }
+      if (JSON.stringify(next) === JSON.stringify(product)) continue;
       write.run(next.price, JSON.stringify(next), Date.now(), row.id);
       changed += 1;
     }

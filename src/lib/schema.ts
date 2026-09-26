@@ -83,6 +83,7 @@ export const optionValueSchema = z.strictObject({
   sku: z.string().optional(),
   inStock: z.boolean().optional(),
   images: z.array(imagePath).optional(),
+  priceSource: moneySourceSchema.optional(),
 });
 
 /** Набор опций: «Цоколь», «Сторона», «Цветовая температура». */

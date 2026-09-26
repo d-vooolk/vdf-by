@@ -22,7 +22,13 @@ export const LINKED_FIELDS = [
   { value: "costPrice", source: "costSource", rounding: "kopeck" },
 ] as const;
 
+interface LinkedOption {
+  price?: number;
+  priceSource?: MoneySource;
+}
+
 export type LinkedValues = {
+  optionGroups?: Array<{ values: LinkedOption[] }>;
   price?: number | null;
   wholesalePrice?: number | null;
   costPrice?: number | null;
@@ -46,6 +52,17 @@ export function relinkValues<T extends LinkedValues>(values: T, rates: CurrencyR
     const source = next[field.source];
     const rate = source ? rates[source.currency] : null;
     if (source && rate) next[field.value] = convertToByn(source.amount, rate.rate, field.rounding);
+  }
+  if (next.optionGroups?.some((group) => group.values.some((value) => value.priceSource))) {
+    next.optionGroups = next.optionGroups.map((group) => ({
+      ...group,
+      values: group.values.map((value) => {
+        const rate = value.priceSource ? rates[value.priceSource.currency] : null;
+        return value.priceSource && rate
+          ? { ...value, price: convertToByn(value.priceSource.amount, rate.rate, "ruble") }
+          : value;
+      }),
+    }));
   }
   return next;
 }
