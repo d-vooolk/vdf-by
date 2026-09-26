@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Combobox, type ComboOption } from "@/components/Combobox";
 import { SpinnerIcon } from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
+import type { Background } from "@/lib/composer";
 import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
@@ -62,7 +63,14 @@ interface RenderSettings {
   slope: "up" | "down";
   productScale: number;
   carShift: number;
+  background: Background;
 }
+
+const BACKGROUND_OPTIONS: Array<{ value: Background; label: string; swatch: string }> = [
+  { value: "white", label: "Белый", swatch: "bg-white" },
+  { value: "black", label: "Чёрный", swatch: "bg-black" },
+  { value: "graphite", label: "Тёмно-серый", swatch: "bg-[#2b2f36]" },
+];
 
 async function readError(response: Response): Promise<string> {
   const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -116,6 +124,7 @@ function renderForm(settings: RenderSettings): FormData {
   form.set("slope", settings.slope);
   form.set("productScale", String(settings.productScale));
   form.set("carShift", String(settings.carShift));
+  form.set("background", settings.background);
   return form;
 }
 
@@ -142,6 +151,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
   const [slope, setSlope] = useState<"up" | "down">("up");
   const [productScale, setProductScale] = useState(1);
   const [carShift, setCarShift] = useState(0.5);
+  const [background, setBackground] = useState<Background>("white");
 
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -201,7 +211,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
       setRendering(true);
       setError("");
       try {
-        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift });
+        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background });
         const response = await fetch("/admin/api/composer/render/", { method: "POST", body: form });
         if (!response.ok) throw new Error(await readError(response));
         const blob = await response.blob();
@@ -215,7 +225,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
       }
     }, PREVIEW_DELAY);
     return () => clearTimeout(timer);
-  }, [product, generationId, photo, label, mirrorProduct, mirrorCar, slope, productScale, carShift]);
+  }, [product, generationId, photo, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background]);
 
   const runCutout = async (image: Blob) => {
     const id = ++cutoutId.current;
@@ -322,7 +332,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
     setSaving(true);
     setError("");
     try {
-      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift });
+      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, background });
       form.set("save", "1");
       form.set("filename", filename);
       if (folder) form.set("folder", folder);
@@ -483,6 +493,27 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               </label>
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-brand-800">
+            Фон под товаром:
+            {BACKGROUND_OPTIONS.map((option) => (
+              <label key={option.value} className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  name="background"
+                  checked={background === option.value}
+                  onChange={() => setBackground(option.value)}
+                />
+                <span className={`h-4 w-4 rounded border border-brand-300 ${option.swatch}`} />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          {background !== "white" && !removeBackground && (
+            <p className="text-xs text-amber-700">
+              Фон с фото товара не убирается, поэтому на тёмном фоне он будет виден прямоугольником.
+              Включите «Убрать фон нейросетью» во втором шаге.
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="label">Размер товара: {Math.round(productScale * 100)}%</span>

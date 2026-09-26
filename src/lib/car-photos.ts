@@ -99,7 +99,7 @@ function shortModelName(info: GenerationInfo): string {
 
 export function composerLabel(info: GenerationInfo, now: number): string {
   const period = years(info, now);
-  return [`Для ${info.markName}`, shortModelName(info), info.generationName, period]
+  return [info.markName, shortModelName(info), info.generationName, period]
     .filter(Boolean)
     .join(" ");
 }

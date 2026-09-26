@@ -7,10 +7,17 @@ export const CANVAS = 1600;
 const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Inter-Bold.ttf");
 const LOGO_FILE = path.join(process.cwd(), "public", "brand", "logo.png");
 
-const BAND = 108;
-const EDGE = 8;
-const BAND_COLOR = "#1c2743";
-const EDGE_COLOR = "#f59e0b";
+const BAND = 96;
+const GLASS_BLUR = 22;
+const GLASS_TINT = "#0b1020";
+const GLASS_OPACITY = 0.76;
+const ACCENT_LIGHT = "#fcd34d";
+const ACCENT = "#f59e0b";
+const ACCENT_LINE = 4;
+const HAIRLINE = 1.5;
+const SHADOW_DEPTH = 48;
+const TEXT_HEIGHT = 0.34;
+const TEXT_TRACKING = 3200;
 const LOW = 0.66;
 const HIGH = 0.46;
 const PRODUCT_TOP = 120;
@@ -18,11 +25,23 @@ const PRODUCT_SIDE = 80;
 const PRODUCT_GAP = 36;
 const WATERMARK_WIDTH = 230;
 const WATERMARK_OPACITY = 0.2;
-const WATERMARK_STEP_X = 420;
-const WATERMARK_STEP_Y = 210;
+const WATERMARK_STEP_X = 680;
+const WATERMARK_STEP_Y = 380;
 const WATERMARK_ANGLE = -30;
 
 export type Slope = "up" | "down";
+
+export const BACKGROUNDS = {
+  white: "#ffffff",
+  black: "#000000",
+  graphite: "#2b2f36",
+} as const;
+
+export type Background = keyof typeof BACKGROUNDS;
+
+export function isBackground(value: unknown): value is Background {
+  return typeof value === "string" && value in BACKGROUNDS;
+}
 
 export interface ComposeOptions {
   product: Buffer;
@@ -33,6 +52,7 @@ export interface ComposeOptions {
   slope: Slope;
   productScale: number;
   carShift: number;
+  background: Background;
 }
 
 function escapeMarkup(text: string): string {
@@ -143,23 +163,67 @@ async function productLayer(
   };
 }
 
-function bandShapes(left: number, right: number): string {
-  const half = BAND / 2;
-  const stripe = (offset: number, thickness: number, color: string) =>
-    polygon(
-      [
-        [0, left + offset],
-        [CANVAS, right + offset],
-        [CANVAS, right + offset + thickness],
-        [0, left + offset + thickness],
-      ],
-      color,
-    );
+function strip(left: number, right: number, from: number, to: number): Array<[number, number]> {
   return [
-    stripe(-half - EDGE, EDGE, EDGE_COLOR),
-    stripe(-half, BAND, BAND_COLOR),
-    stripe(half, EDGE, EDGE_COLOR),
-  ].join("");
+    [0, left + from],
+    [CANVAS, right + from],
+    [CANVAS, right + to],
+    [0, left + to],
+  ];
+}
+
+function bandShadow(left: number, right: number): Buffer {
+  const half = BAND / 2;
+  return svg(
+    `<defs><filter id="s" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="16"/></filter></defs>` +
+      `<g filter="url(#s)" opacity="0.5">${polygon(strip(left, right, half - 6, half + SHADOW_DEPTH), "#000")}</g>`,
+  );
+}
+
+async function glassBand(base: Buffer, left: number, right: number): Promise<Buffer> {
+  const half = BAND / 2;
+  const tinted = await sharp(base)
+    .blur(GLASS_BLUR)
+    .composite([
+      {
+        input: svg(`<rect width="${CANVAS}" height="${CANVAS}" fill="${GLASS_TINT}" fill-opacity="${GLASS_OPACITY}"/>`),
+      },
+    ])
+    .png()
+    .toBuffer();
+  return sharp(tinted)
+    .ensureAlpha()
+    .composite([{ input: svg(polygon(strip(left, right, -half, half), "#fff")), blend: "dest-in" }])
+    .png()
+    .toBuffer();
+}
+
+function bandEdges(left: number, right: number): Buffer {
+  const half = BAND / 2;
+  return svg(
+    `<defs><linearGradient id="a" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CANVAS}" y2="0">` +
+      `<stop offset="0" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
+      `<stop offset="0.2" stop-color="${ACCENT_LIGHT}"/>` +
+      `<stop offset="0.5" stop-color="${ACCENT}"/>` +
+      `<stop offset="0.8" stop-color="${ACCENT_LIGHT}"/>` +
+      `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
+      `</linearGradient></defs>` +
+      polygon(strip(left, right, -half - ACCENT_LINE, -half), "url(#a)") +
+      `<g opacity="0.22">${polygon(strip(left, right, half, half + HAIRLINE), "#fff")}</g>`,
+  );
+}
+
+function labelMarkup(label: string): string {
+  const text = label.trim().toUpperCase();
+  const period = text.match(/\s+((?:С\s+)?\d{4}(?:\s*[–-]\s*\d{4})?)$/);
+  const main = period ? text.slice(0, period.index).trim() : text;
+  const [mark, ...rest] = main.split(/\s+/);
+  const parts = [`<span foreground="${ACCENT_LIGHT}">${escapeMarkup(mark ?? "")}</span>`];
+  if (rest.length) parts.push(`<span foreground="#ffffff">${escapeMarkup(rest.join(" "))}</span>`);
+  if (period) {
+    parts.push(`<span foreground="#ffffff" fgalpha="58%">·  ${escapeMarkup(period[1])}</span>`);
+  }
+  return `<span letter_spacing="${TEXT_TRACKING}">${parts.join("  ")}</span>`;
 }
 
 async function labelLayer(
@@ -167,19 +231,18 @@ async function labelLayer(
   left: number,
   right: number,
 ): Promise<{ input: Buffer; top: number; left: number } | null> {
-  const text = label.trim();
-  if (!text) return null;
+  if (!label.trim()) return null;
 
   const length = Math.hypot(CANVAS, right - left);
   const angle = (Math.atan2(right - left, CANVAS) * 180) / Math.PI;
 
   const rendered = await sharp({
     text: {
-      text: `<span foreground="#ffffff">${escapeMarkup(text)}</span>`,
+      text: labelMarkup(label),
       font: "Inter Bold",
       fontfile: FONT_FILE,
-      width: Math.round(length * 0.84),
-      height: Math.round(BAND * 0.46),
+      width: Math.round(length * 0.8),
+      height: Math.round(BAND * TEXT_HEIGHT),
       align: "centre",
       rgba: true,
     },
@@ -280,14 +343,22 @@ export async function composeProductImage(options: ComposeOptions): Promise<Buff
     watermarkLayer(),
   ]);
 
-  return sharp({
-    create: { width: CANVAS, height: CANVAS, channels: 3, background: "#ffffff" },
+  const base = await sharp({
+    create: { width: CANVAS, height: CANVAS, channels: 3, background: BACKGROUNDS[options.background] },
   })
     .composite([
       { input: car, top: 0, left: 0 },
       product,
       { input: watermark, top: 0, left: 0 },
-      { input: svg(bandShapes(left, right)), top: 0, left: 0 },
+      { input: bandShadow(left, right), top: 0, left: 0 },
+    ])
+    .png()
+    .toBuffer();
+
+  return sharp(base)
+    .composite([
+      { input: await glassBand(base, left, right), top: 0, left: 0 },
+      { input: bandEdges(left, right), top: 0, left: 0 },
       ...(label ? [label] : []),
     ])
     .jpeg({ quality: 90, mozjpeg: true })

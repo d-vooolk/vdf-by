@@ -1,6 +1,6 @@
 import { getAdmin } from "@/lib/auth";
 import { getCarFrontPhoto, readCarFrontPhoto } from "@/lib/car-photos";
-import { composeProductImage } from "@/lib/composer";
+import { composeProductImage, isBackground } from "@/lib/composer";
 import { storeImage } from "@/lib/image-store";
 import { revalidateImages } from "@/lib/revalidate";
 
@@ -39,6 +39,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Для этого поколения ещё не выбрано фото автомобиля" }, { status: 400 });
   }
 
+  const background = form.get("background");
+
   try {
     const image = await composeProductImage({
       product: Buffer.from(await product.arrayBuffer()),
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
       slope: form.get("slope") === "down" ? "down" : "up",
       productScale: numberField(form, "productScale", 1),
       carShift: numberField(form, "carShift", 0.5),
+      background: isBackground(background) ? background : "white",
     });
 
     if (form.get("save") !== "1") {
