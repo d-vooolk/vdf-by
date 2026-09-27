@@ -190,9 +190,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                   onClick={() => setOpen(false)}
                   className="block px-3 py-3 text-center text-sm font-medium text-brand-700 hover:bg-brand-50"
                 >
-                  {matches.length > results.length
-                    ? `Все результаты — ${matches.length} · Enter`
-                    : "Открыть страницу поиска · Enter"}
+                  {matches.length > results.length ? "Все результаты по разделам · Enter" : "Открыть страницу поиска · Enter"}
                 </Link>
               </li>
             </ul>
