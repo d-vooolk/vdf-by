@@ -3,6 +3,7 @@ import {
   describeArticleRequest,
   markerPattern,
   parseGeneratedArticle,
+  requestedProducts,
   type ArticleRequest,
   type GeneratedArticle,
 } from "./article-ai";
@@ -15,6 +16,7 @@ import {
 } from "./article-body";
 import type { ArticleData } from "./articles";
 import { env, envNumber } from "./env.mjs";
+import { getProductBySlug } from "./catalog";
 import type { Product } from "./schema";
 
 export type ArticleReview = NonNullable<ArticleData["seoReview"]>;
@@ -31,7 +33,7 @@ export function articleAiOptions() {
   };
 }
 
-export function articleChecks(article: GeneratedArticle, keyword?: string): string[] {
+export function articleChecks(article: GeneratedArticle, keyword?: string, requested: string[] = []): string[] {
   const plain = articlePlainText(article.body);
   const blocks = parseArticleBody(article.body);
   const problems: string[] = [];
@@ -62,6 +64,53 @@ export function articleChecks(article: GeneratedArticle, keyword?: string): stri
       problems.push(`Главный запрос «${keyword}» не встречается в заголовке и начале текста`);
     }
   }
+  problems.push(...productPlacementProblems(article.body, requested));
+  return problems;
+}
+
+function mentions(text: string, slug: string, title: string): boolean {
+  if (text.includes(`/product/${slug}/`)) return true;
+  const wanted = title.toLowerCase().split(/[^a-zа-я0-9]+/i).filter((word) => word.length >= 3);
+  const lower = text.toLowerCase();
+  return wanted.filter((word) => lower.includes(word)).length >= Math.min(2, wanted.length);
+}
+
+function productPlacementProblems(body: string, requested: string[]): string[] {
+  const blocks = parseArticleBody(body);
+  const problems: string[] = [];
+
+  blocks.forEach((block, index) => {
+    if (block.type === "products") {
+      if (block.slugs.length > 2) problems.push(`${block.slugs.length} карточки товаров подряд — разнести по разделам, у каждой своя подводка`);
+      const lead = blocks
+        .slice(0, index)
+        .reverse()
+        .find((entry) => entry.type !== "image" && entry.type !== "placeholder");
+      const leadText =
+        lead?.type === "p" || lead?.type === "tip"
+          ? lead.text
+          : lead?.type === "ul" || lead?.type === "ol"
+            ? lead.items.join(" ")
+            : "";
+      for (const slug of block.slugs) {
+        const title = getProductBySlug(slug)?.title ?? slug;
+        if (!leadText || !mentions(leadText, slug, title)) {
+          problems.push(`Карточка «${title}» стоит без подводки — перед ней нужен абзац, зачем этот товар и кому подходит`);
+        }
+      }
+    }
+    if ((block.type === "ul" || block.type === "ol") && block.items.filter((item) => item.includes("/product/")).length >= 4) {
+      problems.push("Список из четырёх и больше товаров — это перечисление ассортимента, заменить на осмысленный выбор или таблицу");
+    }
+  });
+
+  if (requested.length) {
+    const allowed = new Set(requested);
+    const extra = articleProductSlugs(body).filter((slug) => !allowed.has(slug));
+    if (extra.length) problems.push(`Упомянуты товары вне заданных: ${extra.join(", ")} — убрать`);
+    const missing = requested.filter((slug) => !articleProductSlugs(body).includes(slug));
+    if (missing.length) problems.push(`Не показаны заданные товары: ${missing.join(", ")} — добавить с подводкой`);
+  }
   return problems;
 }
 
@@ -85,7 +134,8 @@ export const ARTICLE_REVIEW_PROMPT = `Ты — строгий SEO-редакто
 - точности: ничего выдуманного, нет противоречий, цены только из списка товаров;
 - структуры: заголовки в форме поисковых вопросов, каждый раздел начинается с прямого ответа, есть таблица и списки, логичный порядок;
 - SEO: главный запрос и синонимы в заголовке, аннотации, первых абзацах и подзаголовках без переспама; SEO_ЗАГОЛОВОК до 60 знаков; SEO_ОПИСАНИЕ 140–160 знаков с выгодой для читателя;
-- перелинковки: 3 и больше уместных ссылок на товары и разделы магазина из списков, 2–6 карточек {{товар:…}};
+- подачи товаров: каждый товар в подходящем по смыслу разделе, перед каждой карточкой {{товар:…}} абзац-подводка со ссылкой на товар — зачем он и кому подходит; одна карточка на товар; никаких перечислений ассортимента; если заданы товары статьи — только они;
+- перелинковки: уместные ссылки на товары и разделы магазина из списков;
 - языка: живой экспертный русский, без воды, канцелярита, штампов и повторов;
 - блока вопросов: 4–6 реальных вопросов, не дублирующих заголовки.
 
@@ -99,12 +149,16 @@ export const ARTICLE_REVIEW_PROMPT = `Ты — строгий SEO-редакто
 ===СТАТЬЯ===
 исправленная статья целиком в исходном формате: ЗАГОЛОВОК, SEO_ЗАГОЛОВОК, SEO_ОПИСАНИЕ, АННОТАЦИЯ, ===ТЕКСТ===, ===ВОПРОСЫ===`;
 
+function candidatesAreRequested(request: ArticleRequest): boolean {
+  return requestedProducts(request).length > 0;
+}
+
 export function describeReview(
   article: GeneratedArticle,
   request: ArticleRequest,
   candidates: Product[],
 ): string {
-  const checks = articleChecks(article, request.keyword);
+  const checks = articleChecks(article, request.keyword, candidatesAreRequested(request) ? candidates.map((product) => product.slug) : []);
   return [
     describeArticleRequest(request, candidates),
     "",

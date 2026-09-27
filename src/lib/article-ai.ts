@@ -43,7 +43,16 @@ function mentionedSlugs(text: string): string[] {
   return [...text.matchAll(/\/product\/([a-z0-9-]+)/g)].map((match) => match[1]);
 }
 
+export function requestedProducts(request: ArticleRequest): Product[] {
+  const products = new Map(getProducts().map((product) => [product.slug, product]));
+  return [...new Set(mentionedSlugs(`${request.topic} ${request.notes ?? ""}`))]
+    .map((slug) => products.get(slug))
+    .filter((product): product is Product => Boolean(product));
+}
+
 export function pickCandidates(request: ArticleRequest): Product[] {
+  const requested = requestedProducts(request);
+  if (requested.length) return requested;
   const products = getProducts();
   const categories = new Map(getCategories().map((category) => [category.id, category]));
   const query = stems([request.topic, request.notes, request.keyword].filter(Boolean).join(" "));
@@ -85,6 +94,24 @@ function productLine(product: Product, currencySymbol: string, categoryName: str
   return `- ${product.slug} — ${product.title} (${categoryName}; ${price}; ${stock})`;
 }
 
+const PRODUCT_RULES = `Как подавать товары в статье:
+- Каждый товар — в том разделе, где он отвечает на вопрос раздела: например, компактный модуль — там, где речь о тесных фарах, самый яркий — там, где речь о максимальном свете.
+- Перед карточкой {{товар:адрес}} всегда абзац-подводка: для какой задачи и каких машин подходит этот товар, чем он отличается от остальных, цена. В подводке — ссылка на товар по названию. Карточка идёт сразу после подводки.
+- Одна карточка на товар за всю статью. Две карточки подряд — только в разделе сравнения или выбора, после абзаца, который объясняет, чем они различаются.
+- Не перечисляй товары списком ради перечисления и не выводи весь ассортимент. Если нужно сравнение — сделай таблицу только по товарам статьи.
+- В последнем разделе коротко подведи итог: какой из товаров статьи кому подходит.`;
+
+function productDetails(product: Product, currencySymbol: string, categoryName: string): string[] {
+  const specs = product.specs.slice(0, 10).map((spec) => `${spec.name}: ${spec.value}`).join("; ");
+  const about = (product.description ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
+  return [
+    productLine(product, currencySymbol, categoryName),
+    ...(product.brand ? [`  бренд: ${product.brand}`] : []),
+    ...(specs ? [`  характеристики: ${specs}`] : []),
+    ...(about ? [`  описание: ${about}`] : []),
+  ];
+}
+
 export function describeArticleRequest(request: ArticleRequest, candidates: Product[]): string {
   const site = getSite();
   const categories = getCategories();
@@ -107,12 +134,26 @@ export function describeArticleRequest(request: ArticleRequest, candidates: Prod
     ...categories
       .filter((category) => (counts[category.id] ?? 0) > 0 || !category.parentId)
       .map((category) => `- ${categoryUrl(category)} — ${category.name} (${counts[category.id] ?? 0})`),
-    "",
-    "Товары, на которые можно ссылаться (адрес — название, раздел, цена, наличие):",
-    ...candidates.map((product) =>
-      productLine(product, site.currencySymbol, byId.get(product.categoryId)?.name ?? ""),
-    ),
   ];
+
+  const requested = requestedProducts(request).length > 0;
+  if (requested) {
+    lines.push(
+      "",
+      `Товары, вокруг которых строится статья (${candidates.length}). Карточками, фото и ссылками показывай ТОЛЬКО их, другие товары магазина не упоминай и не перечисляй:`,
+      ...candidates.flatMap((product) => productDetails(product, site.currencySymbol, byId.get(product.categoryId)?.name ?? "")),
+    );
+  } else {
+    lines.push(
+      "",
+      "Товары, на которые можно ссылаться (адрес — название, раздел, цена, наличие). Это запас для выбора, а не список для перечисления: возьми 2–5 самых подходящих к теме, остальные не упоминай:",
+      ...candidates.map((product) =>
+        productLine(product, site.currencySymbol, byId.get(product.categoryId)?.name ?? ""),
+      ),
+    );
+  }
+
+  lines.push("", PRODUCT_RULES);
 
   const articles = getPublishedArticles().slice(0, 30);
   if (articles.length) {
@@ -180,9 +221,10 @@ function withSlash(href: string): string {
   return path.endsWith("/") ? path : `${path}/`;
 }
 
-export function sanitizeArticleBody(body: string, title: string): string {
+export function sanitizeArticleBody(body: string, title: string, allowed?: Set<string>): string {
   const known = knownPaths();
-  const productSlugs = new Set(getProducts().map((product) => product.slug));
+  const productSlugs = allowed?.size ? allowed : new Set(getProducts().map((product) => product.slug));
+  const carded = new Set<string>();
 
   const fixLinks = (line: string) =>
     parseInline(line)
@@ -209,7 +251,14 @@ export function sanitizeArticleBody(body: string, title: string): string {
     .map((line) => line.replace(/^#\s+/, "## "))
     .map((line) => {
       const product = line.trim().match(/^\{\{\s*товар\s*:\s*([a-z0-9-]+)\s*\}\}$/i);
-      if (product) return productSlugs.has(product[1].toLowerCase()) ? `{{товар:${product[1].toLowerCase()}}}` : "";
+      if (product) {
+        const slug = product[1].toLowerCase();
+        if (!productSlugs.has(slug) || carded.has(slug)) return "";
+        carded.add(slug);
+        return `{{товар:${slug}}}`;
+      }
+      const photo = line.trim().match(/^\{\{\s*фото\s+товара\s*:\s*([a-z0-9-]+)\s*\}\}$/i);
+      if (photo) return productSlugs.has(photo[1].toLowerCase()) ? `{{фото товара:${photo[1].toLowerCase()}}}` : "";
       if (/^!\[|^\[\[/.test(line.trim())) return line;
       return fixLinks(line);
     })
@@ -240,7 +289,7 @@ export function parseGeneratedArticle(text: string, request: ArticleRequest): Ge
     seoTitle: field(header, ["SEO_ЗАГОЛОВОК", "SEO ЗАГОЛОВОК"]).slice(0, 120) || undefined,
     seoDescription: field(header, ["SEO_ОПИСАНИЕ", "SEO ОПИСАНИЕ"]).slice(0, 300) || undefined,
     excerpt: field(header, ["АННОТАЦИЯ"]).slice(0, 600) || undefined,
-    body: sanitizeArticleBody(rawBody, title),
+    body: sanitizeArticleBody(rawBody, title, new Set(requestedProducts(request).map((product) => product.slug))),
     faq,
   };
 }
