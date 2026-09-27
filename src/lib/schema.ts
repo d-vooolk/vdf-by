@@ -8,7 +8,7 @@ import { z } from "zod";
  * Поле "_comment" разрешено везде — можно оставлять себе пометки в JSON.
  */
 
-const slug = z
+export const slug = z
   .string()
   .min(1)
   .regex(
@@ -21,7 +21,7 @@ const id = z
   .min(1)
   .regex(/^[a-z0-9-]+$/, "id: только латиница в нижнем регистре, цифры и дефис");
 
-const imagePath = z
+export const imagePath = z
   .string()
   .min(1)
   .regex(

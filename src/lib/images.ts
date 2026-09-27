@@ -1,3 +1,4 @@
+import { allArticleImagePaths, articleImageUsage } from "./articles";
 import { bumpImagesVersion, getDb, imagesVersion } from "./db";
 import type { ImageEntry, ImageMap } from "./image-types";
 
@@ -173,6 +174,7 @@ export function imageUsage(imagePath: string): string[] {
     ...products.map((row) => row.title),
     ...categories.map((row) => `раздел «${row.name}»`),
     ...cars.map((row) => `фото автомобиля для генератора: ${row.name}`),
+    ...articleImageUsage(imagePath),
   ];
 }
 
@@ -213,6 +215,8 @@ export function usedImagePaths(): Set<string> {
   for (const sql of columnSources) {
     for (const row of db.prepare(sql).all() as Array<{ path: string }>) used.add(row.path);
   }
+
+  for (const path of allArticleImagePaths()) used.add(path);
 
   return used;
 }

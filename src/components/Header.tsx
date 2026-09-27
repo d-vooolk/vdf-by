@@ -18,6 +18,7 @@ import {
 /** Статические страницы — в одном месте, чтобы меню и подвал не разъезжались. */
 export const INFO_PAGES = [
   { href: "/delivery/", label: "Доставка и оплата" },
+  { href: "/stati/", label: "Статьи" },
   { href: "/about/", label: "О магазине" },
   { href: "/contacts/", label: "Контакты" },
 ];

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { articleImagePaths, articlePlainText, articleProductSlugs } from "./article-body";
+import type { Article } from "./articles";
 import { getProducts, getSite } from "./catalog";
 import { schemaPrice } from "./format";
 import type { ImageEntry } from "./image-types";
@@ -103,6 +105,7 @@ interface MetaInput {
   noIndex?: boolean;
   canonical?: string;
   absoluteTitle?: boolean;
+  article?: { publishedTime: string; modifiedTime: string };
 }
 
 export function buildMetadata({
@@ -113,6 +116,7 @@ export function buildMetadata({
   noIndex = false,
   canonical,
   absoluteTitle = false,
+  article,
 }: MetaInput): Metadata {
   const site = getSite();
   const url = absoluteUrl(path);
@@ -133,7 +137,9 @@ export function buildMetadata({
       ? { index: false, follow: true }
       : { index: true, follow: true },
     openGraph: {
-      type: "website",
+      ...(article
+        ? { type: "article" as const, publishedTime: article.publishedTime, modifiedTime: article.modifiedTime }
+        : { type: "website" as const }),
       siteName: site.name,
       locale: site.locale,
       url,
@@ -495,5 +501,47 @@ export function itemListJsonLd(products: Product[], path: string, offset = 0) {
       url: absoluteUrl(`/product/${product.slug}/`),
       name: product.title,
     })),
+  };
+}
+
+export function articleJsonLd(article: Article) {
+  const site = getSite();
+  const url = absoluteUrl(`/stati/${article.slug}/`);
+  const images = [
+    ...new Set(
+      [article.cover, ...articleImagePaths(article.body)]
+        .map((path) => bigImageUrl(getImage(path)))
+        .filter((image): image is string => Boolean(image)),
+    ),
+  ]
+    .slice(0, 5)
+    .map((image) => absoluteUrl(image));
+  const published = new Date(article.publishedAt ?? article.createdAt).toISOString();
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": `${url}#article`,
+    mainEntityOfPage: url,
+    url,
+    headline: article.title.slice(0, 110),
+    description: clampDescription(article.seoDescription || article.excerpt || article.title, 300),
+    inLanguage: "ru",
+    datePublished: published,
+    dateModified: new Date(Math.max(article.updatedAt, Date.parse(published))).toISOString(),
+    wordCount: articlePlainText(article.body).split(/\s+/).filter(Boolean).length,
+    image: images.length ? images : [absoluteUrl(DEFAULT_OG_IMAGE)],
+    author: { "@type": "Organization", name: site.name, url: absoluteUrl("/about/") },
+    publisher: {
+      "@type": "Organization",
+      "@id": storeId(),
+      name: site.name,
+      logo: { "@type": "ImageObject", url: absoluteUrl("/icon.png") },
+    },
+    ...(article.keyword ? { keywords: article.keyword } : {}),
+    mentions: articleProductSlugs(article.body)
+      .filter((slug) => getProducts().some((product) => product.slug === slug))
+      .slice(0, 10)
+      .map((slug) => ({ "@id": `${absoluteUrl(`/product/${slug}/`)}#product` })),
   };
 }

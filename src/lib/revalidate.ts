@@ -28,6 +28,7 @@ const SHARED = [
   "/car-tree.json",
   "/feed.xml", // фид для Google Merchant Center
   "/yml.xml", // фид для Яндекса, Onliner и Kufar
+  "/llms.txt",
 ];
 
 const LISTING_TEMPLATE = "/listing/[page]/[sort]/[[...path]]";
@@ -140,4 +141,16 @@ export function revalidateSite(): void {
 /** Фотографию заменили или удалили — она может стоять где угодно. */
 export function revalidateImages(): void {
   revalidatePath("/", "layout");
+}
+
+export function revalidateArticle(
+  paths: { article: string; previous?: string; products: string[]; categories: string[] },
+  announceChange: boolean,
+): void {
+  const all = new Set(["/", "/stati", "/sitemap.xml", "/llms.txt", trim(paths.article)]);
+  if (paths.previous) all.add(trim(paths.previous));
+  for (const slug of paths.products) all.add(`/product/${slug}`);
+  for (const path of paths.categories) all.add(trim(path));
+  revalidateAll(all);
+  if (announceChange) announce([paths.article, "/stati/"]);
 }

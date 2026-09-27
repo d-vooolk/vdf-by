@@ -22,6 +22,8 @@ import {
   getProducts,
   getSiteModified,
 } from "@/lib/catalog";
+import { articleImagePaths } from "@/lib/article-body";
+import { articleUrl, getPublishedArticles } from "@/lib/articles";
 import { getImage } from "@/lib/images";
 import type { Category, Product } from "@/lib/schema";
 import { absoluteUrl, bigImageUrl } from "@/lib/seo";
@@ -56,6 +58,32 @@ function imagesFor(paths: string[]): string[] {
     .map((path) => bigImageUrl(getImage(path)))
     .filter((url): url is string => Boolean(url))
     .map((url) => absoluteUrl(url));
+}
+
+function articleEntries(): MetadataRoute.Sitemap {
+  const articles = getPublishedArticles();
+  if (!articles.length) return [];
+  return [
+    {
+      url: absoluteUrl("/stati/"),
+      lastModified: new Date(Math.max(...articles.map((article) => article.updatedAt))),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    ...articles.map((article) => {
+      const images = imagesFor([
+        ...(article.cover ? [article.cover] : []),
+        ...articleImagePaths(article.body),
+      ]);
+      return {
+        url: absoluteUrl(articleUrl(article)),
+        lastModified: new Date(article.updatedAt),
+        changeFrequency: "monthly" as const,
+        priority: 0.7,
+        ...(images.length ? { images } : {}),
+      };
+    }),
+  ];
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -187,6 +215,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       : []),
     ...podborEntries,
     ...branchEntries,
+    ...articleEntries(),
     {
       url: absoluteUrl("/delivery/"),
       lastModified: settings,

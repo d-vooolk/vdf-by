@@ -6,6 +6,8 @@ import { CategoryGrid } from "@/components/CategoryTile";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ListingFacts } from "@/components/ListingFacts";
+import { RelatedArticles } from "@/components/RelatedArticles";
+import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
 import { getCarTree } from "@/lib/cars";
@@ -211,6 +213,15 @@ export function CategoryView({
       )}
 
       {shown.page === 1 && <Faq items={category.faq ?? []} schema />}
+
+      {shown.page === 1 && (
+        <RelatedArticles
+          articles={articlesForCategory(
+            categoryUrl(category),
+            new Set(products.map((product) => product.slug)),
+          )}
+        />
+      )}
     </div>
   );
 }

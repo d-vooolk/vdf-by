@@ -783,7 +783,7 @@ export function saveSite(input: unknown): SaveResult {
 /* ------------------------------------------------------------------ */
 
 /** Ошибки zod в вид, понятный человеку у формы. */
-function describe(issues: Array<{ path: PropertyKey[]; message: string }>): string[] {
+export function describe(issues: Array<{ path: PropertyKey[]; message: string }>): string[] {
   return issues.map((issue) => {
     const where = issue.path.length ? issue.path.join(" → ") : "форма";
     return `${where}: ${issue.message}`;

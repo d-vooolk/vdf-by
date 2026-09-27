@@ -51,6 +51,7 @@ import {
 } from "@/lib/store";
 import { listIncompleteProducts } from "@/lib/incomplete";
 import {
+  AI_TASKS,
   AiError,
   aiConfigured,
   checkConnection,
@@ -696,7 +697,7 @@ export async function saveAiPromptAction(
   prompt: string | null,
 ): Promise<Record<AiTask, string>> {
   await requireAdmin();
-  if (task !== "rewrite" && task !== "faq") return getPrompts();
+  if (!AI_TASKS.includes(task)) return getPrompts();
   savePrompt(task, typeof prompt === "string" ? prompt.slice(0, MAX_PROMPT) : null);
   return getPrompts();
 }

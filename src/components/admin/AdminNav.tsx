@@ -40,6 +40,7 @@ const NAV: Array<NavLink | NavGroup> = [
   },
   { href: "/admin/orders/", label: "Заказы", badge: "orders" },
   { href: "/admin/customers/", label: "Покупатели", badge: "customers" },
+  { href: "/admin/articles/", label: "Статьи" },
   {
     label: "Импорт",
     links: [

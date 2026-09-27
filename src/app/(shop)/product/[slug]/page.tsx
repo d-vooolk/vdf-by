@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Faq } from "@/components/Faq";
 import { ProductCars } from "@/components/ProductCars";
+import { RelatedArticles } from "@/components/RelatedArticles";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductPurchase, type PurchaseProduct } from "@/components/ProductPurchase";
@@ -23,6 +24,7 @@ import { getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickImages } from "@/lib/images";
+import { articlesForProduct } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd } from "@/lib/seo";
 import { productSnippet } from "@/lib/snippet";
@@ -261,6 +263,8 @@ export default async function ProductPage({ params }: PageProps) {
       )}
 
       <Faq items={product.faq ?? []} schema />
+
+      <RelatedArticles articles={articlesForProduct(product.slug)} />
 
       {/* ------------------------- Похожие товары ----------------------- */}
       {related.length > 0 && (

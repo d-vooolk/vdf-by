@@ -3,7 +3,9 @@ import { fetch as undiciFetch, ProxyAgent } from "undici";
 import { getDb } from "./db";
 import { env, envNumber } from "./env.mjs";
 
-export type AiTask = "rewrite" | "faq";
+export type AiTask = "rewrite" | "faq" | "article";
+
+export const AI_TASKS: AiTask[] = ["rewrite", "faq", "article"];
 
 export const DEFAULT_PROMPTS: Record<AiTask, string> = {
   rewrite: `Ты — опытный SEO-копирайтер интернет-магазина автомобильного света в Беларуси (Минск, доставка по всей стране). Перепиши описание товара так, чтобы оно было уникальным, полезным покупателю и хорошо ранжировалось в Яндексе и Google.
@@ -31,22 +33,58 @@ export const DEFAULT_PROMPTS: Record<AiTask, string> = {
 
 Верни только JSON-массив без пояснений, в формате:
 [{"q": "вопрос", "a": "ответ"}]`,
+  article: `Ты — автор экспертного блога интернет-магазина автомобильного света в Беларуси и SEO-редактор. Напиши статью, которая займёт первые места в Яндексе и Google и которую нейросети (ChatGPT, Алиса, Perplexity, Gemini) будут цитировать в ответах.
+
+Как писать:
+- Начни с прямого ответа на главный вопрос темы в 2–3 предложениях — это аннотация. Нейросети и поисковики берут в ответ именно такой абзац.
+- Каждый раздел (## заголовок) открывай одним-двумя предложениями, которые сразу отвечают на вопрос из заголовка, дальше — подробности. Заголовки формулируй так, как люди спрашивают в поиске: «Чем би-LED отличается от ксенона», «Какой цоколь у Passat B6».
+- Факты, цифры, сравнения, пошаговые инструкции, типичные ошибки и как их избежать. Хотя бы одна таблица сравнения и хотя бы один список.
+- Ничего не выдумывай: цены и наличие — только из списка товаров ниже, характеристики — общеизвестные для типа товара. Если точных данных нет, пиши общими правилами и предлагай уточнить у менеджера магазина.
+- Главный запрос — в заголовке, в первом абзаце и 2–4 раза по тексту, плюс синонимы и близкие формулировки. Без переспама.
+- Естественно упоминай магазин и его преимущества из данных ниже, но статья должна быть полезной сама по себе, а не рекламной.
+- Ссылайся на товары и разделы магазина по адресам из списков ниже: [текст ссылки](/product/адрес/) или [текст](/catalog/адрес/). Не придумывай адресов, которых нет в списке. На внешние сайты не ссылайся.
+- Вставь 2–6 карточек подходящих товаров отдельной строкой: {{товар:адрес-товара}} — там, где читатель готов выбрать.
+- Там, где нужна иллюстрация, поставь отдельной строкой [[фото: что именно должно быть на фото и с какого ракурса]]. Таких мест 2–4. Описание должно быть конкретным — по нему человек подберёт снимок, а текст станет подписью и alt картинки.
+- Полезный совет или предупреждение можно выделить строкой, начинающейся с «> ».
+- Объём — 9000–15000 знаков, 5–8 разделов. Лучше подробно и по делу, чем коротко: статья должна закрывать все вопросы человека по теме, чтобы ему не нужно было искать дальше. Живой экспертный тон, без воды, канцелярита, штампов и восклицательных знаков. Русский язык.
+
+Разметка текста:
+## Заголовок раздела
+### Подзаголовок
+Абзацы разделяй пустой строкой. **Жирный** — только для ключевых мыслей.
+- пункт списка
+1. шаг инструкции
+| Колонка | Колонка |
+|---|---|
+| значение | значение |
+Заголовок первого уровня (#) не ставь — он добавится сам.
+
+Ответ верни строго в таком виде, без вступлений и пояснений:
+ЗАГОЛОВОК: заголовок статьи, до 70 знаков, с главным запросом
+SEO_ЗАГОЛОВОК: заголовок для поиска, до 60 знаков
+SEO_ОПИСАНИЕ: описание для поиска, 140–160 знаков, с главным запросом и выгодой для читателя
+АННОТАЦИЯ: 2–3 предложения — прямой ответ на главный вопрос статьи
+===ТЕКСТ===
+текст статьи в разметке выше
+===ВОПРОСЫ===
+JSON-массив из 4–6 вопросов, которые люди задают по теме и на которые нет прямого ответа в заголовках: [{"q": "вопрос", "a": "ответ в 1–3 предложения"}]`,
 };
 
 const PROMPT_KEYS: Record<AiTask, string> = {
   rewrite: "ai:prompt:rewrite",
   faq: "ai:prompt:faq",
+  article: "ai:prompt:article",
 };
 
 export function getPrompts(): Record<AiTask, string> {
+  const keys = AI_TASKS.map((task) => PROMPT_KEYS[task]);
   const rows = getDb()
-    .prepare("SELECT key, value FROM settings WHERE key IN (?, ?)")
-    .all(PROMPT_KEYS.rewrite, PROMPT_KEYS.faq) as Array<{ key: string; value: string }>;
+    .prepare(`SELECT key, value FROM settings WHERE key IN (${keys.map(() => "?").join(", ")})`)
+    .all(...keys) as Array<{ key: string; value: string }>;
   const saved = new Map(rows.map((row) => [row.key, row.value]));
-  return {
-    rewrite: saved.get(PROMPT_KEYS.rewrite) || DEFAULT_PROMPTS.rewrite,
-    faq: saved.get(PROMPT_KEYS.faq) || DEFAULT_PROMPTS.faq,
-  };
+  return Object.fromEntries(
+    AI_TASKS.map((task) => [task, saved.get(PROMPT_KEYS[task]) || DEFAULT_PROMPTS[task]]),
+  ) as Record<AiTask, string>;
 }
 
 export function savePrompt(task: AiTask, prompt: string | null): void {
@@ -244,7 +282,19 @@ function record(trace: AiTrace, error: string | null) {
   }
 }
 
-async function request(system: string, user: string, stream: boolean): Promise<Response> {
+export interface AiRequestOptions {
+  timeout?: number;
+  maxTokens?: number;
+  models?: string[];
+  temperature?: number;
+}
+
+async function request(
+  system: string,
+  user: string,
+  stream: boolean,
+  options: AiRequestOptions = {},
+): Promise<Response> {
   const key = env("AI_API_KEY", "");
   if (!key) {
     throw new AiError(
@@ -252,7 +302,10 @@ async function request(system: string, user: string, stream: boolean): Promise<R
     );
   }
 
-  const { baseUrl, models, timeout, isOpenRouter } = aiConfig();
+  const config = aiConfig();
+  const { baseUrl, isOpenRouter } = config;
+  const models = options.models?.length ? options.models : config.models;
+  const timeout = options.timeout ?? config.timeout;
 
   const body: Record<string, unknown> = {
     model: models[0],
@@ -260,8 +313,9 @@ async function request(system: string, user: string, stream: boolean): Promise<R
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    temperature: 0.7,
+    temperature: options.temperature ?? 0.7,
     stream,
+    ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
   };
   if (isOpenRouter) {
     if (models.length > 1) body.models = models;
@@ -347,13 +401,14 @@ export async function* completeStream(
   system: string,
   user: string,
   task: AiLogTask,
+  options: AiRequestOptions = {},
 ): AsyncGenerator<string> {
   const trace = startTrace(task);
   let outcome: string | null = "генерация прервана";
   let produced = false;
 
   try {
-    const response = await request(system, user, true);
+    const response = await request(system, user, true, options);
     if (!response.body) throw new AiError("Нейросеть вернула пустой ответ — попробуйте ещё раз");
 
     const decoder = new TextDecoder();

@@ -14,6 +14,7 @@ const TYPICAL_TOKENS_OUT = 450;
 const TASK_LABEL: Record<string, string> = {
   rewrite: "Рерайт",
   faq: "Вопросы",
+  article: "Статья",
   check: "Проверка",
   import: "Разбор страницы",
 };

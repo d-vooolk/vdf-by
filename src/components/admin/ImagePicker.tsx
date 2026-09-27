@@ -63,6 +63,7 @@ interface ImagePickerProps {
    * Приходят со страницы, которая берёт их из манифеста.
    */
   thumbs?: Record<string, string>;
+  onThumbs?: (pairs: Record<string, string>) => void;
 }
 
 export function ImagePicker({
@@ -73,6 +74,7 @@ export function ImagePicker({
   label = "Фотографии",
   hint,
   thumbs,
+  onThumbs,
 }: ImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -93,8 +95,10 @@ export function ImagePicker({
    * знают точную ссылку, поэтому угадывать её по имени файла не нужно.
    */
   const [known, setKnown] = useState<Record<string, string>>(thumbs ?? {});
-  const remember = (pairs: Record<string, string>) =>
+  const remember = (pairs: Record<string, string>) => {
     setKnown((current) => ({ ...current, ...pairs }));
+    onThumbs?.(pairs);
+  };
 
   const full = value.length >= max;
 
@@ -411,7 +415,7 @@ export function UploadQueue({ items }: { items: QueueItem[] }) {
  * версии на 400 не существует, и вместо картинки будет пусто — поэтому
  * догадка и оставлена запасным вариантом, а не основным способом.
  */
-function guessThumb(imagePath: string): string {
+export function guessThumb(imagePath: string): string {
   const dot = imagePath.lastIndexOf(".");
   const base = dot > 0 ? imagePath.slice(0, dot) : imagePath;
   return `/img/${base}-400.webp`;

@@ -13,13 +13,13 @@ export interface AiSettings {
   defaults: Record<AiTask, string>;
 }
 
-function usePrompt(settings: AiSettings, task: AiTask) {
+export function usePrompt(settings: AiSettings, task: AiTask) {
   const [saved, setSaved] = useState(settings.prompts[task]);
   const [text, setText] = useState(settings.prompts[task]);
   return { saved, setSaved, text, setText };
 }
 
-function PromptEditor({
+export function PromptEditor({
   task,
   settings,
   prompt,

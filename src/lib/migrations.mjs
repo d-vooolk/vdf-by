@@ -438,6 +438,21 @@ export const MIGRATIONS = [
     UPDATE car_front_photos SET origin = 'wikimedia'
      WHERE source_url LIKE 'https://commons.wikimedia.org/%';
   `,
+
+  `
+    CREATE TABLE articles (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug         TEXT NOT NULL UNIQUE,
+      title        TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'draft',
+      data         TEXT NOT NULL,
+      created_at   INTEGER NOT NULL,
+      updated_at   INTEGER NOT NULL,
+      published_at INTEGER
+    );
+
+    CREATE INDEX articles_by_status ON articles(status, published_at);
+  `,
 ];
 
 /**
