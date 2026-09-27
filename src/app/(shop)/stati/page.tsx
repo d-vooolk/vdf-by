@@ -5,6 +5,7 @@ import { formatArticleDate } from "@/components/ArticleView";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { Picture } from "@/components/Picture";
+import { coverOf } from "@/lib/article-photos";
 import { articleUrl, getPublishedArticles } from "@/lib/articles";
 import { getSite } from "@/lib/catalog";
 import { getImage } from "@/lib/images";
@@ -53,7 +54,7 @@ export default function ArticlesIndexPage() {
       ) : (
         <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {articles.map((article, index) => {
-            const cover = getImage(article.cover);
+            const cover = getImage(coverOf(article));
             return (
               <li key={article.id} className="card card-link flex flex-col overflow-hidden">
                 <Link href={articleUrl(article)} className="flex flex-1 flex-col">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { articleImagePaths, articlePlainText, articleProductSlugs } from "./article-body";
+import { coverOf } from "./article-photos";
 import type { Article } from "./articles";
 import { getProducts, getSite } from "./catalog";
 import { schemaPrice } from "./format";
@@ -509,7 +510,7 @@ export function articleJsonLd(article: Article) {
   const url = absoluteUrl(`/stati/${article.slug}/`);
   const images = [
     ...new Set(
-      [article.cover, ...articleImagePaths(article.body)]
+      [coverOf(article), ...articleImagePaths(article.body)]
         .map((path) => bigImageUrl(getImage(path)))
         .filter((image): image is string => Boolean(image)),
     ),

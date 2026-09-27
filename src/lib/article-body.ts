@@ -251,3 +251,73 @@ export function imageLine(path: string, alt: string): string {
 export function productLine(slug: string): string {
   return `{{товар:${slug}}}`;
 }
+
+export interface ProductPhotos {
+  slug: string;
+  title: string;
+  paths: string[];
+}
+
+export const PRODUCT_PHOTO_LINE = /^\{\{\s*фото\s+товара\s*:\s*([a-z0-9-]+)\s*\}\}$/i;
+
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .split(/[^a-zа-я0-9]+/i)
+    .filter((word) => word.length >= 3)
+    .map((word) => word.slice(0, 5));
+}
+
+function overlap(a: string, b: string): number {
+  const target = new Set(words(b));
+  return words(a).filter((word) => target.has(word)).length;
+}
+
+export function fillPlaceholders(
+  body: string,
+  products: ProductPhotos[],
+  mode: "match" | "all",
+): { body: string; used: string[] } {
+  const taken = new Set(articleImagePaths(body));
+  const queues = new Map(
+    products.map((product) => [product.slug, product.paths.filter((path) => !taken.has(path))]),
+  );
+  const used: string[] = [];
+  const picks = new Map<string, number>();
+  let turn = 0;
+
+  const next = (product: ProductPhotos) => {
+    const queue = queues.get(product.slug) ?? [];
+    const path = queue.shift();
+    if (path) used.push(path);
+    return path;
+  };
+
+  const lines = body.split("\n").map((line) => {
+    const match = line.trim().match(PLACEHOLDER_LINE);
+    if (!match) return line;
+    const available = products.filter((product) => (queues.get(product.slug) ?? []).length);
+    if (!available.length) return line;
+
+    const ranked = available
+      .map((product) => {
+        const score = overlap(match[1], product.title);
+        return { product, score, rank: score - (picks.get(product.slug) ?? 0) * 0.75 };
+      })
+      .sort((a, b) => b.rank - a.rank);
+    const best = ranked.find((entry) => entry.score > 0);
+    let product = best ? best.product : null;
+    if (!product && mode === "all") {
+      product = available[turn % available.length];
+      turn += 1;
+    }
+    if (!product) return line;
+
+    const path = next(product);
+    if (path) picks.set(product.slug, (picks.get(product.slug) ?? 0) + 1);
+    return path ? imageLine(path, product.title) : line;
+  });
+
+  return { body: lines.join("\n"), used };
+}

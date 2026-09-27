@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { slugForTitle } from "@/lib/article-ai";
 import { articleProductSlugs } from "@/lib/article-body";
+import { productPhotos } from "@/lib/article-photos";
 import {
   articleCategoryLinks,
   articleUrl,
@@ -97,4 +98,17 @@ export async function searchProductsAction(query: string): Promise<ProductChoice
     title: row.title,
     thumb: row.image ? (thumbs[row.image] ?? null) : null,
   }));
+}
+
+export interface ProductPhotoChoice {
+  slug: string;
+  title: string;
+  paths: string[];
+  thumbs: Record<string, string>;
+}
+
+export async function articleProductPhotosAction(slugs: string[]): Promise<ProductPhotoChoice[]> {
+  await requireAdmin();
+  const list = Array.isArray(slugs) ? slugs.filter((slug) => typeof slug === "string").slice(0, 60) : [];
+  return productPhotos(list).map((product) => ({ ...product, thumbs: thumbsFor(product.paths) }));
 }

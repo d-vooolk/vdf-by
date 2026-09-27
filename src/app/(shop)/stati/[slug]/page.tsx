@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { ArticleView, formatArticleDate } from "@/components/ArticleView";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
+import { coverOf } from "@/lib/article-photos";
 import { articleUrl, getPublishedArticle, getPublishedArticles } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
 import { articleJsonLd, buildMetadata } from "@/lib/seo";
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: article.seoTitle || article.title,
     description: article.seoDescription || article.excerpt || article.title,
     path: articleUrl(article),
-    image: article.cover,
+    image: coverOf(article),
     article: {
       publishedTime: new Date(article.publishedAt ?? article.createdAt).toISOString(),
       modifiedTime: new Date(article.updatedAt).toISOString(),

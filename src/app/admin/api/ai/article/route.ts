@@ -8,6 +8,7 @@ import {
   type ArticleRequest,
   type GeneratedArticle,
 } from "@/lib/article-ai";
+import { attachProductPhotos } from "@/lib/article-photos";
 import {
   ARTICLE_REVIEW_PROMPT,
   articleAiOptions,
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
       const finish = (article: GeneratedArticle, seoReview?: ArticleReview, warning?: string) =>
         send({
           done: {
-            ...article,
+            ...attachProductPhotos(article),
             slug: slugForTitle(article.title),
             topic: input.topic,
             notes: input.notes || undefined,
@@ -137,7 +138,7 @@ export async function POST(request: Request) {
       try {
         let draft: GeneratedArticle;
         if (mode === "write") {
-          draft = parseGeneratedArticle(await collect("draft", pieces, first), input);
+          draft = attachProductPhotos(parseGeneratedArticle(await collect("draft", pieces, first), input));
           if (draft.body.length < 500) {
             send({ error: "Нейросеть вернула слишком короткий текст — попробуйте ещё раз" });
             return;

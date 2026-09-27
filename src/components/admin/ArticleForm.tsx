@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import {
+  articleProductPhotosAction,
   deleteArticleAction,
   saveArticleAction,
   searchProductsAction,
   type ProductChoice,
+  type ProductPhotoChoice,
 } from "@/app/admin/article-actions";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { guessThumb, ImagePicker } from "@/components/admin/ImagePicker";
@@ -19,6 +21,7 @@ import {
   articlePlaceholders,
   articlePlainText,
   articleProductSlugs,
+  fillPlaceholders,
   imageLine,
   parseArticleBody,
   productLine,
@@ -121,6 +124,37 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
   const placeholders = useMemo(() => articlePlaceholders(draft.body), [draft.body]);
   const checks = useMemo(() => checklist(draft), [draft]);
   const usedInText = useMemo(() => new Set(articleImagePaths(draft.body)), [draft.body]);
+  const [productPhotoList, setProductPhotoList] = useState<ProductPhotoChoice[]>([]);
+  const productSlugsKey = useMemo(() => articleProductSlugs(draft.body).join(","), [draft.body]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const slugs = productSlugsKey ? productSlugsKey.split(",") : [];
+    articleProductPhotosAction(slugs).then((list) => {
+      if (cancelled) return;
+      setProductPhotoList(list);
+      setThumbs((current) => ({ ...Object.assign({}, ...list.map((item) => item.thumbs)), ...current }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [productSlugsKey]);
+
+  const photoChoices = useMemo(() => {
+    const seen = new Set<string>();
+    const choices: Array<{ path: string; alt: string }> = [];
+    for (const path of draft.images) {
+      if (!seen.has(path)) choices.push({ path, alt: "" });
+      seen.add(path);
+    }
+    for (const product of productPhotoList) {
+      for (const path of product.paths) {
+        if (!seen.has(path)) choices.push({ path, alt: product.title });
+        seen.add(path);
+      }
+    }
+    return choices;
+  }, [draft.images, productPhotoList]);
 
   const patch = (changes: Partial<ArticleData>) => {
     setDraft((current) => ({ ...current, ...changes }));
@@ -153,12 +187,25 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
     if (!draft.images.includes(path)) patch({ images: [...draft.images, path] });
   };
 
-  const fillPlaceholder = (text: string, path: string) => {
+  const fillPlaceholder = (text: string, path: string, alt: string) => {
     setDraft((current) => ({
       ...current,
       images: current.images.includes(path) ? current.images : [...current.images, path],
-      body: replacePlaceholder(current.body, text, imageLine(path, text)),
+      body: replacePlaceholder(current.body, text, imageLine(path, alt || text)),
     }));
+    setSaved("");
+  };
+
+  const fillAllWithProductPhotos = () => {
+    setDraft((current) => {
+      const filled = fillPlaceholders(current.body, productPhotoList, "all");
+      return {
+        ...current,
+        body: filled.body,
+        images: [...new Set([...current.images, ...filled.used])],
+        cover: current.cover ?? productPhotoList[0]?.paths[0],
+      };
+    });
     setSaved("");
   };
 
@@ -385,13 +432,16 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
           <details className="relative">
             <summary className="btn-secondary cursor-pointer list-none py-1.5 text-xs">Вставить фото</summary>
             <div className="absolute z-20 mt-1 w-80 rounded-xl border border-brand-100 bg-white p-3 shadow-lg">
-              {draft.images.length ? (
-                <ul className="grid grid-cols-4 gap-2">
-                  {draft.images.map((path) => (
+              {photoChoices.length ? (
+                <ul className="grid max-h-80 grid-cols-4 gap-2 overflow-y-auto">
+                  {photoChoices.map(({ path, alt }) => (
                     <li key={path}>
                       <button
                         type="button"
-                        onClick={() => insertAtCursor(imageLine(path, ""))}
+                        onClick={() => {
+                          insertAtCursor(imageLine(path, alt));
+                          addToPool(path);
+                        }}
                         title="Вставить в текст"
                         className="block h-16 w-full overflow-hidden rounded-lg border border-brand-100 hover:border-brand-500"
                       >
@@ -401,7 +451,9 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-brand-400">Сначала загрузите фото в блоке «Фото статьи» ниже.</p>
+                <p className="text-xs text-brand-400">
+                  Загрузите фото в блоке «Фото статьи» или добавьте в текст товары — здесь появятся их фото.
+                </p>
               )}
               <p className="mt-2 text-[11px] text-brand-400">
                 Подпись и alt пишутся в квадратных скобках: ![что на фото](…). Пустые скобки — alt соберётся из заголовка раздела.
@@ -460,23 +512,30 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
 
       <Section
         title="Фото статьи"
-        note="Загрузите снимки сюда, потом поставьте их на места, которые отметила нейросеть, или вставьте кнопкой «Вставить фото». Alt и подпись берутся из описания места."
+        note="Для каждого места, которое отметила нейросеть, можно выбрать фото товара из статьи или своё загруженное. Своё фото получает подпись и alt из описания места, фото товара — название товара. Если обложка не выбрана, на сайте её заменит фото первого товара из статьи."
       >
         {placeholders.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-amber-900">Нужны фото ({placeholders.length}):</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold text-amber-900">Нужны фото ({placeholders.length}):</p>
+              {productPhotoList.length > 0 && (
+                <button type="button" onClick={fillAllWithProductPhotos} className="btn-secondary py-1 text-xs">
+                  Заполнить все фото товаров из статьи
+                </button>
+              )}
+            </div>
             <ul className="space-y-2">
               {placeholders.map((text, index) => (
                 <li key={`${text}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-sm text-amber-950">{text}</p>
-                  {draft.images.length ? (
+                  {photoChoices.length ? (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {draft.images.map((path) => (
+                      {photoChoices.map(({ path, alt }) => (
                         <button
                           key={path}
                           type="button"
-                          onClick={() => fillPlaceholder(text, path)}
-                          title="Поставить это фото"
+                          onClick={() => fillPlaceholder(text, path, alt)}
+                          title={alt || "Поставить это фото"}
                           className={`h-14 w-14 overflow-hidden rounded-lg border hover:border-brand-600 ${
                             usedInText.has(path) ? "border-brand-100 opacity-50" : "border-amber-300"
                           }`}

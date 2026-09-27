@@ -23,6 +23,7 @@ import {
   getSiteModified,
 } from "@/lib/catalog";
 import { articleImagePaths } from "@/lib/article-body";
+import { coverOf } from "@/lib/article-photos";
 import { articleUrl, getPublishedArticles } from "@/lib/articles";
 import { getImage } from "@/lib/images";
 import type { Category, Product } from "@/lib/schema";
@@ -72,7 +73,7 @@ function articleEntries(): MetadataRoute.Sitemap {
     },
     ...articles.map((article) => {
       const images = imagesFor([
-        ...(article.cover ? [article.cover] : []),
+        ...[coverOf(article)].filter((path): path is string => Boolean(path)),
         ...articleImagePaths(article.body),
       ]);
       return {

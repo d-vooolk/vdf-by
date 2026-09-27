@@ -12,6 +12,7 @@ import {
   readingMinutes,
   type ArticleBlock,
 } from "@/lib/article-body";
+import { coverOf } from "@/lib/article-photos";
 import type { Article } from "@/lib/articles";
 import { getProductBySlug, getSite } from "@/lib/catalog";
 import { getImage } from "@/lib/images";
@@ -175,7 +176,7 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
   const site = getSite();
   const blocks = parseArticleBody(article.body);
   const headings = articleHeadings(article.body);
-  const cover = getImage(article.cover);
+  const cover = getImage(coverOf(article));
   const minutes = readingMinutes(article.body);
   const date = article.publishedAt ?? article.updatedAt;
   const updated = article.updatedAt - date > 24 * 60 * 60 * 1000;
