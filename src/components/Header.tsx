@@ -121,22 +121,6 @@ export function Header() {
         <AccountLink compact />
         <CartBadge currencySymbol={site.currencySymbol} />
       </div>
-
-      <nav className="hidden border-t border-brand-100/70 lg:block" aria-label="Разделы каталога">
-        <ul className="container-page flex h-11 items-center gap-6 overflow-x-auto text-sm whitespace-nowrap">
-          {categoryLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                prefetch={false}
-                className="font-medium text-brand-600 transition-colors hover:text-brand-900"
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
     </header>
   );
 }

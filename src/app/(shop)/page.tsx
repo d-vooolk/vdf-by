@@ -59,11 +59,11 @@ export default function HomePage() {
         шапке они есть на каждой странице сайта.
       */}
       <section className="beam grid-hint relative overflow-hidden border-b border-brand-100">
-        <div className="container-page grid gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-8 lg:py-9">
+        <div className="container-page grid gap-8 py-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-8 lg:py-6">
           <div>
             {/* h1 на главной — под самый частотный запрос. Текст менять
                 нельзя, а подать его крупнее можно. */}
-            <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[2.6rem]">
+            <h1 className="text-[1.75rem] leading-[1.1] font-semibold text-brand-900 sm:text-4xl lg:text-[2.4rem]">
               Автосвет в Минске:{" "}
               <span className="whitespace-nowrap">
               <span className="relative inline-block whitespace-nowrap">
@@ -85,13 +85,13 @@ export default function HomePage() {
               стёкла фар и лампы
             </h1>
 
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-brand-500">
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-brand-500 sm:text-base">
               Би-ЛЕД и би-ксеноновые модули, стёкла на замену помутневшим,
               лампы во всех популярных цоколях. Проверяем каждый комплект на
               стенде перед отправкой.
             </p>
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/catalog/" className="btn-primary">
                 Смотреть каталог
                 <ChevronRightIcon className="h-4 w-4" />
@@ -102,7 +102,7 @@ export default function HomePage() {
               </a>
             </div>
 
-            <dl className="mt-6 grid max-w-lg grid-cols-3 gap-6 border-t border-brand-100 pt-5">
+            <dl className="mt-5 grid max-w-lg grid-cols-3 gap-4 border-t border-brand-100 pt-4 sm:gap-6">
               <div>
                 <dt className="text-xs text-brand-400">Доставка по Минску</dt>
                 <dd className="mt-1 text-[15px] font-semibold text-brand-900">
@@ -131,7 +131,7 @@ export default function HomePage() {
               занимал там почти весь первый экран, а каталог уезжал за
               нижний край. */}
           <div
-            className="rise relative mx-auto hidden w-full max-w-[15rem] lg:block lg:max-w-[17rem]"
+            className="rise relative mx-auto hidden w-full max-w-[13rem] lg:block lg:max-w-[14rem]"
             style={{ animationDelay: "120ms" }}
             aria-hidden="true"
           >
@@ -168,10 +168,10 @@ export default function HomePage() {
         сломанный сайт в глазах посетителя.
       */}
       {marks.length > 0 && (
-        <section className="border-b border-brand-100 bg-brand-50/50 py-12">
+        <section className="border-b border-brand-100 bg-brand-50/50 py-7 sm:py-8">
           <div className="container-page">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-              <h2 className="text-2xl font-semibold text-brand-900 sm:text-3xl">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-xl font-semibold text-brand-900 sm:text-2xl">
                 Поиск по автомобилю
               </h2>
               <Link
@@ -189,8 +189,8 @@ export default function HomePage() {
       )}
 
       {/* --------------------------- Категории -------------------------- */}
-      <section className="container-page py-20">
-        <div className="reveal mb-10 flex items-end justify-between gap-6">
+      <section className="container-page pt-8 pb-16 sm:pt-10 sm:pb-20">
+        <div className="mb-6 flex items-end justify-between gap-6">
           <div>
             <p className="eyebrow">Каталог</p>
             <h2 className="mt-3 text-3xl font-semibold text-brand-900 sm:text-4xl">
