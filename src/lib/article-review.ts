@@ -1,6 +1,7 @@
 import { cleanPlainText } from "./ai";
 import {
   describeArticleRequest,
+  markerPattern,
   parseGeneratedArticle,
   type ArticleRequest,
   type GeneratedArticle,
@@ -132,7 +133,7 @@ export function parseReview(
   request: ArticleRequest,
 ): { article: GeneratedArticle; review: ArticleReview } {
   const cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  const marker = cleaned.search(/^\s*=+\s*СТАТЬЯ\s*=+\s*$/im);
+  const marker = cleaned.search(markerPattern("СТАТЬЯ"));
   const head = marker < 0 ? cleaned.slice(0, 3000) : cleaned.slice(0, marker);
   const scoreMatch = head.match(/ОЦЕНКА\**\s*:\s*\**\s*(\d{1,3})/i);
   const score = Math.max(0, Math.min(100, Number(scoreMatch?.[1] ?? 0)));

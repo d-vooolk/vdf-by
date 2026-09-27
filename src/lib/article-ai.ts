@@ -142,12 +142,21 @@ function sameText(a: string, b: string): boolean {
   return normalize(a) === normalize(b);
 }
 
+const LOOKALIKES: Record<string, string> = {
+  А: "АA", В: "ВB", Е: "ЕE", К: "КK", М: "МM", Н: "НH", О: "ОO", Р: "РP", С: "СC", Т: "ТT", Х: "ХX",
+};
+
+export function markerPattern(name: string): RegExp {
+  const letters = [...name].map((letter) => (LOOKALIKES[letter] ? `[${LOOKALIKES[letter]}]` : letter)).join("");
+  return new RegExp(`^[\\s*#]*=+\\s*${letters}\\s*=+[\\s*]*$`, "im");
+}
+
 function section(text: string, marker: string, next?: string): string {
-  const start = text.search(new RegExp(`^\\s*=+\\s*${marker}\\s*=+\\s*$`, "im"));
+  const start = text.search(markerPattern(marker));
   if (start < 0) return "";
   const rest = text.slice(start).replace(/^[^\n]*\n/, "");
   if (!next) return rest;
-  const end = rest.search(new RegExp(`^\\s*=+\\s*${next}\\s*=+\\s*$`, "im"));
+  const end = rest.search(markerPattern(next));
   return end < 0 ? rest : rest.slice(0, end);
 }
 
@@ -191,6 +200,7 @@ export function sanitizeArticleBody(body: string, title: string): string {
   return body
     .replace(/\r\n/g, "\n")
     .replace(/^```[a-z]*\s*$/gim, "")
+    .replace(/^[\s*#]*=+[^=\n]*=+[\s*]*$/gm, "")
     .split("\n")
     .filter((line) => {
       const heading = line.match(/^#\s+(.+)$/);
@@ -210,7 +220,7 @@ export function sanitizeArticleBody(body: string, title: string): string {
 
 export function parseGeneratedArticle(text: string, request: ArticleRequest): GeneratedArticle {
   const cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  const bodyStart = cleaned.search(/^\s*=+\s*ТЕКСТ\s*=+\s*$/im);
+  const bodyStart = cleaned.search(markerPattern("ТЕКСТ"));
   const header = bodyStart < 0 ? cleaned.slice(0, 1500) : cleaned.slice(0, bodyStart);
   const title = field(header, ["ЗАГОЛОВОК"]) || request.topic.trim();
   const rawBody = section(cleaned, "ТЕКСТ", "ВОПРОСЫ") || stripHeader(cleaned);
