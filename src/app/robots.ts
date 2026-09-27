@@ -38,12 +38,12 @@ export default function robots(): MetadataRoute.Robots {
         // Админка отдаёт краулеру только редирект на форму входа, и ей в
         // выдаче не место. Корзина, кабинет и страница заказа закрыты
         // метатегом noindex: чтобы робот его увидел, обход им не запрещён.
-        disallow: ["/admin/", "/listing/", "/api/"],
+        disallow: ["/admin/", "/listing/", "/api/", "/poisk/"],
       },
       {
         userAgent: "Yandex",
         allow: "/",
-        disallow: ["/admin/", "/listing/", "/api/"],
+        disallow: ["/admin/", "/listing/", "/api/", "/poisk/"],
         other: {
           "Clean-param": [
             TRACKING_PARAMS.join("&"),

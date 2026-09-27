@@ -40,7 +40,15 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
       .finally(() => setLoading(false));
   };
 
-  const results = index ? searchProducts(index, query) : [];
+  const matches = index ? searchProducts(index, query, Infinity) : [];
+  const results = matches.slice(0, 8);
+  const searchUrl = `/poisk/?q=${encodeURIComponent(query.trim())}`;
+
+  const openSearchPage = () => {
+    setOpen(false);
+    inputRef.current?.blur();
+    router.push(searchUrl);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +65,16 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
       inputRef.current?.blur();
       return;
     }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (active >= 0 && results[active]) {
+        setOpen(false);
+        router.push(`/product/${results[active].s}/`);
+      } else if (query.trim().length >= 2) {
+        openSearchPage();
+      }
+      return;
+    }
     if (!results.length) return;
 
     if (event.key === "ArrowDown") {
@@ -65,10 +83,6 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActive((current) => (current <= 0 ? results.length - 1 : current - 1));
-    } else if (event.key === "Enter" && active >= 0) {
-      event.preventDefault();
-      setOpen(false);
-      router.push(`/product/${results[active].s}/`);
     }
   };
 
@@ -137,7 +151,6 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                   <Link
                     href={`/product/${entry.s}/`}
                     onClick={() => setOpen(false)}
-                    onMouseEnter={() => setActive(position)}
                     className={`flex items-center gap-3 px-3 py-2.5 ${
                       position === active ? "bg-brand-50" : "hover:bg-brand-50"
                     }`}
@@ -171,6 +184,17 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link
+                  href={searchUrl}
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-3 text-center text-sm font-medium text-brand-700 hover:bg-brand-50"
+                >
+                  {matches.length > results.length
+                    ? `Все результаты — ${matches.length} · Enter`
+                    : "Открыть страницу поиска · Enter"}
+                </Link>
+              </li>
             </ul>
           )}
         </div>

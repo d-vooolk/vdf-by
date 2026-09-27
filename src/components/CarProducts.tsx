@@ -12,12 +12,14 @@ interface CarProductsProps {
   groups: CarCategoryGroup[];
   currencySymbol: string;
   trailFor?: (group: CarCategoryGroup) => CarGroupCrumb[];
+  anchorPrefix?: string;
 }
 
 export function CarProducts({
   groups,
   currencySymbol,
   trailFor,
+  anchorPrefix,
 }: CarProductsProps) {
   if (!groups.length) return null;
 
@@ -33,7 +35,11 @@ export function CarProducts({
         const trail = trailFor?.(group) ?? [];
 
         return (
-          <section key={group.category.id}>
+          <section
+            key={group.category.id}
+            id={anchorPrefix ? `${anchorPrefix}${group.category.id}` : undefined}
+            className={anchorPrefix ? "scroll-mt-24" : undefined}
+          >
             <h2 className="mb-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xl font-semibold text-brand-900">
               {trail.length ? (
                 trail.map((crumb, index) => (
