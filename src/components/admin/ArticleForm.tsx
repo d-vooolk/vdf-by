@@ -240,6 +240,7 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
             ? "Статья снята с публикации и сохранена как черновик."
             : "Черновик сохранён.",
       );
+      window.scrollTo({ top: 0, behavior: "smooth" });
       router.refresh();
     });
   };
