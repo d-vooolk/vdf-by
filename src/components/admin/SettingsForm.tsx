@@ -26,7 +26,16 @@ import type { DeliveryMethod, Site } from "@/lib/schema";
  * лежат в той же записи настроек.
  */
 
-export function SettingsForm({ site: initial }: { site: Site }) {
+export type SettingsPart = "shop" | "contacts" | "delivery" | "features";
+
+const PART_TITLES: Record<SettingsPart, string> = {
+  shop: "Магазин",
+  contacts: "Контакты",
+  delivery: "Доставка и оплата",
+  features: "Преимущества",
+};
+
+export function SettingsForm({ site: initial, part }: { site: Site; part: SettingsPart }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState<Site>(initial);
@@ -54,7 +63,7 @@ export function SettingsForm({ site: initial }: { site: Site }) {
 
   return (
     <div className="space-y-5 pb-24">
-      <h1 className="text-xl font-semibold text-brand-900">Настройки</h1>
+      <h1 className="text-xl font-semibold text-brand-900">{PART_TITLES[part]}</h1>
 
       <Problems items={problems} />
 
@@ -66,194 +75,204 @@ export function SettingsForm({ site: initial }: { site: Site }) {
       )}
 
       {/* --------------------------- Магазин --------------------------- */}
-      <Section title="Магазин">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Название" required>
+      {part === "shop" && (
+        <Section title="Магазин">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Название" required>
+              <input
+                value={draft.name}
+                onChange={(event) => patch({ name: event.target.value })}
+                className="field"
+              />
+            </Field>
+            <Field label="Юридическое название" required hint="Для разметки и подвала">
+              <input
+                value={draft.legalName}
+                onChange={(event) => patch({ legalName: event.target.value })}
+                className="field"
+              />
+            </Field>
+          </div>
+
+          <Field label="Короткий слоган" required hint="Идёт в заголовок вкладки">
             <input
-              value={draft.name}
-              onChange={(event) => patch({ name: event.target.value })}
+              value={draft.tagline}
+              onChange={(event) => patch({ tagline: event.target.value })}
               className="field"
             />
           </Field>
-          <Field label="Юридическое название" required hint="Для разметки и подвала">
-            <input
-              value={draft.legalName}
-              onChange={(event) => patch({ legalName: event.target.value })}
-              className="field"
+
+          <Field label="Описание сайта" required hint="Показывается в результатах поиска">
+            <textarea
+              value={draft.description}
+              onChange={(event) => patch({ description: event.target.value })}
+              rows={3}
+              className="field resize-y"
             />
           </Field>
-        </div>
-
-        <Field label="Короткий слоган" required hint="Идёт в заголовок вкладки">
-          <input
-            value={draft.tagline}
-            onChange={(event) => patch({ tagline: event.target.value })}
-            className="field"
-          />
-        </Field>
-
-        <Field label="Описание сайта" required hint="Показывается в результатах поиска">
-          <textarea
-            value={draft.description}
-            onChange={(event) => patch({ description: event.target.value })}
-            rows={3}
-            className="field resize-y"
-          />
-        </Field>
-      </Section>
+        </Section>
+      )}
 
       {/* --------------------------- Контакты -------------------------- */}
-      <Section title="Контакты">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Телефон" required hint="Как показывать: +375 29 123-45-67">
-            <input
-              value={draft.phone}
-              onChange={(event) => patch({ phone: event.target.value })}
-              className="field tnum"
-            />
-          </Field>
-          <Field label="Телефон для ссылки" required hint="Только цифры и плюс: +375291234567">
-            <input
-              value={draft.phoneHref}
-              onChange={(event) => patch({ phoneHref: event.target.value })}
-              className="field tnum"
-            />
-          </Field>
-        </div>
+      {part === "contacts" && (
+        <Section title="Контакты">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Телефон" required hint="Как показывать: +375 29 123-45-67">
+              <input
+                value={draft.phone}
+                onChange={(event) => patch({ phone: event.target.value })}
+                className="field tnum"
+              />
+            </Field>
+            <Field label="Телефон для ссылки" required hint="Только цифры и плюс: +375291234567">
+              <input
+                value={draft.phoneHref}
+                onChange={(event) => patch({ phoneHref: event.target.value })}
+                className="field tnum"
+              />
+            </Field>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Почта" required>
-            <input
-              type="email"
-              value={draft.email}
-              onChange={(event) => patch({ email: event.target.value })}
-              className="field"
-            />
-          </Field>
-          <Field label="Часы работы" hint="Пн–Пт 10:00–19:00, Сб 10:00–16:00">
-            <input
-              value={draft.workHours}
-              onChange={(event) => patch({ workHours: event.target.value })}
-              className="field"
-            />
-          </Field>
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Почта" required>
+              <input
+                type="email"
+                value={draft.email}
+                onChange={(event) => patch({ email: event.target.value })}
+                className="field"
+              />
+            </Field>
+            <Field label="Часы работы" hint="Пн–Пт 10:00–19:00, Сб 10:00–16:00">
+              <input
+                value={draft.workHours}
+                onChange={(event) => patch({ workHours: event.target.value })}
+                className="field"
+              />
+            </Field>
+          </div>
 
-        {/* Мессенджеры и соцсети. Отсюда их берут все блоки связи сразу:
-            панель справа на каждой странице, кнопки на карточках товаров и
-            подвал. Пустое поле — канала на сайте просто не будет.
-            Формат вольный: ссылка, @имя или номер телефона — привести к
-            рабочему адресу умеет src/lib/contacts.ts. */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Telegram" hint="Ссылка или @имя: https://t.me/autosvetby">
-            <input
-              value={draft.telegram}
-              onChange={(event) => patch({ telegram: event.target.value })}
-              className="field"
-              placeholder="https://t.me/autosvetby"
-            />
-          </Field>
-          <Field label="Viber" hint="Номер телефона — ссылку соберём сами">
-            <input
-              value={draft.viber}
-              onChange={(event) => patch({ viber: event.target.value })}
-              className="field"
-              placeholder="+375291234567"
-            />
-          </Field>
-          <Field label="WhatsApp" hint="Номер телефона или ссылка wa.me">
-            <input
-              value={draft.whatsapp}
-              onChange={(event) => patch({ whatsapp: event.target.value })}
-              className="field"
-              placeholder="+375291234567"
-            />
-          </Field>
-          <Field label="Instagram" hint="Ссылка или @имя">
-            <input
-              value={draft.instagram}
-              onChange={(event) => patch({ instagram: event.target.value })}
-              className="field"
-              placeholder="https://instagram.com/autosvetby"
-            />
-          </Field>
-        </div>
+          {/* Мессенджеры и соцсети. Отсюда их берут все блоки связи сразу:
+              панель справа на каждой странице, кнопки на карточках товаров и
+              подвал. Пустое поле — канала на сайте просто не будет.
+              Формат вольный: ссылка, @имя или номер телефона — привести к
+              рабочему адресу умеет src/lib/contacts.ts. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Telegram" hint="Ссылка или @имя: https://t.me/autosvetby">
+              <input
+                value={draft.telegram}
+                onChange={(event) => patch({ telegram: event.target.value })}
+                className="field"
+                placeholder="https://t.me/autosvetby"
+              />
+            </Field>
+            <Field label="Viber" hint="Номер телефона — ссылку соберём сами">
+              <input
+                value={draft.viber}
+                onChange={(event) => patch({ viber: event.target.value })}
+                className="field"
+                placeholder="+375291234567"
+              />
+            </Field>
+            <Field label="WhatsApp" hint="Номер телефона или ссылка wa.me">
+              <input
+                value={draft.whatsapp}
+                onChange={(event) => patch({ whatsapp: event.target.value })}
+                className="field"
+                placeholder="+375291234567"
+              />
+            </Field>
+            <Field label="Instagram" hint="Ссылка или @имя">
+              <input
+                value={draft.instagram}
+                onChange={(event) => patch({ instagram: event.target.value })}
+                className="field"
+                placeholder="https://instagram.com/autosvetby"
+              />
+            </Field>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Улица и дом" >
-            <input
-              value={draft.address.street}
-              onChange={(event) =>
-                patch({ address: { ...draft.address, street: event.target.value } })
-              }
-              className="field"
-            />
-          </Field>
-          <Field label="Город">
-            <input
-              value={draft.address.city}
-              onChange={(event) =>
-                patch({ address: { ...draft.address, city: event.target.value } })
-              }
-              className="field"
-            />
-          </Field>
-        </div>
-      </Section>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Улица и дом" >
+              <input
+                value={draft.address.street}
+                onChange={(event) =>
+                  patch({ address: { ...draft.address, street: event.target.value } })
+                }
+                className="field"
+              />
+            </Field>
+            <Field label="Город">
+              <input
+                value={draft.address.city}
+                onChange={(event) =>
+                  patch({ address: { ...draft.address, city: event.target.value } })
+                }
+                className="field"
+              />
+            </Field>
+          </div>
+        </Section>
+      )}
 
       {/* --------------------------- Доставка -------------------------- */}
-      <Section
-        title="Доставка"
-        note="Эти способы покупатель видит в корзине. Стоимость берётся отсюда, а не из браузера — подменить её в запросе нельзя."
-      >
-        <DeliveryEditor
-          value={draft.delivery.methods}
-          onChange={(methods) => patch({ delivery: { methods } })}
-          currencySymbol={draft.currencySymbol}
-        />
-      </Section>
+      {part === "delivery" && (
+        <>
+          <Section
+            title="Доставка"
+            note="Эти способы покупатель видит в корзине. Стоимость берётся отсюда, а не из браузера — подменить её в запросе нельзя."
+          >
+            <DeliveryEditor
+              value={draft.delivery.methods}
+              onChange={(methods) => patch({ delivery: { methods } })}
+              currencySymbol={draft.currencySymbol}
+            />
+          </Section>
 
-      {/* ---------------------------- Оплата --------------------------- */}
-      <Section title="Оплата" note="Список под кнопкой оформления заказа.">
-        <StringListEditor
-          value={draft.payment}
-          onChange={(payment) => patch({ payment })}
-          placeholder="Наличными при получении"
-          addLabel="+ Способ оплаты"
-        />
+          {/* ---------------------------- Оплата --------------------------- */}
+          <Section title="Оплата" note="Список под кнопкой оформления заказа.">
+            <StringListEditor
+              value={draft.payment}
+              onChange={(payment) => patch({ payment })}
+              placeholder="Наличными при получении"
+              addLabel="+ Способ оплаты"
+            />
 
-        <Field label="Гарантия" hint="Одна фраза для страницы доставки">
-          <input
-            value={draft.warranty}
-            onChange={(event) => patch({ warranty: event.target.value })}
-            className="field"
-          />
-        </Field>
+            <Field label="Гарантия" hint="Одна фраза для страницы доставки">
+              <input
+                value={draft.warranty}
+                onChange={(event) => patch({ warranty: event.target.value })}
+                className="field"
+              />
+            </Field>
 
-        <Field
-          label="Возврат в течение, дней"
-          hint="Попадает и на страницу доставки, и в разметку товара для Google. Должно совпадать с тем, что вы реально обещаете. 0 — не заявлять возврат"
-        >
-          <NumberInput
-            integer
-            value={draft.returnDays}
-            onChange={(returnDays) => patch({ returnDays: returnDays ?? 0 })}
-            placeholder="14"
-            className="field tnum w-32"
-          />
-        </Field>
-      </Section>
+            <Field
+              label="Возврат в течение, дней"
+              hint="Попадает и на страницу доставки, и в разметку товара для Google. Должно совпадать с тем, что вы реально обещаете. 0 — не заявлять возврат"
+            >
+              <NumberInput
+                integer
+                value={draft.returnDays}
+                onChange={(returnDays) => patch({ returnDays: returnDays ?? 0 })}
+                placeholder="14"
+                className="field tnum w-32"
+              />
+            </Field>
+          </Section>
+        </>
+      )}
 
       {/* -------------------------- Преимущества ----------------------- */}
-      <Section
-        title="Преимущества"
-        note="Блок на главной: заголовок и одна-две фразы к нему."
-      >
-        <FeaturesEditor
-          value={draft.features}
-          onChange={(features) => patch({ features })}
-        />
-      </Section>
+      {part === "features" && (
+        <Section
+          title="Преимущества"
+          note="Блок на главной: заголовок и одна-две фразы к нему."
+        >
+          <FeaturesEditor
+            value={draft.features}
+            onChange={(features) => patch({ features })}
+          />
+        </Section>
+      )}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-brand-100 bg-white/95 backdrop-blur">
         <div className="container-page flex items-center py-3">

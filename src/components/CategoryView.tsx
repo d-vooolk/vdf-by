@@ -88,7 +88,6 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
     description: page > 1 ? sentences(`${category.name}, страница ${page}`, description) : description,
     path: listingHref(categoryUrl(category), page, "default"),
     image: category.image ?? products.find((product) => product.images[0])?.images[0],
-    noIndex: products.length === 0,
   });
 }
 

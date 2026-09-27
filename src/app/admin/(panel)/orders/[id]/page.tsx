@@ -54,8 +54,11 @@ export default async function OrderPage({ params }: PageProps) {
 
       {!order.telegramSent && (
         <p className="rounded-card border border-brand-200 bg-brand-50 p-4 text-sm text-brand-600">
-          Этот заказ не ушёл в Telegram — проверьте настройки бота на сервере
-          (TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID). Сам заказ сохранён полностью.
+          Этот заказ не ушёл в Telegram — проверьте бота в разделе{" "}
+          <Link href="/admin/settings/telegram/" className="font-medium text-brand-900 underline">
+            Настройки → Telegram
+          </Link>
+          . Сам заказ сохранён полностью.
         </p>
       )}
 

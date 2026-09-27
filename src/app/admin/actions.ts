@@ -65,6 +65,17 @@ import {
   type AiTask,
 } from "@/lib/ai";
 import { LAST_CATEGORY_COOKIE } from "@/lib/admin-prefs";
+import {
+  escapeTelegram,
+  getTelegramSettings,
+  saveTelegramSettings,
+  sendTelegramTo,
+  telegramBot,
+  telegramChats,
+  type TelegramBot,
+  type TelegramChat,
+  type TelegramSettings,
+} from "@/lib/telegram";
 import { applyFrameType, validFrameTypeValues } from "@/lib/frame-types";
 import { getSite } from "@/lib/catalog";
 import {
@@ -805,6 +816,55 @@ export async function sendTestSmsAction(phone: string, message: string): Promise
   if (!digits) return fail(["Номер нужен белорусский: 375XXXXXXXXX"]);
   try {
     await sendSms(digits, message.trim() || `Тестовое сообщение от ${getSite().name}`);
+    return ok();
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
+}
+
+export async function saveTelegramSettingsAction(
+  input: Partial<TelegramSettings>,
+): Promise<FormState> {
+  await requireAdmin();
+  const next = {
+    enabled: input.enabled === true,
+    token: typeof input.token === "string" ? input.token : "",
+    chatId: typeof input.chatId === "string" ? input.chatId : "",
+    chatTitle: typeof input.chatTitle === "string" ? input.chatTitle : "",
+  };
+  const merged = { ...getTelegramSettings(), ...next, token: next.token.trim() || getTelegramSettings().token };
+  if (merged.enabled && (!merged.token || !merged.chatId)) {
+    return fail(["Чтобы включить отправку, нужны токен бота и чат"]);
+  }
+  saveTelegramSettings(next);
+  return ok();
+}
+
+export type TelegramCheckResult =
+  | { ok: true; bot: TelegramBot; chats: TelegramChat[] }
+  | { ok: false; error: string };
+
+export async function checkTelegramAction(token: string): Promise<TelegramCheckResult> {
+  await requireAdmin();
+  const key = token.trim() || getTelegramSettings().token;
+  try {
+    const bot = await telegramBot(key);
+    const chats = await telegramChats(key);
+    return { ok: true, bot, chats };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+export async function sendTestTelegramAction(token: string, chatId: string): Promise<FormState> {
+  await requireAdmin();
+  const settings = getTelegramSettings();
+  try {
+    await sendTelegramTo(
+      token.trim() || settings.token,
+      chatId.trim() || settings.chatId,
+      `✅ <b>${escapeTelegram(getSite().name)}</b>: бот подключён. Сюда будут приходить новые заказы.`,
+    );
     return ok();
   } catch (error) {
     return fail([(error as Error).message]);

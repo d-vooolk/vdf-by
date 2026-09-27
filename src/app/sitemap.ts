@@ -20,7 +20,6 @@ import {
   getLastModified,
   getPageDates,
   getProducts,
-  getProductsInCategory,
   getSiteModified,
 } from "@/lib/catalog";
 import { getImage } from "@/lib/images";
@@ -172,9 +171,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     // Адрес подраздела вложенный, поэтому его собирает categoryUrl.
-    ...getCategories()
-      .filter((category) => getProductsInCategory(category.id).length > 0)
-      .map(categoryEntry),
+    ...getCategories().map(categoryEntry),
     ...getProducts().map(productEntry),
     // Корень подбора попадает в карту, только когда в нём есть хоть одна
     // марка: пустая страница в sitemap — это заявка на «страница-пустышка».

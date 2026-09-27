@@ -1,9 +1,10 @@
 import { getSite } from "@/lib/catalog";
-import { env, envNumber } from "@/lib/env.mjs";
+import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getCustomer } from "@/lib/customer-auth";
 import { isWholesale } from "@/lib/customers";
 import { buildPriceList } from "@/lib/prices";
+import { sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
 /**
@@ -19,9 +20,11 @@ import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
  * уходит в Telegram. Если мессенджер недоступен, заказ всё равно сохранён и
  * виден в админке.
  *
+ * Бот Telegram подключается в админке: «Настройки» → «Telegram». Переменные
+ * TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID остались запасным вариантом, пока
+ * настройки там не сохраняли.
+ *
  * Переменные окружения:
- *   TELEGRAM_BOT_TOKEN   токен бота от @BotFather
- *   TELEGRAM_CHAT_ID     куда писать: ваш id или id группы
  *   ORDER_RATE_LIMIT     заявок с одного адреса за 10 минут, по умолчанию 5
  */
 
@@ -311,45 +314,6 @@ function buildMessage(
   return lines.join("\n");
 }
 
-async function sendToTelegram(
-  text: string,
-): Promise<{ ok: boolean; reason?: string }> {
-  const token = env("TELEGRAM_BOT_TOKEN", "");
-  const chatId = env("TELEGRAM_CHAT_ID", "");
-  if (!token || !chatId) return { ok: false, reason: "не настроен" };
-
-  // Telegram обычно отвечает быстро; если завис — не держим клиента.
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: "HTML",
-          disable_web_page_preview: true,
-        }),
-        signal: controller.signal,
-        cache: "no-store",
-      },
-    );
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      return { ok: false, reason: `HTTP ${response.status} ${body.slice(0, 200)}` };
-    }
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, reason: (error as Error).message };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 /* ------------------------------------------------------------------ */
 /* Обработчик                                                          */
 /* ------------------------------------------------------------------ */
@@ -429,7 +393,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const sent = await sendToTelegram(buildMessage(id, order, referer));
+  const sent = await sendTelegram(buildMessage(id, order, referer));
   if (sent.ok) {
     markTelegramSent(id);
   } else {
