@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return reject("Неверный запрос", 400);
   }
   if (!input.title.trim()) return reject("Сначала заполните название", 400);
-  if (!input.description.trim()) {
+  if (!input.description.trim() && input.kind !== "category") {
     return reject("Вставьте исходное описание — переписывать нечего", 400);
   }
 

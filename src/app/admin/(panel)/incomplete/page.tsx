@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AiFaqBatch } from "@/components/admin/AiFaqBatch";
+import { aiConfigured } from "@/lib/ai";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { GAPS, isGap, listIncompleteProducts, type Gap } from "@/lib/incomplete";
@@ -58,6 +60,11 @@ export default async function IncompletePage({ searchParams }: PageProps) {
           автомобилям в разделах с подбором по авто.
         </p>
       </div>
+
+      <AiFaqBatch
+        total={listIncompleteProducts().filter((product) => product.gaps.includes("faq")).length}
+        ready={aiConfigured()}
+      />
 
       <div className="card flex flex-wrap items-center gap-2 p-4">
         <Link

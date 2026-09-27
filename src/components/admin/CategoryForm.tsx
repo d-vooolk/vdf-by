@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
+import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import {
@@ -37,6 +38,8 @@ interface CategoryFormProps {
     count: number;
     children: number;
   }>;
+  ai: AiSettings;
+  productTitles: string[];
 }
 
 export function CategoryForm({
@@ -45,6 +48,8 @@ export function CategoryForm({
   thumbs,
   productCount,
   categories,
+  ai,
+  productTitles,
 }: CategoryFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -93,6 +98,14 @@ export function CategoryForm({
   const patch = (changes: Partial<Category>) => {
     setDraft((current) => ({ ...current, ...changes }));
     setSaved(false);
+  };
+
+  const aiCategory = {
+    kind: "category" as const,
+    title: draft.name,
+    description: [draft.excerpt, draft.description].filter(Boolean).join("\n\n"),
+    items: productTitles,
+    faq: draft.faq ?? [],
   };
 
   const save = () => {
@@ -360,13 +373,32 @@ export function CategoryForm({
             className="field resize-y"
           />
         </Field>
+
+        <RewriteTool
+          settings={ai}
+          product={aiCategory}
+          onRewrite={(description) => patch({ description })}
+        />
       </Section>
 
       <Section
         title="Вопросы и ответы"
-        note="Общие вопросы по разделу: они показываются и на его странице, и на страницах подбора по автомобилю внутри раздела. Одно заполнение — десятки страниц."
+        note="Общие вопросы по разделу: показываются только на его странице и уходят в разметку. На страницах подбора по автомобилю вопросы свои, они собираются из товаров под конкретную машину."
       >
         <FaqEditor value={draft.faq ?? []} onChange={(faq) => patch({ faq })} />
+
+        <FaqTool
+          settings={ai}
+          product={aiCategory}
+          onGenerate={(items) =>
+            patch({
+              faq: [
+                ...(draft.faq ?? []).filter((item) => item.q.trim() || item.a.trim()),
+                ...items,
+              ],
+            })
+          }
+        />
       </Section>
 
       <Section title="Картинка категории">

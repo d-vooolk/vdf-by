@@ -222,6 +222,26 @@ export function setProductPrice(id: string, price: number): SaveResult {
   return { ok: true };
 }
 
+export function setProductFaq(id: string, faq: Array<{ q: string; a: string }>): SaveResult {
+  const db = getDb();
+  const row = db.prepare("SELECT data FROM products WHERE id = ?").get(id) as
+    | { data: string }
+    | undefined;
+  if (!row) return { ok: false, problems: ["Товар не найден"] };
+
+  const product = JSON.parse(row.data) as Product;
+  product.faq = faq;
+
+  db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?").run(
+    JSON.stringify(product),
+    Date.now(),
+    id,
+  );
+
+  bumpCatalogVersion();
+  return { ok: true };
+}
+
 export function setProductStockQty(id: string, qty: number | null): SaveResult {
   if (qty !== null && (!Number.isInteger(qty) || qty < 0)) {
     return { ok: false, problems: ["Количество — целое число не меньше нуля"] };

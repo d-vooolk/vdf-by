@@ -6,7 +6,7 @@ import { Faq } from "@/components/Faq";
 import { ProductCars } from "@/components/ProductCars";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
-import { ProductPurchase } from "@/components/ProductPurchase";
+import { ProductPurchase, type PurchaseProduct } from "@/components/ProductPurchase";
 import {
   categoryTrail,
   categoryUrl,
@@ -15,6 +15,8 @@ import {
   getProducts,
   getRelatedProducts,
   getSite,
+  hasSharedLead,
+  hasTwinTitle,
 } from "@/lib/catalog";
 import { carsRoot } from "@/lib/car-types";
 import { getProductCars, getProductsForSameCars } from "@/lib/cars";
@@ -24,6 +26,7 @@ import { pickImages } from "@/lib/images";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd } from "@/lib/seo";
 import { productSnippet } from "@/lib/snippet";
+import type { Product } from "@/lib/schema";
 import { allProductImages, hasPrice, priceRange } from "@/lib/variant";
 
 export function generateStaticParams() {
@@ -48,13 +51,17 @@ export async function generateMetadata({
     product,
     categoryName: category?.name,
     currencySymbol: site.currencySymbol,
+    siteName: site.name,
+    twinTitle: hasTwinTitle(product),
+    sharedLead: hasSharedLead(product),
   });
 
   return buildMetadata({
     title: snippet.title,
+    absoluteTitle: snippet.absoluteTitle,
     description: snippet.description,
     path: `/product/${product.slug}/`,
-    image: product.images[0],
+    image: allProductImages(product)[0],
   });
 }
 
@@ -68,6 +75,37 @@ function redirectOr404(path: string): never {
   const target = findRedirect(path);
   if (target) permanentRedirect(target);
   notFound();
+}
+
+function purchaseProduct(product: Product): PurchaseProduct {
+  return {
+    id: product.id,
+    slug: product.slug,
+    title: product.title,
+    price: product.price,
+    oldPrice: product.oldPrice,
+    inStock: product.inStock,
+    stockQty: product.stockQty,
+    sku: product.sku,
+    unit: product.unit,
+    images: product.images,
+    videos: product.videos,
+    optionGroups: product.optionGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      hint: group.hint,
+      values: group.values.map((value) => ({
+        id: value.id,
+        label: value.label,
+        price: value.price,
+        oldPrice: value.oldPrice,
+        priceDelta: value.priceDelta,
+        sku: value.sku,
+        inStock: value.inStock,
+        images: value.images,
+      })),
+    })),
+  };
 }
 
 /** Короткая строка о доставке для блока рядом с кнопкой заказа. */
@@ -152,7 +190,7 @@ export default async function ProductPage({ params }: PageProps) {
       </header>
 
       <ProductPurchase
-        product={product}
+        product={purchaseProduct(product)}
         images={images}
         currencySymbol={site.currencySymbol}
         currency={site.currency}

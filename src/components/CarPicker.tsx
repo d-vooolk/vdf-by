@@ -34,25 +34,46 @@ export interface PickerModel {
   g: PickerGeneration[];
 }
 
-export interface PickerMark {
+export interface PickerMarkHead {
   s: string;
   n: string;
   /** ссылка на логотип */
   l?: string;
+}
+
+export interface PickerMark extends PickerMarkHead {
   m: PickerModel[];
 }
 
-export function CarPicker({ tree }: { tree: PickerMark[] }) {
+let treeRequest: Promise<PickerMark[]> | null = null;
+
+function loadTree(): Promise<PickerMark[]> {
+  treeRequest ??= fetch("/car-tree.json")
+    .then((response) => (response.ok ? (response.json() as Promise<PickerMark[]>) : []))
+    .catch(() => {
+      treeRequest = null;
+      return [];
+    });
+  return treeRequest;
+}
+
+export function CarPicker({ marks }: { marks: PickerMarkHead[] }) {
   const router = useRouter();
+  const [tree, setTree] = useState<PickerMark[] | null>(null);
   const [markSlug, setMarkSlug] = useState("");
   const [modelSlug, setModelSlug] = useState("");
   const [generationSlug, setGenerationSlug] = useState("");
 
-  const mark = tree.find((item) => item.s === markSlug);
+  const prefetchTree = () => {
+    if (!tree) void loadTree().then(setTree);
+  };
+
+  const markHead = marks.find((item) => item.s === markSlug);
+  const mark = tree?.find((item) => item.s === markSlug);
   const model = mark?.m.find((item) => item.s === modelSlug);
   const generation = model?.g.find((item) => item.s === generationSlug);
 
-  const markOptions: ComboOption[] = tree.map((item) => ({
+  const markOptions: ComboOption[] = marks.map((item) => ({
     value: item.s,
     label: item.n,
     icon: item.l,
@@ -74,12 +95,14 @@ export function CarPicker({ tree }: { tree: PickerMark[] }) {
       ? generationUrl(mark.s, model.s, generation.s)
       : mark && model
         ? modelUrl(mark.s, model.s)
-        : mark
-          ? markUrl(mark.s)
+        : markHead
+          ? markUrl(markHead.s)
           : "";
 
   return (
     <form
+      onFocus={prefetchTree}
+      onPointerEnter={prefetchTree}
       onSubmit={(event) => {
         event.preventDefault();
         if (target) router.push(target);
@@ -89,6 +112,7 @@ export function CarPicker({ tree }: { tree: PickerMark[] }) {
       <Combobox
         value={markSlug}
         onChange={(next) => {
+          prefetchTree();
           setMarkSlug(next);
           // Модель и поколение принадлежат прежней марке — у новой их нет.
           setModelSlug("");

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 
-import { getSite } from "./catalog";
+import { getProducts, getSite } from "./catalog";
 import { schemaPrice } from "./format";
 import type { ImageEntry } from "./image-types";
 import { getImage } from "./images";
 import type { Category, DeliveryMethod, Product, Site } from "./schema";
+import { deliveryArea } from "./delivery";
+import { brandSuffix, TITLE_LIMIT } from "./snippet";
 import {
   allProductImages,
   allSelections,
@@ -90,6 +92,8 @@ export function bigImageUrl(
   return wide?.url ?? entry.fallback ?? null;
 }
 
+export const DEFAULT_OG_IMAGE = "/brand/og.png";
+
 interface MetaInput {
   title: string;
   description: string;
@@ -97,6 +101,8 @@ interface MetaInput {
   /** Путь картинки из ./media для превью в соцсетях. */
   image?: string;
   noIndex?: boolean;
+  canonical?: string;
+  absoluteTitle?: boolean;
 }
 
 export function buildMetadata({
@@ -105,19 +111,24 @@ export function buildMetadata({
   path,
   image,
   noIndex = false,
+  canonical,
+  absoluteTitle = false,
 }: MetaInput): Metadata {
   const site = getSite();
   const url = absoluteUrl(path);
   const entry = getImage(image);
   const big = bigImageUrl(entry);
-  const ogImage = big ? absoluteUrl(big) : undefined;
+  const ogImage = absoluteUrl(big ?? DEFAULT_OG_IMAGE);
 
   return {
-    title,
+    title:
+      absoluteTitle || title.length + brandSuffix(site.name).length > TITLE_LIMIT
+        ? { absolute: title }
+        : title,
     description: clampDescription(description),
     // canonical снимает вопрос дублей: /catalog/lampy/ и /catalog/lampy/?sort=price
     // для краулера станут одной страницей.
-    alternates: { canonical: url },
+    alternates: { canonical: canonical ? absoluteUrl(canonical) : url },
     robots: noIndex
       ? { index: false, follow: true }
       : { index: true, follow: true },
@@ -131,13 +142,13 @@ export function buildMetadata({
       // Размер не указываем: он теперь зависит от того, какой файл нашёлся
       // (1200 или 1600), а врать в разметке про 800 хуже, чем промолчать —
       // соцсети всё равно читают размер из самого файла.
-      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+      images: [{ url: ogImage }],
     },
     twitter: {
-      card: ogImage ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description: clampDescription(description),
-      ...(ogImage ? { images: [ogImage] } : {}),
+      images: [ogImage],
     },
   };
 }
@@ -154,14 +165,14 @@ export function organizationJsonLd() {
     "@graph": [
       {
         "@type": "Store",
-        "@id": `${site.url}/#store`,
+        "@id": storeId(),
         name: site.name,
         legalName: site.legalName,
         description: site.description,
         url: absoluteUrl("/"),
         telephone: site.phone,
         email: site.email,
-        priceRange: "10–1000 BYN",
+        ...(storePriceRange(site) ? { priceRange: storePriceRange(site) } : {}),
         currenciesAccepted: site.currency,
         paymentAccepted: site.payment.join(", "),
         address: {
@@ -191,14 +202,27 @@ export function organizationJsonLd() {
       },
       {
         "@type": "WebSite",
-        "@id": `${site.url}/#website`,
+        "@id": absoluteUrl("/#website"),
         url: absoluteUrl("/"),
         name: site.name,
         inLanguage: "ru",
-        publisher: { "@id": `${site.url}/#store` },
+        publisher: { "@id": storeId() },
       },
     ],
   };
+}
+
+function storeId(): string {
+  return absoluteUrl("/#store");
+}
+
+function storePriceRange(site: Site): string {
+  const prices = getProducts()
+    .map((product) => priceRange(product))
+    .flatMap((range) => [range.min, range.max])
+    .filter(hasPrice);
+  if (!prices.length) return "";
+  return `${Math.floor(Math.min(...prices))}–${Math.ceil(Math.max(...prices))} ${site.currency}`;
 }
 
 /** Профили в соцсетях — только настоящие адреса страниц, не телефоны. */
@@ -239,25 +263,25 @@ function deliveryTime(method: DeliveryMethod) {
 }
 
 /**
- * Условия доставки — по блоку на каждый способ, который требует адреса.
+ * Условия доставки — по блоку на каждый способ, который возит по всей
+ * стране. Самовывоз и доставка только по городу сюда не попадают: разметка
+ * умеет говорить о стране целиком, и минский тариф в ней превратился бы в
+ * обещание доставить за ту же цену в любой город Беларуси.
  *
- * Самовывоз сюда не попадает: это не доставка, и нулевую стоимость по нему
- * Google понял бы как бесплатную доставку куда угодно.
- *
- * Порог бесплатной доставки («бесплатно от 150 р.») в разметке не
- * выражается — свойства под него у Google нет, а выдуманное будет просто
- * проигнорировано. На странице доставки порог указан словами.
+ * Порог бесплатной доставки учитывается по цене предложения: у товара
+ * дороже порога стоимость доставки в разметке нулевая, как и в корзине.
  */
-function shippingDetails(site: Site) {
+function shippingDetails(site: Site, price: number) {
   return site.delivery.methods
-    .filter((method) => method.requiresAddress)
+    .filter((method) => method.requiresAddress && deliveryArea(method) === "country")
     .map((method) => {
       const time = deliveryTime(method);
+      const free = method.freeFrom != null && price >= method.freeFrom;
       return {
         "@type": "OfferShippingDetails",
         shippingRate: {
           "@type": "MonetaryAmount",
-          value: schemaPrice(method.price),
+          value: schemaPrice(free ? 0 : method.price),
           currency: site.currency,
         },
         shippingDestination: {
@@ -343,7 +367,7 @@ function offerJsonLd(
     name?: string;
   },
 ) {
-  const shipping = shippingDetails(site);
+  const shipping = shippingDetails(site, params.price);
   const returns = returnPolicy(site);
 
   return {
@@ -358,10 +382,17 @@ function offerJsonLd(
       : "https://schema.org/OutOfStock",
     itemCondition: "https://schema.org/NewCondition",
     url: params.url,
-    seller: { "@id": `${site.url}/#store` },
+    seller: { "@id": storeId() },
     ...(shipping.length ? { shippingDetails: shipping } : {}),
     ...(returns ? { hasMerchantReturnPolicy: returns } : {}),
   };
+}
+
+function ownVariantSku(product: Product, selection: Selection): string | null {
+  const values = product.optionGroups.map(
+    (group) => group.values.find((value) => value.id === selection[group.id]) ?? group.values[0],
+  );
+  return values.find((value) => value.sku)?.sku ?? null;
 }
 
 /**
@@ -372,28 +403,26 @@ function offerJsonLd(
 export function productJsonLd(product: Product, category?: Category) {
   const site = getSite();
   const range = priceRange(product);
+  if (!hasPrice(range.min)) return null;
+
   const inStock = hasAnyInStock(product);
-  const availability = inStock
-    ? "https://schema.org/InStock"
-    : "https://schema.org/OutOfStock";
+  const url = absoluteUrl(`/product/${product.slug}/`);
 
   const images = allProductImages(product)
     .map((path) => bigImageUrl(getImage(path)))
-    .filter((url): url is string => Boolean(url))
-    .map((url) => absoluteUrl(url));
+    .filter((image): image is string => Boolean(image))
+    .map((image) => absoluteUrl(image));
 
   // Комбинации опций: по одной на каждое предложение. У товара без опций
   // список пустой — предложение будет одно, по цене товара.
   const combos = product.optionGroups.length ? allSelections(product) : [];
 
   let offers;
-  if (!hasPrice(range.min)) {
-    offers = undefined;
-  } else if (!combos.length) {
+  if (!combos.length) {
     offers = offerJsonLd(site, {
       price: range.min,
       inStock,
-      url: absoluteUrl(`/product/${product.slug}/`),
+      url,
       sku: product.sku,
     });
   } else if (combos.length <= VARIANT_OFFER_LIMIT) {
@@ -405,7 +434,7 @@ export function productJsonLd(product: Product, category?: Category) {
         price: variant.price,
         inStock: variant.inStock,
         url: variantUrl(product, selection),
-        sku: variant.sku,
+        sku: ownVariantSku(product, selection),
       });
     });
   } else {
@@ -416,14 +445,18 @@ export function productJsonLd(product: Product, category?: Category) {
       highPrice: schemaPrice(range.max),
       offerCount: combos.length,
       priceCurrency: site.currency,
-      availability,
-      seller: { "@id": `${site.url}/#store` },
+      availability: inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      seller: { "@id": storeId() },
     };
   }
 
   return {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${url}#product`,
+    url,
     name: product.title,
     description: clampDescription(
       product.description ?? product.title,
@@ -444,20 +477,21 @@ export function productJsonLd(product: Product, category?: Category) {
           })),
         }
       : {}),
-    ...(offers ? { offers } : {}),
+    offers,
   };
 }
 
 /** Список товаров категории — помогает Google понять структуру раздела. */
-export function itemListJsonLd(products: Product[], path: string) {
+export function itemListJsonLd(products: Product[], path: string, offset = 0) {
+  const items = products.slice(0, 60);
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     url: absoluteUrl(path),
-    numberOfItems: products.length,
-    itemListElement: products.slice(0, 50).map((product, index) => ({
+    numberOfItems: items.length,
+    itemListElement: items.map((product, index) => ({
       "@type": "ListItem",
-      position: index + 1,
+      position: offset + index + 1,
       url: absoluteUrl(`/product/${product.slug}/`),
       name: product.title,
     })),

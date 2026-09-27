@@ -90,3 +90,13 @@ export function listingHref(basePath: string, page: number, sort: SortKey): stri
   const query = search.toString();
   return query ? `${basePath}?${query}` : basePath;
 }
+
+export const FIRST_PAGE: ListingState = { page: 1, sort: "default" };
+
+export function pageSuffix(page: number): string {
+  return page > 1 ? ` — страница ${page}` : "";
+}
+
+export function pageCount(total: number): number {
+  return Math.max(1, Math.ceil(total / PER_PAGE));
+}

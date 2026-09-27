@@ -114,7 +114,7 @@ export default function DeliveryPage() {
                   {method.note}
                 </p>
               )}
-              {method.freeFrom != null && (
+              {method.freeFrom != null && method.freeFrom > 0 && method.price > 0 && (
                 <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-green-700">
                   <CheckIcon className="h-3.5 w-3.5" />
                   Бесплатно от{" "}

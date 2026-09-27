@@ -772,3 +772,41 @@ async function download(
     return "";
   }
 }
+
+const branchCache = new Map<string, string[]>();
+let branchVersion = -1;
+
+function podborBranches(): Map<string, string[]> {
+  const version = catalogVersion();
+  if (branchVersion === version) return branchCache;
+  branchCache.clear();
+  branchVersion = version;
+
+  const add = (podborPath: string, branchPath: string) => {
+    const list = branchCache.get(podborPath) ?? [];
+    list.push(branchPath);
+    branchCache.set(podborPath, list);
+  };
+
+  for (const category of fitmentCategories()) {
+    const base = carsRoot(category.slug);
+    for (const mark of getCarTree(category.id)) {
+      add(markUrl(mark.slug), markUrl(mark.slug, base));
+      for (const model of mark.models) {
+        add(modelUrl(mark.slug, model.slug), modelUrl(mark.slug, model.slug, base));
+        for (const generation of model.generations) {
+          add(
+            generationUrl(mark.slug, model.slug, generation.slug),
+            generationUrl(mark.slug, model.slug, generation.slug, base),
+          );
+        }
+      }
+    }
+  }
+  return branchCache;
+}
+
+export function singleBranchOf(podborPath: string): string | null {
+  const branches = podborBranches().get(podborPath);
+  return branches?.length === 1 ? branches[0] : null;
+}

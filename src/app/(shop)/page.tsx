@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CarPicker, type PickerMark } from "@/components/CarPicker";
+import { CarPicker } from "@/components/CarPicker";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
@@ -12,10 +12,7 @@ import {
   ShieldIcon,
   TruckIcon,
 } from "@/components/icons";
-import { years } from "@/lib/car-types";
-import { getCarTree } from "@/lib/cars";
-import { pickUrl } from "@/lib/image-types";
-import { getImage } from "@/lib/images";
+import { pickerMarks } from "@/lib/car-picker";
 import {
   getFeaturedProducts,
   getRootCategories,
@@ -38,30 +35,7 @@ export default function HomePage() {
   const site = getSite();
   const categories = getRootCategories();
   const featured = getFeaturedProducts(10);
-  const marks = getCarTree();
-  const currentYear = new Date().getFullYear();
-
-  // Дерево для выбора машины уезжает в разметку главной, поэтому ключи
-  // короткие, а годы посчитаны здесь: считать их в браузере значило бы
-  // тащить туда же текущую дату и правила подписи.
-  const pickerTree: PickerMark[] = marks.map((mark) => ({
-    s: mark.slug,
-    n: mark.name,
-    // Ссылку на логотип считаем здесь: манифест картинок серверный, в
-    // браузер он целиком не уезжает.
-    ...(mark.logo
-      ? { l: pickUrl(getImage(mark.logo), 48) ?? undefined }
-      : {}),
-    m: mark.models.map((model) => ({
-      s: model.slug,
-      n: model.name,
-      g: model.generations.map((generation) => ({
-        s: generation.slug,
-        n: generation.name,
-        y: years(generation, currentYear),
-      })),
-    })),
-  }));
+  const marks = pickerMarks();
   return (
     <>
       <JsonLd data={organizationJsonLd()} />
@@ -86,7 +60,7 @@ export default function HomePage() {
       */}
       <section className="beam grid-hint relative overflow-hidden border-b border-brand-100">
         <div className="container-page grid gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-8 lg:py-9">
-          <div className="rise">
+          <div>
             {/* h1 на главной — под самый частотный запрос. Текст менять
                 нельзя, а подать его крупнее можно. */}
             <h1 className="text-[2rem] leading-[1.08] font-semibold text-brand-900 sm:text-4xl lg:text-[2.6rem]">
@@ -209,7 +183,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <CarPicker tree={pickerTree} />
+            <CarPicker marks={marks} />
           </div>
         </section>
       )}
@@ -235,7 +209,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <CategoryGrid categories={categories} priorityCount={4} />
+        <CategoryGrid categories={categories} />
       </section>
 
       {/* ---------------------------- Хиты ------------------------------ */}
@@ -249,14 +223,11 @@ export default function HomePage() {
               </h2>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-              {featured.map((product, position) => (
+              {featured.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   currencySymbol={site.currencySymbol}
-                  // Первые две карточки видны без скролла — их фото
-                  // участвуют в LCP, поэтому грузим их сразу.
-                  priority={position < 2}
                 />
               ))}
             </div>

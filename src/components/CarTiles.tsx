@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ImagePlaceholder, Picture } from "@/components/Picture";
 import {
   CARS_ROOT,
+  carName,
   generationUrl,
   markUrl,
   modelUrl,
@@ -46,7 +47,7 @@ export function MarkTile({
         {mark.logo ? (
           <Picture
             entry={getImage(mark.logo)}
-            alt=""
+            alt={`Логотип ${mark.name}`}
             sizes="48px"
             priority={priority}
             className="h-full w-full object-contain"
@@ -115,7 +116,7 @@ export function MarkChips({
               {mark.logo ? (
                 <Picture
                   entry={getImage(mark.logo)}
-                  alt=""
+                  alt={`Логотип ${mark.name}`}
                   sizes="28px"
                   priority={position < priorityCount}
                   className="h-full w-full object-contain"
@@ -198,7 +199,7 @@ export function GenerationTile({
       <span className="relative block aspect-[16/10] overflow-hidden bg-white">
         <Picture
           entry={getImage(generation.photo)}
-          alt=""
+          alt={`${carName(mark, model, generation)}${period ? `, ${period}` : ""}`}
           sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 320px"
           priority={priority}
           className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"
@@ -279,7 +280,7 @@ export function GenerationList({
               <span className="block w-20 shrink-0 overflow-hidden rounded-lg bg-white">
                 <Picture
                   entry={getImage(generation.photo)}
-                  alt=""
+                  alt={`${carName(mark, model, generation)}${period ? `, ${period}` : ""}`}
                   sizes="80px"
                   priority={position < priorityCount}
                   className="aspect-[16/10] h-auto w-full object-contain"

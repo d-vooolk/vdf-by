@@ -42,7 +42,7 @@ export function Footer() {
         </div>
 
         <nav aria-label="Каталог">
-          <h2 className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Каталог</h2>
+          <p className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Каталог</p>
           <ul className="space-y-2 text-sm">
             {hasCars && (
               <li>
@@ -58,6 +58,7 @@ export function Footer() {
               <li key={category.id}>
                 <Link
                   href={categoryUrl(category)}
+                  prefetch={false}
                   className="text-brand-500 transition-colors hover:text-brand-900"
                 >
                   {category.name}
@@ -68,14 +69,15 @@ export function Footer() {
         </nav>
 
         <nav aria-label="Информация">
-          <h2 className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">
+          <p className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">
             Информация
-          </h2>
+          </p>
           <ul className="space-y-2 text-sm">
             {INFO_PAGES.map((page) => (
               <li key={page.href}>
                 <Link
                   href={page.href}
+                  prefetch={false}
                   className="text-brand-500 transition-colors hover:text-brand-900"
                 >
                   {page.label}
@@ -86,7 +88,7 @@ export function Footer() {
         </nav>
 
         <div>
-          <h2 className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Связаться</h2>
+          <p className="mb-4 text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Связаться</p>
           <a
             href={`tel:${site.phoneHref}`}
             className="flex items-center gap-2 text-base font-semibold text-brand-900 transition-colors hover:text-brand-500"

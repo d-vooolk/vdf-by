@@ -41,16 +41,6 @@ export const metadata: Metadata = {
   description: site.description,
   applicationName: site.name,
   authors: [{ name: site.legalName }],
-  keywords: [
-    "автосвет",
-    "линзы для фар",
-    "би-лед линзы",
-    "стёкла фар",
-    "автомобильные лампы",
-    "блоки розжига",
-    "Минск",
-    "Беларусь",
-  ],
   formatDetection: { telephone: true },
   openGraph: {
     type: "website",

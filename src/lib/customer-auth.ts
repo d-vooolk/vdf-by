@@ -9,6 +9,7 @@ import {
 } from "./customers";
 
 const COOKIE = "vdf_customer";
+export const SIGNED_IN_COOKIE = "vdf_signed";
 
 export const getCustomer = cache(async (): Promise<Customer | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
@@ -24,6 +25,12 @@ export async function signInCustomer(customerId: number): Promise<void> {
     path: "/",
     expires: new Date(expiresAt),
   });
+  (await cookies()).set(SIGNED_IN_COOKIE, "1", {
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(expiresAt),
+  });
 }
 
 export async function signOutCustomer(): Promise<void> {
@@ -31,4 +38,5 @@ export async function signOutCustomer(): Promise<void> {
   const token = store.get(COOKIE)?.value;
   if (token) deleteCustomerSession(token);
   store.delete(COOKIE);
+  store.delete(SIGNED_IN_COOKIE);
 }

@@ -8,6 +8,7 @@ import {
   type Product,
   type Site,
 } from "./schema";
+import { firstParagraph } from "./text";
 import { hasAnyInStock } from "./variant";
 
 /**
@@ -355,10 +356,72 @@ export function getPageDates(): Map<string, Date> {
         .all() as Array<{ id: string; updated_at: number }>
     ).map((row) => [row.id, row.updated_at]),
   );
+  const productDates = new Map(
+    (
+      getDb()
+        .prepare("SELECT id, updated_at FROM products")
+        .all() as Array<{ id: string; updated_at: number }>
+    ).map((row) => [row.id, row.updated_at]),
+  );
   for (const category of load().categories) {
-    const at = categoryDates.get(category.id);
-    if (at) dates.set(categoryUrl(category), new Date(at));
+    const own = categoryDates.get(category.id) ?? 0;
+    const latest = getProductsInCategory(category.id).reduce(
+      (max, product) => Math.max(max, productDates.get(product.id) ?? 0),
+      own,
+    );
+    if (latest) dates.set(categoryUrl(category), new Date(latest));
   }
 
   return dates;
+}
+
+/** Подраздел вместе с проверкой, что он лежит именно в этом родителе. */
+export function resolveSubcategory(parentSlug: string, slug: string): Category | undefined {
+  const category = getCategoryBySlug(slug);
+  if (!category?.parentId) return undefined;
+  const parent = getCategoryById(category.parentId);
+  return parent?.slug === parentSlug ? category : undefined;
+}
+
+interface RepeatedTexts {
+  version: number;
+  titles: Set<string>;
+  leads: Set<string>;
+}
+
+let repeated: RepeatedTexts | null = null;
+
+function textKey(text: string): string {
+  return text.replace(/s+/g, " ").trim().toLowerCase();
+}
+
+function repeatedKeys(values: string[]): Set<string> {
+  const seen = new Set<string>();
+  const twice = new Set<string>();
+  for (const value of values) {
+    if (!value) continue;
+    if (seen.has(value)) twice.add(value);
+    seen.add(value);
+  }
+  return twice;
+}
+
+function repeatedTexts(): RepeatedTexts {
+  const { products, version } = load();
+  if (repeated?.version === version) return repeated;
+  repeated = {
+    version,
+    titles: repeatedKeys(products.map((product) => textKey(product.title))),
+    leads: repeatedKeys(products.map((product) => textKey(firstParagraph(product.description)))),
+  };
+  return repeated;
+}
+
+export function hasTwinTitle(product: Product): boolean {
+  return repeatedTexts().titles.has(textKey(product.title));
+}
+
+export function hasSharedLead(product: Product): boolean {
+  const lead = textKey(firstParagraph(product.description));
+  return Boolean(lead) && repeatedTexts().leads.has(lead);
 }

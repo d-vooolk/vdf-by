@@ -63,6 +63,8 @@ export function savePrompt(task: AiTask, prompt: string | null): void {
 }
 
 export interface AiProductInput {
+  kind?: "product" | "category";
+  items?: string[];
   title: string;
   description: string;
   categoryName?: string;
@@ -76,8 +78,19 @@ export interface AiProductInput {
 export const MAX_PROMPT = 8000;
 const MAX_SOURCE = 20000;
 
+const CATEGORY_NOTE =
+  "Это страница раздела каталога, а не отдельного товара. Пиши о выборе и подборе товаров этого раздела, опираясь на список товаров ниже. Если исходного описания нет, напиши текст раздела с нуля по тем же требованиям.";
+
 export function describeProduct(input: AiProductInput, withFaq: boolean): string {
-  const lines = [`Название товара: ${input.title.trim()}`];
+  const category = input.kind === "category";
+  const lines = category
+    ? [CATEGORY_NOTE, "", `Название раздела: ${input.title.trim()}`]
+    : [`Название товара: ${input.title.trim()}`];
+  const items = (input.items ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 40);
+  if (category && items.length) {
+    lines.push("Товары раздела:");
+    for (const item of items) lines.push(`- ${item.slice(0, 160)}`);
+  }
   if (input.categoryName) lines.push(`Раздел каталога: ${input.categoryName}`);
   if (input.brand?.trim()) lines.push(`Бренд: ${input.brand.trim()}`);
 

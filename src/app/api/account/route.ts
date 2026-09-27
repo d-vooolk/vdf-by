@@ -1,5 +1,12 @@
+import { cookies } from "next/headers";
+
 import { getSite } from "@/lib/catalog";
-import { getCustomer, signInCustomer, signOutCustomer } from "@/lib/customer-auth";
+import {
+  getCustomer,
+  SIGNED_IN_COOKIE,
+  signInCustomer,
+  signOutCustomer,
+} from "@/lib/customer-auth";
 import {
   canSendCode,
   findCustomerByPhone,
@@ -43,6 +50,12 @@ const noStore = { headers: { "Cache-Control": "no-store" } };
 export async function GET() {
   const customer = await getCustomer();
   if (!customer) return Response.json({ customer: null }, noStore);
+  (await cookies()).set(SIGNED_IN_COOKIE, "1", {
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 90,
+  });
   return Response.json(
     {
       customer: publicCustomer(customer),

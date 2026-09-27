@@ -1,4 +1,5 @@
 import { CategoryForm } from "@/components/admin/CategoryForm";
+import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
 import { getCategories } from "@/lib/catalog";
 import { listCategoriesBrief } from "@/lib/store";
 
@@ -19,6 +20,8 @@ export default function NewCategoryPage() {
       thumbs={{}}
       productCount={0}
       categories={listCategoriesBrief()}
+      ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
+      productTitles={[]}
     />
   );
 }

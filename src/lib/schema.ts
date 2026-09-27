@@ -159,6 +159,7 @@ const deliveryMethodSchema = z.strictObject({
   price: money,
   freeFrom: money.nullable().optional(),
   requiresAddress: z.boolean(),
+  area: z.enum(["city", "country"]).optional(),
   note: z.string().optional(),
   /**
    * Срок доставки в рабочих днях — от и до.

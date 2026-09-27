@@ -56,7 +56,7 @@ export default function CarsPage() {
 
       {marks.length > 0 ? (
         <nav aria-label="Марки автомобилей">
-          <MarkGrid marks={marks} priorityCount={6} />
+          <MarkGrid marks={marks} />
         </nav>
       ) : (
         <p className="card p-10 text-center text-sm text-brand-400">

@@ -8,13 +8,19 @@ import {
   modelUrl,
   type FitMark,
 } from "@/lib/car-types";
-import { fitmentCategories, getCarPageDates, getCarTree } from "@/lib/cars";
+import {
+  fitmentCategories,
+  getCarPageDates,
+  getCarTree,
+  singleBranchOf,
+} from "@/lib/cars";
 import {
   categoryUrl,
   getCategories,
   getLastModified,
   getPageDates,
   getProducts,
+  getProductsInCategory,
   getSiteModified,
 } from "@/lib/catalog";
 import { getImage } from "@/lib/images";
@@ -140,7 +146,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       return [markEntry, ...inner];
     });
 
-  const podborEntries = carEntries(cars, CARS_ROOT);
+  const podborEntries = carEntries(cars, CARS_ROOT).filter(
+    (entry) => !singleBranchOf(new URL(entry.url).pathname),
+  );
 
   const branchEntries = fitmentCategories().flatMap((category) =>
     carEntries(getCarTree(category.id), carsRoot(category.slug)),
@@ -164,7 +172,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     // Адрес подраздела вложенный, поэтому его собирает categoryUrl.
-    ...getCategories().map(categoryEntry),
+    ...getCategories()
+      .filter((category) => getProductsInCategory(category.id).length > 0)
+      .map(categoryEntry),
     ...getProducts().map(productEntry),
     // Корень подбора попадает в карту, только когда в нём есть хоть одна
     // марка: пустая страница в sitemap — это заявка на «страница-пустышка».

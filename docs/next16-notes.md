@@ -140,6 +140,24 @@ revalidatePath('/', 'layout')                // сброс всего + клие
 
 ---
 
+### Пагинация и сортировка без динамики (rewrites по query)
+
+`/catalog/` и разделы статические: страница не читает `searchParams`.
+Адреса `?page=N` и `?sort=…` ловят `beforeFiles`-rewrites в
+`next.config.ts` (`has`/`missing` по query, значение захватывается
+именованной группой `(?<page>…)`) и отправляют на
+`/listing/[page]/[sort]/[[...path]]/` с пустым `generateStaticParams` —
+каждая комбинация собирается при первом заходе и дальше лежит в ISR-кеше.
+
+- Нужны именно `beforeFiles`: `/catalog/` — не динамический маршрут, он
+  отдаётся на шаге 5, раньше `afterFiles`.
+- При `trailingSlash: true` слеш ставится и в `source`, и в `destination`.
+- Внутренний адрес `/listing/…` доступен и напрямую — поэтому canonical
+  всегда публичный (`?page=`), а `/listing/` закрыт в robots.txt.
+- Сброс кеша — шаблоном: `revalidatePath('/listing/[page]/[sort]/[[...path]]', 'page')`.
+- `usePathname()` при rewrite в браузере вернёт исходный адрес, а на сервере
+  — внутренний; рендерить по нему разметку нельзя (hydration mismatch).
+
 ## 5. generateStaticParams
 
 - Должна **всегда** возвращать массив, даже пустой — иначе маршрут станет
@@ -180,6 +198,20 @@ revalidatePath('/', 'layout')                // сброс всего + клие
 
 ---
 
+### 404 внутри группы (shop)
+
+`notFound()` из страницы витрины (товар, раздел, подбор) отдаёт правильный
+статус 404, но HTML — пустую оболочку `<html id="__next_error__">`, а
+содержимое 404 дорисовывает клиент. Так было и до выноса `(shop)/not-found.tsx`.
+Для индекса это не важно (статус 404), но catch-all `(shop)/[...missing]`
+с `notFound()` делать нельзя: адреса, не совпавшие ни с одним маршрутом,
+сейчас рендерит корневой `app/not-found.tsx` полноценным HTML, а catch-all
+перевёл бы их в ту же оболочку.
+
+Разметка корневой и сегментной `not-found` сериализуется в RSC-данные
+**каждой** страницы (границы корневого макета и макета витрины). Поэтому обе
+держим лёгкими: без `Header`/`Footer`.
+
 ## 8. after()
 
 `src/lib/indexnow.ts` использует `after()` из `next/server`.
@@ -208,6 +240,11 @@ revalidatePath('/', 'layout')                // сброс всего + клие
   нужно.
 - Из вывода `next build` убраны `size` и `First Load JS` — мерить вес через
   Lighthouse или наш `npm run weight`.
+- `compress: false` — сжатие делает nginx (gzip, при установленном модуле —
+  brotli). Без nginx `next start` отдаёт HTML несжатым; `npm run weight`
+  жмёт сам и это не замечает. В `gzip_types` обязателен `text/x-component`
+  — это RSC-ответы навигации и префетча.
+- `poweredByHeader: false` убирает `X-Powered-By: Next.js`.
 - В `next.config.ts` при `next dev` в `process.argv` **нет** `'dev'`; проверять
   `process.env.NODE_ENV === 'development'`.
 - ISR-кеш лежит на диске конкретного инстанса. Один сервер с постоянным диском —

@@ -41,6 +41,7 @@ export default async function EditProductPage({ params }: PageProps) {
       // опций — иначе форме пришлось бы угадывать их по имени файла.
       thumbs={thumbsFor(allProductImages(product))}
       currencySymbol={site.currencySymbol}
+      siteName={site.name}
       ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
     />
   );

@@ -14,7 +14,7 @@ import { revalidateImages } from "@/lib/revalidate";
  * плохой размен.
  *
  * Файл прогоняется через тот же конвейер, что и скрипт первичного импорта
- * (src/lib/image-pipeline.mjs): avif и webp в четырёх ширинах, jpeg-фолбэк и
+ * (src/lib/image-pipeline.mjs): avif и webp в пяти ширинах, jpeg-фолбэк и
  * размытая заглушка. Результат — в public/img, запись — в таблицу images.
  */
 

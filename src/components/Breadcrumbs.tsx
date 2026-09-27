@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { ChevronRightIcon } from "@/components/icons";
-import { getSite } from "@/lib/catalog";
+import { JsonLd } from "@/components/JsonLd";
+import { absoluteUrl } from "@/lib/seo";
 
 /**
  * Хлебные крошки. Помимо навигации отдают Google разметку BreadcrumbList —
@@ -15,7 +16,6 @@ export interface Crumb {
 }
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
-  const site = getSite();
   const trail: Crumb[] = [{ label: "Главная", href: "/" }, ...items];
 
   const jsonLd = {
@@ -26,7 +26,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
       position: index + 1,
       name: crumb.label,
       // Последний элемент — текущая страница, у него item не указывается.
-      ...(crumb.href ? { item: `${site.url}${crumb.href}` } : {}),
+      ...(crumb.href ? { item: absoluteUrl(crumb.href) } : {}),
     })),
   };
 
@@ -50,10 +50,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
           ))}
         </ol>
       </nav>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
     </>
   );
 }

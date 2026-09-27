@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 
 import { CategoryForm } from "@/components/admin/CategoryForm";
 import { thumbsFor } from "@/lib/admin-thumbs";
+import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
+import { getProductsInCategory } from "@/lib/catalog";
 import { getCategoryRaw, listCategoriesBrief } from "@/lib/store";
 
 interface PageProps {
@@ -30,6 +32,8 @@ export default async function EditCategoryPage({ params }: PageProps) {
       thumbs={thumbsFor(category.image ? [category.image] : [])}
       productCount={count}
       categories={categories}
+      ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
+      productTitles={getProductsInCategory(category.id).map((product) => product.title)}
     />
   );
 }

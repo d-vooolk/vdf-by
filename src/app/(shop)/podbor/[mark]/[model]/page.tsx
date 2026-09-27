@@ -7,11 +7,16 @@ import { CatalogControls, type CatalogItem } from "@/components/CatalogControls"
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { carName, markUrl, modelUrl } from "@/lib/car-types";
+import { Faq } from "@/components/Faq";
+import { ListingFacts } from "@/components/ListingFacts";
+import { carFaq, categoryList, categoryPhrase } from "@/lib/car-content";
 import {
   findMark,
   findModel,
   getCarTree,
   getProductsForModel,
+  groupByCategory,
+  singleBranchOf,
 } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
@@ -54,21 +59,27 @@ export async function generateMetadata({
   const { mark, model } = found;
   const site = getSite();
   const products = getProductsForModel(model.id);
+  const groups = groupByCategory(products);
   const cheapest = cheapestPrice(products);
+  const path = modelUrl(mark.slug, model.slug);
 
   const title = carName(mark, model);
 
   return buildMetadata({
-    title: `Автосвет для ${title} — линзы, стёкла фар, лампы`,
+    title: `${categoryPhrase(groups)} для ${title} купить в Минске`,
     description: sentences(
-      `Линзы, стёкла фар и лампы для ${title}`,
+      `${categoryList(groups) || "Автосвет"} для ${title}`,
       model.generations.length > 0 &&
         `${pluralize(model.generations.length, "поколение", "поколения", "поколений")} в подборе`,
       products.length > 0 &&
         `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Доставка по Минску и Беларуси",
     ),
-    path: modelUrl(mark.slug, model.slug),
+    path,
+    canonical: singleBranchOf(path) ?? undefined,
+    image:
+      model.generations.find((generation) => generation.photo)?.photo ??
+      products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -82,6 +93,7 @@ export default async function ModelPage({ params }: PageProps) {
   const products = getProductsForModel(model.id);
   const currentYear = new Date().getFullYear();
   const title = carName(mark, model);
+  const phrase = categoryPhrase(groupByCategory(products));
 
   const items: CatalogItem[] = products.map((product, position) => ({
     id: product.id,
@@ -104,7 +116,7 @@ export default async function ModelPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Товары для {title}
+          {phrase} для {title}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
           Выберите поколение.
@@ -117,7 +129,7 @@ export default async function ModelPage({ params }: PageProps) {
           mark={mark}
           model={model}
           currentYear={currentYear}
-          priorityCount={4}
+          priorityCount={2}
         />
       </nav>
 
@@ -130,17 +142,33 @@ export default async function ModelPage({ params }: PageProps) {
             items={items}
             titles={products.map((product) => product.title)}
           >
-            {products.map((product, position) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 currencySymbol={site.currencySymbol}
-                priority={position < 3}
               />
             ))}
           </CatalogControls>
         </section>
       )}
+
+      <ListingFacts
+        title={`${phrase} для ${title}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
+      <Faq
+        items={carFaq({
+          what: phrase,
+          car: title,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${phrase} для ${title}: вопросы и ответы`}
+      />
     </div>
   );
 }

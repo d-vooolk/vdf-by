@@ -65,5 +65,5 @@ export function GET() {
     };
   });
 
-  return Response.json(entries);
+  return Response.json(entries, { headers: { "x-robots-tag": "noindex" } });
 }

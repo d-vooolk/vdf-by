@@ -72,6 +72,8 @@ export function FloatingContacts({ channels }: { channels: Channel[] }) {
             alt=""
             width={52}
             height={52}
+            loading="lazy"
+            fetchPriority="low"
             className="h-full w-full"
           />
         </a>
@@ -95,6 +97,8 @@ export function FloatingContacts({ channels }: { channels: Channel[] }) {
             alt=""
             width={52}
             height={52}
+            loading="lazy"
+            fetchPriority="low"
             className="h-full w-full"
           />
         )}

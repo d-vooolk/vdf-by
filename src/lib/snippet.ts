@@ -4,7 +4,8 @@ import { firstParagraph } from "./text";
 import { hasPrice, priceRange } from "./variant";
 
 export const DESCRIPTION_LIMIT = 165;
-export const TITLE_LIMIT = 60;
+export const TITLE_LIMIT = 65;
+export const TITLE_SEPARATOR = " — ";
 
 const MIN_LEAD = 80;
 
@@ -41,30 +42,50 @@ export interface ProductSnippetInput {
   product: Product;
   categoryName?: string;
   currencySymbol: string;
+  siteName?: string;
+  twinTitle?: boolean;
+  sharedLead?: boolean;
 }
 
 export interface ProductSnippet {
   title: string;
+  fullTitle: string;
+  absoluteTitle: boolean;
   description: string;
   generatedTitle: string;
   generatedDescription: string;
+}
+
+export function brandSuffix(siteName: string | undefined): string {
+  return siteName ? `${TITLE_SEPARATOR}${siteName}` : "";
 }
 
 export function productSnippet({
   product,
   categoryName,
   currencySymbol,
+  siteName,
+  twinTitle = false,
+  sharedLead = false,
 }: ProductSnippetInput): ProductSnippet {
   const range = priceRange(product);
   const price = formatPrice(range.min, currencySymbol);
   const priceLabel = hasPrice(range.min) ? (range.varies ? `от ${price}` : price) : "";
   const priceTail = priceLabel ? [priceLabel] : [];
+  const suffix = brandSuffix(siteName);
 
-  const titleWithPrice = priceLabel ? `${product.title} — ${priceLabel}` : product.title;
+  const baseTitle =
+    twinTitle && product.sku ? `${product.title}, арт. ${product.sku}` : product.title;
+  const titleWithPrice = priceLabel ? `${baseTitle}${TITLE_SEPARATOR}${priceLabel}` : baseTitle;
   const generatedTitle =
-    titleWithPrice.length <= TITLE_LIMIT ? titleWithPrice : product.title;
+    titleWithPrice.length + suffix.length <= TITLE_LIMIT ? titleWithPrice : baseTitle;
 
-  const lead = firstParagraph(product.description) || product.title;
+  const paragraph = firstParagraph(product.description);
+  const lead = !paragraph
+    ? product.title
+    : sharedLead
+      ? `${product.title}. ${paragraph}`
+      : paragraph;
   const tails = [
     [
       ...priceTail,
@@ -82,8 +103,13 @@ export function productSnippet({
   const room = DESCRIPTION_LIMIT - (tail.length ? joinSentences(tail).length + 2 : 0);
   const generatedDescription = joinSentences([leadSentences(lead, room), ...tail]);
 
+  const title = product.seoTitle?.trim() || generatedTitle;
+  const absoluteTitle = title.length + suffix.length > TITLE_LIMIT;
+
   return {
-    title: product.seoTitle?.trim() || generatedTitle,
+    title,
+    fullTitle: absoluteTitle ? title : `${title}${suffix}`,
+    absoluteTitle,
     description: product.seoDescription?.trim() || generatedDescription,
     generatedTitle,
     generatedDescription,

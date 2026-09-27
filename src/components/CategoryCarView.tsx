@@ -6,6 +6,7 @@ import { GenerationList, ModelList } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
+import { ListingFacts } from "@/components/ListingFacts";
 import { ProductCard } from "@/components/ProductCard";
 import {
   categoriesForGeneration,
@@ -29,6 +30,7 @@ import {
   getProductsForMark,
   getProductsForModel,
 } from "@/lib/cars";
+import { carFaq } from "@/lib/car-content";
 import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
@@ -71,7 +73,7 @@ function ProductGrid({
           key={product.id}
           product={product}
           currencySymbol={currencySymbol}
-          priority={position < 3}
+          priority={position < 2}
         />
       ))}
     </div>
@@ -90,12 +92,11 @@ function Filtered({
       items={catalogItems(products)}
       titles={products.map((product) => product.title)}
     >
-      {products.map((product, position) => (
+      {products.map((product) => (
         <ProductCard
           key={product.id}
           product={product}
           currencySymbol={currencySymbol}
-          priority={position < 3}
         />
       ))}
     </CatalogControls>
@@ -156,7 +157,7 @@ export function categoryMarkMetadata({ category, mark }: MarkScope): Metadata {
   const products = getProductsForMark(mark.id, category.id);
 
   return buildMetadata({
-    title: `${category.name} для ${mark.name}`,
+    title: `${category.name} для ${mark.name} купить в Минске`,
     description: sentences(
       `${category.name} для ${mark.name} с подбором по модели и поколению`,
       mark.models.length > 0 &&
@@ -168,6 +169,7 @@ export function categoryMarkMetadata({ category, mark }: MarkScope): Metadata {
       "Доставка по Минску и Беларуси, оплата при получении",
     ),
     path: markUrl(mark.slug, carsRoot(category.slug)),
+    image: products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -214,9 +216,21 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
         allLabel={`Весь автосвет для ${mark.name}`}
       />
 
+      <ListingFacts
+        title={`${category.name} для ${mark.name}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
       <Faq
-        items={category.faq ?? []}
-        title={`${category.name}: частые вопросы`}
+        items={carFaq({
+          what: category.name,
+          car: mark.name,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${category.name} для ${mark.name}: вопросы и ответы`}
       />
     </div>
   );
@@ -232,7 +246,7 @@ export function categoryModelMetadata({
   const title = carName(mark, model);
 
   return buildMetadata({
-    title: `${category.name} для ${title}`,
+    title: `${category.name} для ${title} купить в Минске`,
     description: sentences(
       `${category.name} для ${title}`,
       model.generations.length > 0 &&
@@ -241,6 +255,9 @@ export function categoryModelMetadata({
       "Доставка по Минску и Беларуси",
     ),
     path: modelUrl(mark.slug, model.slug, carsRoot(category.slug)),
+    image:
+      model.generations.find((generation) => generation.photo)?.photo ??
+      products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -281,7 +298,6 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
           model={model}
           currentYear={THIS_YEAR}
           base={base}
-          priorityCount={4}
         />
       </nav>
 
@@ -301,9 +317,21 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
         allLabel={`Весь автосвет для ${title}`}
       />
 
+      <ListingFacts
+        title={`${category.name} для ${title}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
       <Faq
-        items={category.faq ?? []}
-        title={`${category.name}: частые вопросы`}
+        items={carFaq({
+          what: category.name,
+          car: title,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${category.name} для ${title}: вопросы и ответы`}
       />
     </div>
   );
@@ -333,6 +361,7 @@ export function categoryGenerationMetadata({
       generation.slug,
       carsRoot(category.slug),
     ),
+    image: generation.photo || products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -422,9 +451,22 @@ export function CategoryGenerationView({
         allLabel={`Весь автосвет для ${title}`}
       />
 
+      <ListingFacts
+        title={`${category.name} для ${title}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
       <Faq
-        items={category.faq ?? []}
-        title={`${category.name}: частые вопросы`}
+        items={carFaq({
+          what: category.name,
+          car: title,
+          period,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${category.name} для ${title}: вопросы и ответы`}
       />
     </div>
   );

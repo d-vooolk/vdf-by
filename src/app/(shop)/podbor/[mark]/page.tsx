@@ -7,7 +7,16 @@ import { CatalogControls, type CatalogItem } from "@/components/CatalogControls"
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { markUrl } from "@/lib/car-types";
-import { findMark, getCarTree, getProductsForMark } from "@/lib/cars";
+import { Faq } from "@/components/Faq";
+import { ListingFacts } from "@/components/ListingFacts";
+import { carFaq, categoryList, categoryPhrase } from "@/lib/car-content";
+import {
+  findMark,
+  getCarTree,
+  getProductsForMark,
+  groupByCategory,
+  singleBranchOf,
+} from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
@@ -39,12 +48,14 @@ export async function generateMetadata({
 
   const site = getSite();
   const products = getProductsForMark(mark.id);
+  const groups = groupByCategory(products);
   const cheapest = cheapestPrice(products);
+  const path = markUrl(mark.slug);
 
   return buildMetadata({
-    title: `Автосвет для ${mark.name} — линзы, стёкла фар, лампы`,
+    title: `${categoryPhrase(groups)} для ${mark.name} купить в Минске`,
     description: sentences(
-      `Линзы, стёкла фар и лампы для ${mark.name}`,
+      `${categoryList(groups) || "Автосвет"} для ${mark.name}`,
       `Подбор по модели и поколению: ${mark.models
         .slice(0, 6)
         .map((model) => model.name)
@@ -53,7 +64,9 @@ export async function generateMetadata({
         `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Доставка по Минску и Беларуси, оплата при получении",
     ),
-    path: markUrl(mark.slug),
+    path,
+    canonical: singleBranchOf(path) ?? undefined,
+    image: products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -64,6 +77,7 @@ export default async function MarkPage({ params }: PageProps) {
 
   const site = getSite();
   const products = getProductsForMark(mark.id);
+  const phrase = categoryPhrase(groupByCategory(products));
 
   const items: CatalogItem[] = products.map((product, position) => ({
     id: product.id,
@@ -85,7 +99,7 @@ export default async function MarkPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Товары для {mark.name}
+          {phrase} для {mark.name}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
           Выберите модель, а затем поколение.
@@ -106,17 +120,33 @@ export default async function MarkPage({ params }: PageProps) {
             items={items}
             titles={products.map((product) => product.title)}
           >
-            {products.map((product, position) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 currencySymbol={site.currencySymbol}
-                priority={position < 3}
               />
             ))}
           </CatalogControls>
         </section>
       )}
+
+      <ListingFacts
+        title={`${phrase} для ${mark.name}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
+      <Faq
+        items={carFaq({
+          what: phrase,
+          car: mark.name,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${phrase} для ${mark.name}: вопросы и ответы`}
+      />
     </div>
   );
 }

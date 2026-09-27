@@ -5,6 +5,7 @@ import { MarkChips } from "@/components/CarTiles";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
+import { ListingFacts } from "@/components/ListingFacts";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
 import { getCarTree } from "@/lib/cars";
@@ -16,7 +17,14 @@ import {
   getSite,
 } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
-import { clampPage, listingHref, listingPage, type ListingState } from "@/lib/listing";
+import {
+  clampPage,
+  listingHref,
+  listingPage,
+  pageSuffix,
+  PER_PAGE,
+  type ListingState,
+} from "@/lib/listing";
 import type { Category } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
@@ -38,6 +46,19 @@ import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
  * /product/…, так что склейки в поиске это не создаёт.
  */
 
+function stockLine(
+  total: number,
+  available: number,
+  cheapest: number,
+  currencySymbol: string,
+): string {
+  const count = pluralize(total, "позиция", "позиции", "позиций");
+  const stock =
+    available === total ? " в наличии" : available > 0 ? `, ${available} в наличии` : "";
+  const price = cheapest ? `, цены от ${formatPrice(cheapest, currencySymbol)}` : "";
+  return `${count}${stock}${price}`;
+}
+
 export function categoryMetadata(category: Category, listing: ListingState): Metadata {
   const site = getSite();
   const products = getProductsInCategory(category.id);
@@ -47,29 +68,27 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
   const available = products.filter(hasAnyInStock).length;
   const page = clampPage(products.length, listing.page);
 
+  const description =
+    category.seoDescription ??
+    sentences(
+      category.excerpt ?? category.name,
+      children.length > 0 &&
+        `Разделы: ${children.map((child) => child.name).join(", ")}`,
+      marks.length > 0 &&
+        `Подбор по автомобилю: ${marks
+          .slice(0, 8)
+          .map((mark) => mark.name)
+          .join(", ")}`,
+      products.length > 0 && stockLine(products.length, available, cheapest, site.currencySymbol),
+      "Доставка по Минску и Беларуси, оплата при получении",
+    );
+
   return buildMetadata({
-    title: `${category.seoTitle ?? `${category.name} купить в Минске`}${page > 1 ? ` — страница ${page}` : ""}`,
-    description:
-      category.seoDescription ??
-      sentences(
-        category.excerpt ?? category.name,
-        children.length > 0 &&
-          `Разделы: ${children.map((child) => child.name).join(", ")}`,
-        marks.length > 0 &&
-          `Подбор по автомобилю: ${marks
-            .slice(0, 8)
-            .map((mark) => mark.name)
-            .join(", ")}`,
-        products.length > 0 &&
-          `${
-            available > 0
-              ? `${pluralize(available, "позиция", "позиции", "позиций")} в наличии`
-              : pluralize(products.length, "позиция", "позиции", "позиций")
-          }${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
-        "Доставка по Минску и Беларуси, оплата при получении",
-      ),
+    title: `${category.seoTitle ?? `${category.name} купить в Минске`}${pageSuffix(page)}`,
+    description: page > 1 ? sentences(`${category.name}, страница ${page}`, description) : description,
     path: listingHref(categoryUrl(category), page, "default"),
-    image: category.image,
+    image: category.image ?? products.find((product) => product.images[0])?.images[0],
+    noIndex: products.length === 0,
   });
 }
 
@@ -103,11 +122,18 @@ export function CategoryView({
           })),
         ]}
       />
-      <JsonLd data={itemListJsonLd(shown.items, url)} />
+      <JsonLd
+        data={itemListJsonLd(
+          shown.items,
+          listingHref(url, shown.page, "default"),
+          (shown.page - 1) * PER_PAGE,
+        )}
+      />
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
           {category.name}
+          {shown.page > 1 ? `: страница ${shown.page}` : ""}
         </h1>
       </header>
 
@@ -116,7 +142,7 @@ export function CategoryView({
           className="mb-10"
           aria-label={`Подразделы раздела «${category.name}»`}
         >
-          <CategoryGrid categories={children} priorityCount={4} />
+          <CategoryGrid categories={children} priorityCount={shown.page === 1 ? 2 : 0} />
         </nav>
       )}
 
@@ -135,7 +161,6 @@ export function CategoryView({
           <MarkChips
             marks={marks}
             base={carsRoot(category.slug)}
-            priorityCount={12}
           />
         </nav>
       )}
@@ -176,6 +201,14 @@ export function CategoryView({
             <p key={index}>{paragraph}</p>
           ))}
         </section>
+      )}
+
+      {shown.page === 1 && (
+        <ListingFacts
+          title={`${category.name}: коротко о разделе`}
+          products={products}
+          currencySymbol={site.currencySymbol}
+        />
       )}
 
       {shown.page === 1 && <Faq items={category.faq ?? []} schema />}

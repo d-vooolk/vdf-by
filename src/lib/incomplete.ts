@@ -8,6 +8,7 @@ export const GAPS = {
   photo: "нет фото",
   faq: "нет вопросов-ответов",
   cars: "не привязан к авто",
+  twin: "название как у другого товара",
 } as const;
 
 export type Gap = keyof typeof GAPS;
@@ -62,9 +63,17 @@ export function listIncompleteProducts(): IncompleteProduct[] {
     cars: number;
   }>;
 
+  const titleKey = (title: string) => title.replace(/s+/g, " ").trim().toLowerCase();
+  const titleCounts = new Map<string, number>();
+  for (const row of rows) {
+    const key = titleKey(row.title);
+    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
+  }
+
   return rows.flatMap((row) => {
     const product = JSON.parse(row.data) as Partial<Product>;
     const gaps = gapsOf(product, row.carFitment === 1, row.cars);
+    if ((titleCounts.get(titleKey(row.title)) ?? 0) > 1) gaps.push("twin");
     if (!gaps.length) return [];
     return [
       {

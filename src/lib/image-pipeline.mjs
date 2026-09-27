@@ -16,9 +16,10 @@ import path from "node:path";
  */
 
 /** Ширины под карточки (400), основное фото товара (800) и retina (1200/1600). */
-export const WIDTHS = [400, 800, 1200, 1600];
+export const SMALL_WIDTH = 200;
+export const WIDTHS = [SMALL_WIDTH, 400, 800, 1200, 1600];
 
-const FORMATS = [
+export const FORMATS = [
   { ext: "avif", options: { quality: 52, effort: 3 } },
   { ext: "webp", options: { quality: 78, effort: 4 } },
 ];

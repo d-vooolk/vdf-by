@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "node scripts/import-data.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/import-data.mjs",
+    "prebuild": "node scripts/import-data.mjs && node scripts/small-images.mjs",
     "build": "next build",
     "start": "next start",
     "import": "node scripts/import-data.mjs",

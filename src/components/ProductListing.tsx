@@ -52,7 +52,7 @@ export function ProductListing({
             <ProductCard
               product={product}
               currencySymbol={currencySymbol}
-              priority={page === 1 && position < 3}
+              priority={page === 1 && position < 2}
             />
           </div>
         ))}

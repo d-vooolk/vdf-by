@@ -64,10 +64,11 @@ export function ProductCard({
         className="relative block aspect-square overflow-hidden bg-white"
         tabIndex={-1}
         aria-hidden="true"
+        prefetch={false}
       >
         <Picture
           entry={entry}
-          alt=""
+          alt={product.title}
           sizes="(max-width: 640px) 31vw, (max-width: 1024px) 24vw, 240px"
           priority={priority}
           className={`h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-[1.03] ${

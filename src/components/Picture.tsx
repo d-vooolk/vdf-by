@@ -55,7 +55,7 @@ export function Picture({
         // fetchPriority="high" подсказывает браузеру начать загрузку LCP-фото
         // раньше остальных запросов.
         fetchPriority={priority ? "high" : "auto"}
-        decoding={priority ? "sync" : "async"}
+        decoding={priority ? "auto" : "async"}
         className={className}
       />
     </picture>

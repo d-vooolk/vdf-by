@@ -32,6 +32,7 @@ import {
   selectionFromQuery,
   variantQuery,
   type Selection,
+  type VariantProduct,
 } from "@/lib/variant";
 import { useWholesalePrice } from "@/store/account";
 import { useCart, useHydrated } from "@/store/cart";
@@ -47,8 +48,11 @@ import { useCart, useHydrated } from "@/store/cart";
  * Логика выбора живёт в lib/variant.ts, здесь только отображение.
  */
 
+export type PurchaseProduct = VariantProduct &
+  Pick<Product, "title" | "unit" | "stockQty" | "videos">;
+
 interface ProductPurchaseProps {
-  product: Product;
+  product: PurchaseProduct;
   /** Записи манифеста только для фото этого товара — не весь манифест. */
   images: ImageMap;
   currencySymbol: string;
@@ -296,7 +300,7 @@ export function ProductPurchase({
           <Picture
             entry={mainEntry}
             alt={altText}
-            sizes="(max-width: 1024px) 100vw, 480px"
+            sizes="(max-width: 1024px) min(100vw, 26rem), 480px"
             priority
             className="h-full w-full object-contain"
           />
@@ -333,7 +337,7 @@ export function ProductPurchase({
                 {images[path] ? (
                   <Picture
                     entry={images[path]}
-                    alt=""
+                    alt={`${altText} — фото ${position + 1}`}
                     sizes="90px"
                     className="h-full w-full object-contain"
                   />
@@ -359,7 +363,7 @@ export function ProductPurchase({
                 {video.poster && (
                   <img
                     src={`/video/${video.poster}`}
-                    alt=""
+                    alt={`${product.title} — видео ${position + 1}`}
                     loading="lazy"
                     className="h-full w-full object-cover opacity-80"
                   />

@@ -12,5 +12,5 @@ import { buildPriceList } from "@/lib/prices";
 export const dynamic = "force-static";
 
 export function GET() {
-  return Response.json(buildPriceList());
+  return Response.json(buildPriceList(), { headers: { "x-robots-tag": "noindex" } });
 }

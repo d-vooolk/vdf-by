@@ -258,6 +258,25 @@ console.log("\nПодбор по автомобилю");
       );
     }
 
+    const allHubs = paths.filter((path) => path.startsWith("/podbor/") && path !== "/podbor/");
+    const branchPairs = branches
+      .slice(0, 20)
+      .map((path) => ({ branch: path, hub: path.replace(/^\/catalog\/[^/]+\//, "/podbor/") }));
+    let duplicates = 0;
+    for (const pair of branchPairs) {
+      const response = await fetch(BASE + pair.hub, { redirect: "manual" });
+      if (response.status !== 200) continue;
+      const hubCanonical = attr(head(await response.text()), /rel="canonical" href="([^"]+)"/);
+      const selfCanonical = hubCanonical.endsWith(pair.hub);
+      if (selfCanonical && !allHubs.includes(pair.hub)) duplicates += 1;
+      if (!selfCanonical && allHubs.includes(pair.hub)) duplicates += 1;
+    }
+    check(
+      "подбор и ветка раздела не дублируют друг друга",
+      duplicates === 0,
+      `проверено пар: ${branchPairs.length}`,
+    );
+
     const sample = [...hubs.slice(0, 3), ...branches.slice(0, 3)];
     const codes = await Promise.all(
       sample.map(async (path) => (await fetch(BASE + path)).status),
@@ -279,6 +298,26 @@ console.log("\nСлужебные файлы");
   check("sitemap.xml не пустой", urls > 5, `адресов: ${urls}`);
   check("в sitemap нет корзины", !sitemap.includes("/cart/"));
 
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
+    .map((match) => new URL(match[1]).pathname)
+    .filter((path) => !/\.(?:avif|webp|jpe?g|png)$/.test(path))
+    .slice(0, 300);
+  const titles = new Map();
+  for (const path of locs) {
+    const response = await fetch(BASE + path, { redirect: "manual" });
+    if (response.status !== 200) continue;
+    const title = attr(head(await response.text()), /<title>([^<]*)<\/title>/);
+    titles.set(title, [...(titles.get(title) ?? []), path]);
+  }
+  const repeatedTitles = [...titles.entries()].filter(([, list]) => list.length > 1);
+  check(
+    "title в sitemap не повторяются",
+    repeatedTitles.length === 0,
+    repeatedTitles.length
+      ? repeatedTitles.slice(0, 3).map(([title, list]) => `«${title}»: ${list.join(", ")}`).join("; ")
+      : `проверено ${locs.length}`,
+  );
+
   // Фотографии в sitemap проверяем только если они вообще есть: на свежей
   // установке манифест пуст, и падать из-за этого нечему.
   const catalog = await read("/catalog/");
@@ -288,7 +327,17 @@ console.log("\nСлужебные файлы");
 
   const robots = await read("/robots.txt");
   check("robots.txt ссылается на sitemap", robots.includes("sitemap.xml"));
-  check("robots.txt закрывает корзину", robots.includes("/cart/"));
+  check(
+    "robots.txt не прячет noindex корзины от робота",
+    !/^Disallow: \/cart\//m.test(robots),
+  );
+  check("robots.txt без устаревшего Host", !/^Host:/m.test(robots));
+  check("robots.txt: Clean-param для Яндекса", /^Clean-param: .*utm_source/m.test(robots));
+  check("robots.txt закрывает служебную пагинацию", robots.includes("Disallow: /listing/"));
+
+  const catalogCards = [...catalog.matchAll(/<article[\s\S]*?<\/article>/g)].map((match) => match[0]);
+  const cardsWithoutAlt = catalogCards.filter((card) => /<img(?![^>]*alt="[^"]+")[^>]*>/.test(card));
+  check("у фото в карточках товаров есть alt", cardsWithoutAlt.length === 0, `без alt: ${cardsWithoutAlt.length}`);
 
   // Товарные фиды: через них каталог попадает в Google Покупки, Яндекс,
   // Onliner и Kufar.

@@ -22,11 +22,15 @@ const SHARED = [
   "/catalog", // плитка разделов со счётчиками товаров
   "/podbor", // список марок, к которым что-то подходит
   "/sitemap.xml",
+  "/robots.txt",
   "/variants.json", // прайс, по которому корзина сверяет цены
   "/search-index.json", // индекс поиска
+  "/car-tree.json",
   "/feed.xml", // фид для Google Merchant Center
   "/yml.xml", // фид для Яндекса, Onliner и Kufar
 ];
+
+const LISTING_TEMPLATE = "/listing/[page]/[sort]/[[...path]]";
 
 const CAR_TEMPLATES = [
   "/podbor/[mark]",
@@ -91,6 +95,7 @@ export function revalidateProduct(
   for (const path of previous?.carPaths ?? []) paths.add(trim(path));
 
   revalidateAll(paths);
+  revalidatePath(LISTING_TEMPLATE, "page");
 
   // Поисковикам сообщаем только про сам товар, его разделы и машины:
   // главная и каталог меняются от каждой правки, и звать на них краулера
@@ -116,6 +121,7 @@ export function revalidateCategory(
   // страницы товаров тоже надо пересобрать.
   revalidatePath("/product/[slug]", "page");
   for (const template of CAR_TEMPLATES) revalidatePath(template, "page");
+  revalidatePath(LISTING_TEMPLATE, "page");
   revalidateAll(all);
 
   announce(paths);

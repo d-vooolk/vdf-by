@@ -65,6 +65,7 @@ interface ProductFormProps {
   /** Готовые ссылки на миниатюры уже выбранных фото. */
   thumbs: Record<string, string>;
   currencySymbol: string;
+  siteName: string;
   copiedFrom?: string;
   ai: AiSettings;
 }
@@ -83,6 +84,7 @@ export function ProductForm({
   previousId,
   thumbs,
   currencySymbol,
+  siteName,
   copiedFrom,
   ai,
 }: ProductFormProps) {
@@ -123,6 +125,7 @@ export function ProductForm({
     product: draft,
     categoryName: category?.name,
     currencySymbol,
+    siteName,
   });
 
   const titleIsAuto =
@@ -675,7 +678,7 @@ export function ProductForm({
         <div>
           <Field
             label="Заголовок для поиска"
-            hint={`${snippet.title.length} / ${TITLE_LIMIT}${titleIsAuto ? " · собран автоматически" : ""}`}
+            hint={`${snippet.fullTitle.length} / ${TITLE_LIMIT}${titleIsAuto ? " · собран автоматически" : ""}`}
           >
             <input
               value={titleIsAuto ? snippet.generatedTitle : (draft.seoTitle ?? "")}
@@ -729,10 +732,10 @@ export function ProductForm({
           </p>
           <p
             className={`mt-0.5 text-base leading-snug ${
-              snippet.title.length > TITLE_LIMIT ? "text-red-700" : "text-[#1a0dab]"
+              snippet.fullTitle.length > TITLE_LIMIT ? "text-red-700" : "text-[#1a0dab]"
             }`}
           >
-            {snippet.title}
+            {snippet.fullTitle}
           </p>
           <p
             className={`mt-1 text-sm ${
@@ -743,7 +746,7 @@ export function ProductForm({
           >
             {snippet.description}
           </p>
-          {(snippet.title.length > TITLE_LIMIT ||
+          {(snippet.fullTitle.length > TITLE_LIMIT ||
             snippet.description.length > DESCRIPTION_LIMIT) && (
             <p className="mt-2 text-xs text-red-700">
               Красным — длиннее, чем покажет поисковик: хвост обрежется.

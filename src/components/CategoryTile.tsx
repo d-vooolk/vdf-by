@@ -34,7 +34,7 @@ export function CategoryTile({ category, priority = false }: CategoryTileProps) 
       <span className="relative block aspect-[4/3] overflow-hidden bg-white">
         <Picture
           entry={getImage(category.image)}
-          alt=""
+          alt={category.name}
           sizes="(max-width: 640px) 31vw, (max-width: 1024px) 23vw, 200px"
           priority={priority}
           className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"

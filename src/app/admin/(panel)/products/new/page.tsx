@@ -62,6 +62,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
         cars={getProductCars(source.id)}
         thumbs={thumbsFor(allProductImages(source))}
         currencySymbol={site.currencySymbol}
+        siteName={site.name}
         ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
       />
     );
@@ -94,6 +95,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
       cars={[]}
       thumbs={{}}
       currencySymbol={site.currencySymbol}
+      siteName={site.name}
       ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
     />
   );

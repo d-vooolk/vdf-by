@@ -18,6 +18,27 @@ interface AccountState {
   reset: () => void;
 }
 
+const GUEST_KEY = "vdf_guest";
+
+function signedInHint(): boolean {
+  return document.cookie.split("; ").includes("vdf_signed=1");
+}
+
+function knownGuest(): boolean {
+  try {
+    return sessionStorage.getItem(GUEST_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberGuest(guest: boolean): void {
+  try {
+    if (guest) sessionStorage.setItem(GUEST_KEY, "1");
+    else sessionStorage.removeItem(GUEST_KEY);
+  } catch {}
+}
+
 export const useAccount = create<AccountState>()((set, get) => ({
   status: "unknown",
   customer: null,
@@ -25,6 +46,10 @@ export const useAccount = create<AccountState>()((set, get) => ({
   load: async (force = false) => {
     const current = get().status;
     if (!force && (current === "loading" || current === "guest" || current === "customer")) return;
+    if (!force && !signedInHint() && knownGuest()) {
+      set({ status: "guest", customer: null, wholesale: null });
+      return;
+    }
     set({ status: "loading" });
     try {
       const response = await fetch("/api/account/", { cache: "no-store" });
@@ -32,6 +57,7 @@ export const useAccount = create<AccountState>()((set, get) => ({
         customer: AccountCustomer | null;
         wholesale?: Record<string, number> | null;
       };
+      rememberGuest(!data.customer);
       set({
         status: data.customer ? "customer" : "guest",
         customer: data.customer,
@@ -41,7 +67,10 @@ export const useAccount = create<AccountState>()((set, get) => ({
       set({ status: "guest", customer: null, wholesale: null });
     }
   },
-  reset: () => set({ status: "guest", customer: null, wholesale: null }),
+  reset: () => {
+    rememberGuest(true);
+    set({ status: "guest", customer: null, wholesale: null });
+  },
 }));
 
 export function useWholesalePrice(key: string): number | null {

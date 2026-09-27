@@ -29,6 +29,21 @@ function ymlDate(date: Date): string {
   );
 }
 
+const YML_ID_LIMIT = 20;
+
+function fnv32(text: string, seed: number): string {
+  let hash = seed;
+  for (const byte of Buffer.from(text)) {
+    hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
+}
+
+function ymlOfferId(id: string): string {
+  if (/^[a-zA-Z0-9]+$/.test(id) && id.length <= YML_ID_LIMIT) return id;
+  return `v${fnv32(id, 0x811c9dc5)}${fnv32(id, 0x050c5d1f)}`.slice(0, YML_ID_LIMIT);
+}
+
 export function GET() {
   const site = getSite();
   const offers = feedOffers();
@@ -61,7 +76,7 @@ export function GET() {
   const offerXml = offers
     .map((offer) => {
       const group = offer.groupId ? groupNumbers.get(offer.groupId) : undefined;
-      return `      <offer id="${xml(offer.id)}"${
+      return `      <offer id="${ymlOfferId(offer.id)}"${
         group ? ` group_id="${group}"` : ""
       } available="${offer.available}">
         <name>${xml(offer.title)}</name>
@@ -114,6 +129,7 @@ ${offerXml}
     headers: {
       "content-type": "application/xml; charset=utf-8",
       "cache-control": "public, max-age=3600",
+      "x-robots-tag": "noindex",
     },
   });
 }

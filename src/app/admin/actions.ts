@@ -44,12 +44,15 @@ import {
   saveCategory,
   saveProduct,
   saveSite,
+  setProductFaq,
   setProductPrice,
   setProductStockQty,
   type SaveResult,
 } from "@/lib/store";
+import { listIncompleteProducts } from "@/lib/incomplete";
 import {
   AiError,
+  aiConfigured,
   checkConnection,
   complete,
   describeProduct,
@@ -618,6 +621,63 @@ export async function aiFaqAction(input: AiProductInput): Promise<AiFaqResult> {
   } catch (error) {
     return aiFailure(error);
   }
+}
+
+export type AiFaqBatchResult =
+  | { ok: true; done: number; left: number; failed: string[] }
+  | { ok: false; error: string };
+
+const FAQ_BATCH = 3;
+
+export async function aiFillFaqAction(skip: string[] = []): Promise<AiFaqBatchResult> {
+  await requireAdmin();
+  if (!aiConfigured()) return { ok: false, error: "Нейросеть не подключена: нет AI_API_KEY в .env" };
+
+  const skipped = new Set(Array.isArray(skip) ? skip : []);
+  const pending = listIncompleteProducts().filter(
+    (product) => product.gaps.includes("faq") && !skipped.has(product.id),
+  );
+
+  let done = 0;
+  const failed: string[] = [];
+
+  for (const brief of pending.slice(0, FAQ_BATCH)) {
+    const product = getProductRaw(brief.id);
+    if (!product) continue;
+    try {
+      const answer = await complete(
+        promptFor("faq", undefined),
+        describeProduct(
+          {
+            title: product.title,
+            description: product.description ?? "",
+            categoryName: getCategoryRaw(product.categoryId)?.name,
+            brand: product.brand,
+            specs: product.specs,
+            options: product.optionGroups.map(
+              (group) => `${group.name}: ${group.values.map((value) => value.label).join(", ")}`,
+            ),
+          },
+          true,
+        ),
+        "faq",
+      );
+      const items = parseFaq(answer);
+      if (!items.length || !setProductFaq(product.id, items).ok) {
+        failed.push(product.id);
+        continue;
+      }
+      invalidateCatalog();
+      revalidateProduct(product.slug, categoryPaths(product.categoryId));
+      done++;
+    } catch (error) {
+      if (!(error instanceof AiError)) console.error("[ai]", error);
+      failed.push(product.id);
+    }
+  }
+
+  const left = Math.max(0, pending.length - done - failed.length);
+  return { ok: true, done, left, failed };
 }
 
 export async function saveAiPromptAction(

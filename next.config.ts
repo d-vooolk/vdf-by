@@ -12,6 +12,39 @@ function activeDistDir(): string {
   return ".next";
 }
 
+const LISTING_PAGE = "(?<page>[1-9]\\d{0,3})";
+const LISTING_SORT = "(?<sort>default|price-asc|price-desc|name)";
+
+function listingRewrites() {
+  const scopes = [
+    { source: "/catalog/", path: "" },
+    { source: "/catalog/:category/", path: ":category/" },
+    { source: "/catalog/:category/:branch/", path: ":category/:branch/" },
+  ];
+  const pageQuery = { type: "query" as const, key: "page", value: LISTING_PAGE };
+  const sortQuery = { type: "query" as const, key: "sort", value: LISTING_SORT };
+
+  return scopes.flatMap(({ source, path }) => [
+    {
+      source,
+      has: [pageQuery, sortQuery],
+      destination: `/listing/:page/:sort/${path}`,
+    },
+    {
+      source,
+      has: [pageQuery],
+      missing: [{ type: "query" as const, key: "sort" }],
+      destination: `/listing/:page/default/${path}`,
+    },
+    {
+      source,
+      has: [sortQuery],
+      missing: [{ type: "query" as const, key: "page" }],
+      destination: `/listing/1/:sort/${path}`,
+    },
+  ]);
+}
+
 const nextConfig: NextConfig = {
   // Сайт работает Node-сервером под systemd, за nginx. Статического экспорта
   // больше нет: админке нужны запись, сессии и загрузка файлов, а всё это
@@ -44,6 +77,14 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: false },
 
   productionBrowserSourceMaps: false,
+
+  poweredByHeader: false,
+
+  compress: false,
+
+  async rewrites() {
+    return { beforeFiles: listingRewrites() };
+  },
 };
 
 export default nextConfig;

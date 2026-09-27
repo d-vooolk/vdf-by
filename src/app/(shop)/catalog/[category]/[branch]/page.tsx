@@ -7,8 +7,8 @@ import {
 } from "@/components/CategoryCarView";
 import { CategoryView, categoryMetadata } from "@/components/CategoryView";
 import { markParams, resolveMark } from "@/lib/car-branch";
-import { getCategories, getCategoryById, getCategoryBySlug } from "@/lib/catalog";
-import { readListing, type ListingParams } from "@/lib/listing";
+import { getCategories, getCategoryById, resolveSubcategory } from "@/lib/catalog";
+import { FIRST_PAGE } from "@/lib/listing";
 import { findRedirect } from "@/lib/redirects";
 
 /**
@@ -34,35 +34,26 @@ export function generateStaticParams() {
 
 interface PageProps {
   params: Promise<{ category: string; branch: string }>;
-  searchParams: Promise<ListingParams>;
 }
 
-/** Подраздел вместе с проверкой, что он лежит именно в этом родителе. */
-function resolveSub(parentSlug: string, slug: string) {
-  const category = getCategoryBySlug(slug);
-  if (!category?.parentId) return undefined;
-  const parent = getCategoryById(category.parentId);
-  return parent?.slug === parentSlug ? category : undefined;
-}
 
 export async function generateMetadata({
   params,
-  searchParams,
 }: PageProps): Promise<Metadata> {
   const { category: parentSlug, branch } = await params;
 
-  const sub = resolveSub(parentSlug, branch);
-  if (sub) return categoryMetadata(sub, readListing(await searchParams));
+  const sub = resolveSubcategory(parentSlug, branch);
+  if (sub) return categoryMetadata(sub, FIRST_PAGE);
 
   const mark = resolveMark(parentSlug, branch);
   return mark ? categoryMarkMetadata(mark) : {};
 }
 
-export default async function CategoryBranchPage({ params, searchParams }: PageProps) {
+export default async function CategoryBranchPage({ params }: PageProps) {
   const { category: parentSlug, branch } = await params;
 
-  const sub = resolveSub(parentSlug, branch);
-  if (sub) return <CategoryView category={sub} listing={readListing(await searchParams)} />;
+  const sub = resolveSubcategory(parentSlug, branch);
+  if (sub) return <CategoryView category={sub} listing={FIRST_PAGE} />;
 
   const mark = resolveMark(parentSlug, branch);
   if (mark) return <CategoryMarkView {...mark} />;

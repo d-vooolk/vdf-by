@@ -11,6 +11,7 @@ import {
   Section,
 } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import { deliveryArea, type DeliveryArea } from "@/lib/delivery";
 import type { DeliveryMethod, Site } from "@/lib/schema";
 
 /**
@@ -378,6 +379,26 @@ function DeliveryEditor({
               placeholder="Привезём в течение дня"
             />
           </label>
+
+          {method.requiresAddress && (
+            <label className="mt-3 block">
+              <span className="label mb-1 text-xs">Куда возит</span>
+              <select
+                value={deliveryArea(method)}
+                onChange={(event) =>
+                  update(index, { area: event.target.value as DeliveryArea })
+                }
+                className="field py-2 text-sm"
+              >
+                <option value="city">Только по городу</option>
+                <option value="country">По всей Беларуси</option>
+              </select>
+              <span className="mt-1 block text-xs text-brand-400">
+                В разметку товаров для Google и в фид попадает только доставка
+                по всей стране.
+              </span>
+            </label>
+          )}
 
           <div className="mt-3 flex items-center justify-between">
             <label className="flex cursor-pointer items-center gap-2">

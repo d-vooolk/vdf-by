@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CarProducts } from "@/components/CarProducts";
+import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
+import { ListingFacts } from "@/components/ListingFacts";
+import { carFaq, categoryPhrase } from "@/lib/car-content";
 import {
   carName,
   carsRoot,
@@ -20,6 +23,7 @@ import {
   getCarTree,
   getProductsForGeneration,
   groupByCategory,
+  singleBranchOf,
 } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
@@ -75,6 +79,7 @@ export async function generateMetadata({
   const cheapest = cheapestPrice(products);
   const period = years(generation, new Date().getFullYear());
   const title = carName(mark, model, generation);
+  const path = generationUrl(mark.slug, model.slug, generation.slug);
 
   const what = groups.length
     ? `Что подходит к ${title}${period ? ` ${period}` : ""}: ${groups
@@ -83,14 +88,16 @@ export async function generateMetadata({
     : `Линзы, стёкла фар и лампы для ${title}${period ? ` ${period}` : ""}`;
 
   return buildMetadata({
-    title: `Автосвет для ${title}${period ? ` (${period})` : ""}`,
+    title: `${categoryPhrase(groups)} для ${title}${period ? ` (${period})` : ""}`,
     description: sentences(
       what,
       products.length > 0 &&
         `${pluralize(products.length, "позиция", "позиции", "позиций")}${cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`,
       "Проверяем каждый комплект на стенде. Доставка по Минску и Беларуси",
     ),
-    path: generationUrl(mark.slug, model.slug, generation.slug),
+    path,
+    canonical: singleBranchOf(path) ?? undefined,
+    image: generation.photo || products.find((product) => product.images[0])?.images[0],
   });
 }
 
@@ -107,6 +114,7 @@ export default async function GenerationPage({ params }: PageProps) {
   const currentYear = new Date().getFullYear();
   const period = years(generation, currentYear);
   const title = carName(mark, model, generation);
+  const phrase = categoryPhrase(groups);
 
   const siblings = model.generations.filter(
     (item) => item.id !== generation.id,
@@ -131,7 +139,7 @@ export default async function GenerationPage({ params }: PageProps) {
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          Товары для {title}
+          {phrase} для {title}
         </h1>
         {period && (
           <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
@@ -153,6 +161,24 @@ export default async function GenerationPage({ params }: PageProps) {
             },
           ];
         }}
+      />
+
+      <ListingFacts
+        title={`${phrase} для ${title}: коротко`}
+        products={products}
+        currencySymbol={site.currencySymbol}
+      />
+
+      <Faq
+        items={carFaq({
+          what: phrase,
+          car: title,
+          period,
+          products,
+          currencySymbol: site.currencySymbol,
+          phone: site.phone,
+        })}
+        title={`${phrase} для ${title}: вопросы и ответы`}
       />
 
       {siblings.length > 0 && (

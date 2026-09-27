@@ -1,4 +1,5 @@
 import { getSite } from "@/lib/catalog";
+import { deliveryArea } from "@/lib/delivery";
 import { compact, feedOffers, xml } from "@/lib/feed";
 import { schemaPrice } from "@/lib/format";
 import { absoluteUrl } from "@/lib/seo";
@@ -26,17 +27,21 @@ export function GET() {
   // Доставка — по каждому способу, который требует адреса. Самовывоз в фиде
   // не доставка: нулевая стоимость по нему выглядела бы как бесплатная
   // доставка куда угодно.
-  const shipping = site.delivery.methods
-    .filter((method) => method.requiresAddress)
-    .map(
-      (method) => `
+  const methods = site.delivery.methods.filter(
+    (method) => method.requiresAddress && deliveryArea(method) === "country",
+  );
+  const shippingFor = (price: number) =>
+    methods
+      .map((method) => {
+        const free = method.freeFrom != null && price >= method.freeFrom;
+        return `
       <g:shipping>
         <g:country>${xml(site.address.country)}</g:country>
         <g:service>${xml(method.name)}</g:service>
-        <g:price>${schemaPrice(method.price)} ${xml(site.currency)}</g:price>
-      </g:shipping>`,
-    )
-    .join("");
+        <g:price>${schemaPrice(free ? 0 : method.price)} ${xml(site.currency)}</g:price>
+      </g:shipping>`;
+      })
+      .join("");
 
   const items = offers
     .map((offer) => {
@@ -64,7 +69,6 @@ export function GET() {
           : `<g:price>${schemaPrice(offer.price)} ${xml(site.currency)}</g:price>`
       }
       ${offer.brand ? `<g:brand>${xml(offer.brand)}</g:brand>` : ""}
-      ${offer.sku ? `<g:mpn>${xml(offer.sku)}</g:mpn>` : ""}
       <g:identifier_exists>no</g:identifier_exists>
       ${offer.groupId ? `<g:item_group_id>${xml(offer.groupId)}</g:item_group_id>` : ""}
       ${
@@ -72,7 +76,7 @@ export function GET() {
           ? `<g:product_type>${xml(offer.categoryPath)}</g:product_type>`
           : ""
       }
-      ${shipping}
+      ${shippingFor(offer.price)}
     </item>`;
     })
     .join("");
@@ -93,6 +97,7 @@ export function GET() {
       // Час: чаще, чем раз в час, Merchant Center за фидом всё равно не
       // ходит, а после правки в админке маршрут пересобирается сам.
       "cache-control": "public, max-age=3600",
+      "x-robots-tag": "noindex",
     },
   });
 }

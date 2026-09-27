@@ -7,7 +7,7 @@ export function Analytics() {
 
   return (
     <>
-      <Script id="metrika" strategy="afterInteractive">
+      <Script id="metrika" strategy="lazyOnload">
         {`window.dataLayer = window.dataLayer || [];
         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -29,9 +29,9 @@ export function Analytics() {
 
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
       />
-      <Script id="gtag" strategy="afterInteractive">
+      <Script id="gtag" strategy="lazyOnload">
         {`window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());

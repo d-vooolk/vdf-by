@@ -1,5 +1,10 @@
 import type { OptionValue, Product } from "./schema";
 
+export type VariantProduct = Pick<
+  Product,
+  "id" | "slug" | "price" | "oldPrice" | "inStock" | "sku" | "images" | "optionGroups"
+>;
+
 /**
  * Разрешение опций товара: цоколь H7/HB4/H11, сторона, цветовая температура.
  *
@@ -43,7 +48,7 @@ export interface ResolvedVariant {
 }
 
 /** Первое значение в наличии из каждого набора, иначе просто первое. */
-export function defaultSelection(product: Product): Selection {
+export function defaultSelection(product: VariantProduct): Selection {
   const selection: Selection = {};
   for (const group of product.optionGroups) {
     const available = group.values.find((v) => v.inStock !== false);
@@ -61,7 +66,7 @@ export function variantKey(productId: string, selection: Selection): string {
 }
 
 export function resolveVariant(
-  product: Product,
+  product: VariantProduct,
   selection: Selection,
 ): ResolvedVariant {
   const selected: ResolvedVariant["selected"] = [];
@@ -125,7 +130,7 @@ export function resolveVariant(
  * Порядок параметров — как объявлены наборы опций, а не как их выбирали:
  * иначе один и тот же вариант получал бы разные адреса.
  */
-export function variantQuery(product: Product, selection: Selection): string {
+export function variantQuery(product: VariantProduct, selection: Selection): string {
   const params = product.optionGroups
     .map((group) => [group.id, selection[group.id]] as const)
     .filter(([, value]) => Boolean(value))
@@ -145,7 +150,7 @@ export function variantQuery(product: Product, selection: Selection): string {
  * которого больше нет в товаре, должна открыть товар, а не сломать страницу.
  */
 export function selectionFromQuery(
-  product: Product,
+  product: VariantProduct,
   search: string,
 ): Selection {
   const params = new URLSearchParams(search);
@@ -162,7 +167,7 @@ export function selectionFromQuery(
 }
 
 /** Все комбинации опций. Нужен для «от … р.» и для валидности JSON-LD. */
-export function allSelections(product: Product): Selection[] {
+export function allSelections(product: VariantProduct): Selection[] {
   let combos: Selection[] = [{}];
   for (const group of product.optionGroups) {
     const next: Selection[] = [];
@@ -186,7 +191,7 @@ export interface PriceRange {
   varies: boolean;
 }
 
-export function priceRange(product: Product): PriceRange {
+export function priceRange(product: VariantProduct): PriceRange {
   if (!product.optionGroups.length) {
     return { min: product.price, max: product.price, varies: false };
   }
@@ -213,13 +218,13 @@ export function isOrderable(variant: { price: number; inStock: boolean }): boole
   return variant.inStock && hasPrice(variant.price);
 }
 
-export function cheapestPrice(products: Product[]): number {
+export function cheapestPrice(products: VariantProduct[]): number {
   const prices = products.map((product) => priceRange(product).min).filter(hasPrice);
   return prices.length ? Math.min(...prices) : 0;
 }
 
 /** Есть ли хоть одна доступная комбинация — для бейджа на карточке. */
-export function hasAnyInStock(product: Product): boolean {
+export function hasAnyInStock(product: VariantProduct): boolean {
   if (!product.inStock) return false;
   if (!product.optionGroups.length) return true;
   return product.optionGroups.every((group) =>
@@ -231,7 +236,7 @@ export function hasAnyInStock(product: Product): boolean {
  * Все фото товара, включая галереи опций. Нужно, чтобы препроцессор
  * картинок и JSON-LD видели полный набор.
  */
-export function allProductImages(product: Product): string[] {
+export function allProductImages(product: VariantProduct): string[] {
   const images = new Set(product.images);
   for (const group of product.optionGroups) {
     for (const value of group.values) {
