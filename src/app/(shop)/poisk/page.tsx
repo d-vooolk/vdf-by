@@ -5,14 +5,42 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { CarProducts } from "@/components/CarProducts";
 import { SearchIcon } from "@/components/icons";
 import { groupByCategory } from "@/lib/cars";
-import { categoryTrail, categoryUrl, getProductBySlug, getRootCategories, getSite } from "@/lib/catalog";
+import {
+  categoryTrail,
+  categoryUrl,
+  getCategoryById,
+  getProductBySlug,
+  getRootCategories,
+  getSite,
+} from "@/lib/catalog";
 import { pluralize } from "@/lib/format";
 import type { Product } from "@/lib/schema";
-import { searchProducts } from "@/lib/search";
+import { normalize, searchProducts } from "@/lib/search";
 import { buildSearchIndex } from "@/lib/search-index";
 
 interface PageProps {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{ q?: string | string[]; vse?: string }>;
+}
+
+const GROUP_LIMIT = 60;
+
+function strongMatch(product: Product, query: string): boolean {
+  const category = getCategoryById(product.categoryId);
+  const parent = category?.parentId ? getCategoryById(category.parentId) : undefined;
+  const text = normalize(
+    [
+      product.title,
+      product.brand ?? "",
+      product.sku ?? "",
+      category?.name ?? "",
+      parent?.name ?? "",
+      product.optionGroups.flatMap((group) => group.values.map((value) => value.label)).join(" "),
+    ].join(" "),
+  );
+  return normalize(query)
+    .split(" ")
+    .filter(Boolean)
+    .every((token) => text.includes(token));
 }
 
 function queryOf(value: string | string[] | undefined): string {
@@ -29,14 +57,23 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
-  const query = queryOf((await searchParams).q);
+  const params = await searchParams;
+  const query = queryOf(params.q);
   const site = getSite();
-  const found = query.length >= 2
+  const all = query.length >= 2
     ? searchProducts(buildSearchIndex(), query, Infinity)
         .map((entry) => getProductBySlug(entry.s))
         .filter((product): product is Product => Boolean(product))
     : [];
-  const groups = groupByCategory(found);
+  const strong = all.filter((product) => strongMatch(product, query));
+  const showAll = params.vse === "1" || strong.length === 0;
+  const found = showAll ? all : strong;
+  const hidden = all.length - found.length;
+  const groups = groupByCategory(found).map((group) => ({
+    ...group,
+    total: group.products.length,
+    products: group.products.slice(0, GROUP_LIMIT),
+  }));
 
   return (
     <div className="container-page">
@@ -66,6 +103,17 @@ export default async function SearchPage({ searchParams }: PageProps) {
           {found.length
             ? `Нашли ${pluralize(found.length, "товар", "товара", "товаров")} в ${pluralize(groups.length, "разделе", "разделах", "разделах")}`
             : "Ничего не нашли. Попробуйте короче или другими словами — например «H7», «линзы» или марку машины."}
+          {hidden > 0 && (
+            <>
+              {" · "}
+              <Link
+                href={`/poisk/?q=${encodeURIComponent(query)}&vse=1`}
+                className="font-medium text-brand-700 underline underline-offset-2"
+              >
+                ещё {pluralize(hidden, "товар", "товара", "товаров")}, где «{query}» упоминается только в описании
+              </Link>
+            </>
+          )}
         </p>
       )}
 
@@ -77,7 +125,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
               href={`#razdel-${group.category.id}`}
               className="rounded-full border border-brand-100 px-3 py-1 text-sm text-brand-600 hover:border-brand-300 hover:text-brand-900"
             >
-              {group.category.name} <span className="text-brand-400">{group.products.length}</span>
+              {group.category.name} <span className="text-brand-400">{group.total}</span>
             </a>
           ))}
         </nav>
@@ -97,6 +145,12 @@ export default async function SearchPage({ searchParams }: PageProps) {
             }
           />
         </div>
+      )}
+
+      {groups.some((group) => group.total > group.products.length) && (
+        <p className="mt-8 text-sm text-brand-500">
+          В некоторых разделах показаны первые {GROUP_LIMIT} товаров — уточните запрос, например добавьте марку машины или цоколь.
+        </p>
       )}
 
       {!found.length && (
