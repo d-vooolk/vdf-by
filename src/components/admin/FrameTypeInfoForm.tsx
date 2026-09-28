@@ -40,6 +40,8 @@ export function FrameTypeInfoForm({
   const [pending, startTransition] = useTransition();
   const [problems, setProblems] = useState<string[]>([]);
   const [done, setDone] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [withProducts, setWithProducts] = useState(false);
 
   const type = normalizeFrameType(values.type);
   const suffix = normalizeFrameSuffix(values.suffix);
@@ -73,7 +75,7 @@ export function FrameTypeInfoForm({
   const remove = () =>
     startTransition(async () => {
       if (!previousType) return;
-      const result = await deleteFrameTypeAction(categoryId, previousType);
+      const result = await deleteFrameTypeAction(categoryId, previousType, withProducts);
       if (!result.ok) {
         setProblems(result.problems);
         return;
@@ -198,13 +200,60 @@ export function FrameTypeInfoForm({
             Сохранено
           </span>
         )}
-        {previousType && count === 0 && (
-          <button type="button" onClick={remove} disabled={pending} className="btn-ghost ml-auto py-2 text-sm text-red-700">
+        {previousType && !confirming && (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            disabled={pending}
+            className="btn-ghost ml-auto py-2 text-sm text-red-700"
+          >
             <TrashIcon className="h-4 w-4" />
             Удалить тип
           </button>
         )}
       </div>
+
+      {previousType && confirming && (
+        <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm">
+          <p className="text-red-900">
+            Удалить тип {previousType}? Цены, остаток, фото рамки и настройки типа удалятся.
+            {count > 0 &&
+              " Товары типа останутся на сайте со своими машинами, но выйдут из типа: цены и остаток снова будут править в каждой карточке."}
+          </p>
+          {count > 0 && (
+            <label className="flex cursor-pointer items-center gap-2 text-red-900">
+              <input
+                type="checkbox"
+                checked={withProducts}
+                onChange={(event) => setWithProducts(event.target.checked)}
+                className="h-4 w-4 rounded border-red-300 text-red-700"
+              />
+              Удалить также товары типа ({count}) — они пропадут с сайта и со страниц подбора
+            </label>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              className="btn-primary bg-red-700 py-2 text-sm hover:bg-red-800"
+            >
+              {pending ? "Удаляем…" : withProducts ? `Удалить тип и ${count} товаров` : "Удалить тип"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                setWithProducts(false);
+              }}
+              disabled={pending}
+              className="btn-ghost py-2 text-sm"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
 
       {problems.length > 0 && (
         <p className="flex items-start gap-1.5 text-sm text-red-700" role="alert">

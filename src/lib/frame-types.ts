@@ -581,11 +581,13 @@ export function saveFrameTypeInfo(
 export function deleteFrameType(categoryId: string, type: string): FrameTypeResult {
   const group = getFrameType(categoryId, type);
   if (!group) return { ok: false, problems: [`Типа ${type} нет`] };
-  if (group.products.length) {
-    return { ok: false, problems: ["Сначала уберите из типа все товары"] };
-  }
-  getDb().prepare("DELETE FROM frame_types WHERE category_id = ? AND type = ?").run(categoryId, type);
-  return { ok: true, productIds: [] };
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare("DELETE FROM frame_type_products WHERE category_id = ? AND type = ?").run(categoryId, type);
+    db.prepare("DELETE FROM frame_types WHERE category_id = ? AND type = ?").run(categoryId, type);
+  })();
+  bumpCatalogVersion();
+  return { ok: true, productIds: group.products.map((product) => product.id) };
 }
 
 function productInCategory(categoryId: string, productId: string): { sku: string } | null {

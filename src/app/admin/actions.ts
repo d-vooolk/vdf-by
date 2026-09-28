@@ -90,7 +90,7 @@ import {
   type FrameTypeResult,
 } from "@/lib/frame-types";
 import { isFrameType } from "@/lib/frame-sku";
-import { frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
+import { frameMembers, frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
 import type { Product } from "@/lib/schema";
 import { getSite } from "@/lib/catalog";
 import {
@@ -810,9 +810,31 @@ export async function saveFrameTypeInfoAction(
   return state.ok ? { ...state, type: info.type } : state;
 }
 
-export async function deleteFrameTypeAction(categoryId: string, type: string): Promise<FormState> {
+export async function deleteFrameTypeAction(
+  categoryId: string,
+  type: string,
+  withProducts = false,
+): Promise<FormState> {
   await requireAdmin();
-  return finishFrameChange(deleteFrameType(categoryId, type));
+  if (!withProducts) return finishFrameChange(deleteFrameType(categoryId, type));
+
+  const ids = frameMembers(categoryId, type);
+  const affected = ids
+    .map((id) => getProductRaw(id))
+    .filter((product): product is NonNullable<typeof product> => Boolean(product))
+    .map((product) => ({
+      slug: product.slug,
+      paths: categoryPaths(product.categoryId),
+      carPaths: carPathsForProduct(product.id),
+    }));
+  const result = deleteFrameType(categoryId, type);
+  if (!result.ok) return fail(result.problems);
+  deleteProducts(ids);
+  invalidateCatalog();
+  for (const entry of affected) {
+    revalidateProduct(entry.slug, entry.paths, { carPaths: entry.carPaths });
+  }
+  return ok();
 }
 
 export async function addToFrameTypeAction(
