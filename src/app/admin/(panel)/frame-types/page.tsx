@@ -17,7 +17,7 @@ import {
 export const metadata: Metadata = { title: "Типы рамок" };
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; stock?: string }>;
 }
 
 export default async function FrameTypesPage({ searchParams }: PageProps) {
@@ -38,12 +38,21 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
     ].join(" · ");
 
   const groups = categoryId ? listFrameTypes(categoryId) : [];
-  const shown = query
+  const stockFirst = params.stock === "1";
+  const inStock = (group: (typeof groups)[number]) => (initialFrameValues(group).stockQty ?? 0) > 0;
+  const found = query
     ? groups.filter(
         (group) => group.type.startsWith(query) || group.name.toUpperCase().includes(query),
       )
     : groups;
+  const shown = stockFirst
+    ? [...found.filter(inStock), ...found.filter((group) => !inStock(group))]
+    : found;
+  const stockCount = groups.filter(inStock).length;
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
+  const toggleStockHref = `/admin/frame-types/${categoryQuery}${query ? `&q=${encodeURIComponent(query)}` : ""}${
+    stockFirst ? "" : "&stock=1"
+  }`;
 
   return (
     <div className="space-y-5">
@@ -101,9 +110,17 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           </div>
         )}
         {categories.length === 1 && <input type="hidden" name="category" value={categoryId} />}
+        {stockFirst && <input type="hidden" name="stock" value="1" />}
         <button type="submit" className="btn-secondary py-2 text-sm">
           Найти
         </button>
+        <Link
+          href={toggleStockHref}
+          aria-pressed={stockFirst}
+          className={`${stockFirst ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
+        >
+          Сначала в наличии <span className="tnum opacity-70">{stockCount}</span>
+        </Link>
       </form>
 
       {!categoryId ? (
