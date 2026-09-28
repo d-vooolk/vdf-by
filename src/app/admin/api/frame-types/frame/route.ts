@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 import { getAdmin } from "@/lib/auth";
 import { parseComposerSettings } from "@/lib/composer";

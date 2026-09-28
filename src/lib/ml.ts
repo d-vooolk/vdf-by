@@ -1,7 +1,7 @@
 import { fork, type ChildProcess } from "node:child_process";
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 import type { ComposeOptions } from "./composer";
 

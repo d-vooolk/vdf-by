@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 import { processImage, safeImagePath } from "./image-pipeline.mjs";
 import type { ImageEntry } from "./image-types";

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 const MAX_SIDE = 1920;
 const POSTER_WIDTH = 1280;

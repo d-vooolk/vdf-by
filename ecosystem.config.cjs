@@ -41,14 +41,14 @@ module.exports = {
       // молча переехал бы на другой Node.
       interpreter: "/root/.nvm/versions/node/v22.23.2/bin/node",
 
-      env: { NODE_ENV: "production" },
+      env: { NODE_ENV: "production", MALLOC_ARENA_MAX: "2" },
 
       instances: 1,
       exec_mode: "fork",
 
       // Утечки не ожидаем, но если она случится, перезапуск дешевле, чем
       // OOM-killer, выбирающий жертву среди чужих приложений.
-      max_memory_restart: "700M",
+      max_memory_restart: "1500M",
       autorestart: true,
 
       // Токены в конфиге не нужны: .env приложение читает само при старте.

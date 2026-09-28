@@ -3,7 +3,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "@/lib/sharp";
 
 import { getAdmin } from "@/lib/auth";
 import { safeImagePath } from "@/lib/image-pipeline.mjs";

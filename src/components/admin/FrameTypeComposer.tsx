@@ -8,6 +8,11 @@ import type { ComposerSettings } from "@/lib/composer";
 
 import { ImageComposer, type ComposerState } from "./ImageComposer";
 
+const RETRY_PASSES = 2;
+const RETRY_DELAYS = [5000, 20000];
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface RenderLine {
   productId: string;
   title: string;
@@ -38,13 +43,25 @@ async function saveFrame(categoryId: string, type: string, state: ComposerState)
 }
 
 export async function renderOne(categoryId: string, type: string, productId: string): Promise<RenderResponse> {
-  const response = await fetch("/admin/api/frame-types/render/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ categoryId, type, productId }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("/admin/api/frame-types/render/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId, type, productId }),
+    });
+  } catch {
+    throw new Error("нет связи с сервером");
+  }
   const data = (await response.json().catch(() => ({}))) as RenderResponse;
-  if (!response.ok) throw new Error(data.error ?? `Ошибка ${response.status}`);
+  if (!response.ok) {
+    throw new Error(
+      data.error ??
+        (response.status === 502 || response.status === 504
+          ? `сервер не ответил (${response.status})`
+          : `Ошибка ${response.status}`),
+    );
+  }
   return data;
 }
 
@@ -66,7 +83,7 @@ export function FrameTypeComposer({
   const router = useRouter();
   const [busy, setBusy] = useState<"save" | "render" | null>(null);
   const [lines, setLines] = useState<RenderLine[]>([]);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const stopRef = useRef(false);
@@ -89,49 +106,68 @@ export function FrameTypeComposer({
     }
   };
 
-  const renderAll = async (state: ComposerState) => {
+  const renderAll = async (state: ComposerState, onlyFailed: boolean) => {
     setBusy("render");
     setError("");
-    setLines([]);
-    setProgress(0);
     stopRef.current = false;
+    const failedIds = new Set(lines.filter((line) => line.status === "error").map((line) => line.productId));
+    const queue = onlyFailed ? products.filter((product) => failedIds.has(product.id)) : products;
+    const results = new Map<string, RenderLine>(
+      onlyFailed ? lines.map((line) => [line.productId, line]) : [],
+    );
+    const publish = () => setLines([...results.values()]);
+    publish();
     try {
       await saveFrame(categoryId, type, state);
       setSaved(true);
-      for (const [index, product] of products.entries()) {
-        if (stopRef.current) break;
-        let line: RenderLine;
-        try {
-          const result = await renderOne(categoryId, type, product.id);
-          line = {
-            productId: product.id,
-            title: product.title,
-            status: result.status ?? "error",
-            car: result.car ?? "",
-            message: result.message ?? "",
-          };
-        } catch (problem) {
-          line = {
-            productId: product.id,
-            title: product.title,
-            status: "error",
-            car: "",
-            message: (problem as Error).message,
-          };
+      for (let pass = 0; pass <= RETRY_PASSES; pass += 1) {
+        const pending = queue.filter((product) => {
+          const status = results.get(product.id)?.status;
+          return status !== "done" && status !== "skipped";
+        });
+        if (!pending.length || stopRef.current) break;
+        if (pass > 0) {
+          const delay = RETRY_DELAYS[pass - 1] ?? 20000;
+          setProgress(`Повтор для неудавшихся (${pending.length}) через ${Math.round(delay / 1000)} с…`);
+          await pause(delay);
+          if (stopRef.current) break;
         }
-        setLines((current) => [...current, line]);
-        setProgress(index + 1);
+        for (const [index, product] of pending.entries()) {
+          if (stopRef.current) break;
+          setProgress(`${pass ? `Повтор ${pass}: ` : ""}${index + 1} / ${pending.length}`);
+          try {
+            const result = await renderOne(categoryId, type, product.id);
+            results.set(product.id, {
+              productId: product.id,
+              title: product.title,
+              status: result.status ?? "error",
+              car: result.car ?? "",
+              message: result.message ?? "",
+            });
+          } catch (problem) {
+            results.set(product.id, {
+              productId: product.id,
+              title: product.title,
+              status: "error",
+              car: "",
+              message: (problem as Error).message,
+            });
+          }
+          publish();
+        }
       }
       router.refresh();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
+      setProgress("");
       setBusy(null);
     }
   };
 
   const doneCount = lines.filter((line) => line.status === "done").length;
   const problems = lines.filter((line) => line.status !== "done");
+  const failedCount = lines.filter((line) => line.status === "error").length;
 
   return (
     <section className="space-y-3">
@@ -167,7 +203,7 @@ export function FrameTypeComposer({
               <button
                 type="button"
                 className="btn-primary flex-1"
-                onClick={() => renderAll(state)}
+                onClick={() => renderAll(state, false)}
                 disabled={!state.ready || busy !== null || products.length === 0}
               >
                 {busy === "render" ? (
@@ -177,12 +213,20 @@ export function FrameTypeComposer({
                 )}
                 Сгенерировать для всех товаров ({products.length})
               </button>
+              {failedCount > 0 && busy === null && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => renderAll(state, true)}
+                  disabled={!state.ready}
+                >
+                  Повторить для неудавшихся ({failedCount})
+                </button>
+              )}
             </div>
             {busy === "render" && (
               <div className="flex items-center gap-3 text-sm text-brand-600">
-                <span className="tnum">
-                  {progress} / {products.length}
-                </span>
+                <span className="tnum">{progress}</span>
                 <button type="button" className="btn-ghost py-1 text-xs" onClick={() => (stopRef.current = true)}>
                   Остановить
                 </button>
@@ -192,8 +236,9 @@ export function FrameTypeComposer({
               <p className="text-sm text-emerald-700">Фото рамки и оформление сохранены.</p>
             )}
             {lines.length > 0 && busy === null && (
-              <p className="text-sm text-emerald-700">
+              <p className={failedCount ? "text-sm text-amber-800" : "text-sm text-emerald-700"}>
                 Готово: {doneCount} из {lines.length}.
+                {failedCount > 0 && ` Не удалось: ${failedCount} — нажмите «Повторить для неудавшихся».`}
               </p>
             )}
             {problems.length > 0 && (

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 import { getCategories, getProducts } from "./catalog";
 import { bumpCatalogVersion, catalogVersion, getDb } from "./db";

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 import { assertPublicUrl } from "./donor-page";
 import { storeImage, type StoredImage } from "./image-store";

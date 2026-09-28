@@ -1,7 +1,7 @@
 import fsp from "node:fs/promises";
 import path from "node:path";
 
-import sharp from "sharp";
+import sharp from "./sharp";
 
 import { years } from "./car-types";
 import { fetchCarImages } from "./cars";

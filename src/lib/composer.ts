@@ -1,6 +1,8 @@
 import path from "node:path";
 
-import sharp, { type Sharp } from "sharp";
+import type { Sharp } from "sharp";
+
+import sharp from "./sharp";
 
 export const CANVAS = 1600;
 

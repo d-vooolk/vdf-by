@@ -136,7 +136,7 @@ chmod 644 /etc/cron.d/vdf-rates
 
 echo "==> Перезапускаю $PM2_APP"
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
-  pm2 reload "$PM2_APP" --update-env
+  pm2 reload ecosystem.config.cjs --update-env
 else
   pm2 start ecosystem.config.cjs
 fi
