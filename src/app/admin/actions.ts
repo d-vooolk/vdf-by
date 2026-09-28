@@ -77,7 +77,19 @@ import {
   type TelegramChat,
   type TelegramSettings,
 } from "@/lib/telegram";
-import { applyFrameType, validFrameTypeValues } from "@/lib/frame-types";
+import {
+  addToFrameType,
+  applyFrameType,
+  deleteFrameType,
+  isFrameCategory,
+  removeFromFrameType,
+  saveFrameTypeInfo,
+  setFrameTypeStock,
+  validFrameTypeInfo,
+  validFrameTypeValues,
+  type FrameTypeResult,
+} from "@/lib/frame-types";
+import { isFrameType } from "@/lib/frame-sku";
 import { getSite } from "@/lib/catalog";
 import {
   deleteCustomer,
@@ -738,8 +750,8 @@ export async function applyFrameTypeAction(
   input: unknown,
 ): Promise<FormState & { updated?: number }> {
   await requireAdmin();
-  if (!/^\d{3}$/.test(type)) return fail(["Тип рамки — три цифры"]);
-  if (!isCarFitmentCategory(categoryId)) return fail(["Раздел не найден"]);
+  if (!isFrameType(type)) return fail(["Номер рамки указан неверно"]);
+  if (!isFrameCategory(categoryId)) return fail(["Раздел рамок не найден"]);
   const values = validFrameTypeValues(input);
   if (typeof values === "string") return fail([values]);
   const linked = values.priceSource || values.costSource || values.wholesaleSource;
@@ -748,6 +760,81 @@ export async function applyFrameTypeAction(
   invalidateCatalog();
   revalidateSite();
   return { ...ok(), updated };
+}
+
+function finishFrameChange(result: FrameTypeResult): FormState {
+  if (!result.ok) return fail(result.problems);
+  invalidateCatalog();
+  revalidateProductsById(result.productIds);
+  return ok();
+}
+
+export async function saveFrameTypeInfoAction(
+  categoryId: string,
+  previousType: string | null,
+  input: unknown,
+): Promise<FormState & { type?: string }> {
+  await requireAdmin();
+  const info = validFrameTypeInfo(input);
+  if (typeof info === "string") return fail([info]);
+  const state = finishFrameChange(saveFrameTypeInfo(categoryId, previousType, info));
+  return state.ok ? { ...state, type: info.type } : state;
+}
+
+export async function deleteFrameTypeAction(categoryId: string, type: string): Promise<FormState> {
+  await requireAdmin();
+  return finishFrameChange(deleteFrameType(categoryId, type));
+}
+
+export async function addToFrameTypeAction(
+  categoryId: string,
+  type: string,
+  productId: string,
+): Promise<FormState> {
+  await requireAdmin();
+  return finishFrameChange(addToFrameType(categoryId, type, productId));
+}
+
+export async function removeFromFrameTypeAction(
+  categoryId: string,
+  productId: string,
+): Promise<FormState> {
+  await requireAdmin();
+  return finishFrameChange(removeFromFrameType(categoryId, productId));
+}
+
+export async function setFrameTypeStockAction(
+  categoryId: string,
+  type: string,
+  stockQty: number | null,
+): Promise<FormState> {
+  await requireAdmin();
+  if (stockQty !== null && (!Number.isInteger(stockQty) || stockQty < 0)) {
+    return fail(["Количество — целое число не меньше нуля"]);
+  }
+  return finishFrameChange(setFrameTypeStock(categoryId, type, stockQty));
+}
+
+export async function setProductCarsAction(
+  productId: string,
+  generationIds: string[],
+): Promise<FormState> {
+  await requireAdmin();
+  const product = getProductRaw(productId);
+  if (!product) return fail(["Товар не найден"]);
+  if (!isCarFitmentCategory(product.categoryId)) return fail(["У раздела товара нет подбора по машинам"]);
+  const beforeCarPaths = carPathsForProduct(productId);
+  const ids = Array.isArray(generationIds) ? generationIds.map(String) : [];
+  setProductCars(productId, ids);
+  await fetchCarImages(ids);
+  invalidateCatalog();
+  revalidateProduct(
+    product.slug,
+    categoryPaths(product.categoryId),
+    { carPaths: beforeCarPaths },
+    carPathsForProduct(productId),
+  );
+  return ok();
 }
 
 export async function setWholesaleStatusAction(

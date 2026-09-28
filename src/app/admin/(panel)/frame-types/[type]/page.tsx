@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { FrameTypeComposer } from "@/components/admin/FrameTypeComposer";
 import { FrameTypeForm } from "@/components/admin/FrameTypeForm";
+import { FrameTypeInfoForm } from "@/components/admin/FrameTypeInfoForm";
+import { FrameTypeProducts } from "@/components/admin/FrameTypeProducts";
+import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
+import { isFrameType, normalizeFrameType, splitFrameSku } from "@/lib/frame-sku";
 import {
   defaultFrameCategory,
   frameCategories,
-  listFrameTypes,
-  type FrameTypeValues,
+  frameTypeProductsOutside,
+  getFrameType,
+  initialFrameValues,
 } from "@/lib/frame-types";
 
 interface PageProps {
@@ -18,45 +24,38 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps) {
   const { type } = await params;
-  return { title: `Тип рамки ${type}` };
+  return { title: `Тип рамки ${normalizeFrameType(decodeURIComponent(type))}` };
 }
 
 export default async function FrameTypePage({ params, searchParams }: PageProps) {
-  const { type } = await params;
-  if (!/^\d{3}$/.test(type)) notFound();
+  const type = normalizeFrameType(decodeURIComponent((await params).type));
+  if (!isFrameType(type)) notFound();
   const { category } = await searchParams;
   const categories = frameCategories();
   const categoryId =
     categories.find((entry) => entry.id === category)?.id ?? defaultFrameCategory(categories);
-  const group = listFrameTypes(categoryId).find((entry) => entry.type === type);
+  const group = getFrameType(categoryId, type);
+  if (!group) notFound();
+
   const site = getSite();
   const money = (value: number | null) =>
     value === null || value <= 0 ? "—" : formatPrice(value, site.currencySymbol);
 
-  const products = group?.products ?? [];
-  const first = products[0];
-  const initial: FrameTypeValues = group?.saved ??
-    (first && group?.uniform
-      ? {
-          costPrice: first.costPrice,
-          price: first.price > 0 ? first.price : null,
-          wholesalePrice: first.wholesalePrice,
-          stockQty: first.stockQty,
-          inStock: first.inStock,
-          priceSource: first.priceSource,
-          costSource: first.costSource,
-          wholesaleSource: first.wholesaleSource,
-        }
-      : {
-          costPrice: null,
-          price: null,
-          wholesalePrice: null,
-          stockQty: null,
-          inStock: false,
-          priceSource: null,
-          costSource: null,
-          wholesaleSource: null,
-        });
+  const rows = group.products.map((product) => ({
+    id: product.id,
+    title: product.title,
+    sku: product.sku,
+    price: money(product.price),
+    stockQty: product.stockQty,
+    cars: getProductCars(product.id),
+  }));
+  const sampleGenerationId = rows
+    .flatMap((row) => row.cars)
+    .sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0]?.generationId;
+  const sampleNumber =
+    group.products
+      .map((product) => splitFrameSku(product.sku).number)
+      .find((number) => /^\d{6}$/.test(number)) ?? "482913";
 
   return (
     <div className="space-y-5">
@@ -67,64 +66,47 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
         >
           ← Все типы
         </Link>
-        <h1 className="text-xl font-semibold text-brand-900">Тип рамки {type}</h1>
+        <h1 className="text-xl font-semibold text-brand-900">
+          Тип рамки {type}
+          {group.name && <span className="font-normal text-brand-500"> · {group.name}</span>}
+        </h1>
       </div>
+
+      <FrameTypeInfoForm
+        key={`info-${type}-${group.suffix}-${group.name}-${group.storageCode}`}
+        categoryId={categoryId}
+        previousType={type}
+        initial={{ type, suffix: group.suffix, name: group.name, storageCode: group.storageCode }}
+        sampleNumber={sampleNumber}
+        count={group.products.length}
+        storageMixed={group.storageMixed}
+      />
 
       <FrameTypeForm
         key={`${categoryId}-${type}`}
         categoryId={categoryId}
         type={type}
-        initial={initial}
-        count={products.length}
+        initial={initialFrameValues(group)}
+        count={group.products.length}
         currencySymbol={site.currencySymbol}
       />
 
-      <section className="space-y-2">
-        <h2 className="font-semibold text-brand-900">
-          Товары с этим типом <span className="tnum text-brand-400">{products.length}</span>
-        </h2>
-        {products.length === 0 ? (
-          <p className="card p-8 text-center text-sm text-brand-400">
-            В разделе нет товаров с артикулом на {type}.
-          </p>
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-brand-400">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Товар</th>
-                  <th className="px-3 py-2 font-medium">Артикул</th>
-                  <th className="px-3 py-2 text-right font-medium">Себест.</th>
-                  <th className="px-3 py-2 text-right font-medium">Цена</th>
-                  <th className="px-3 py-2 text-right font-medium">Опт</th>
-                  <th className="px-3 py-2 text-right font-medium">Остаток</th>
-                  <th className="px-3 py-2 font-medium">Наличие</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100">
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td className="px-4 py-2">
-                      <Link
-                        href={`/admin/products/${product.id}/`}
-                        className="text-brand-900 hover:text-brand-600"
-                      >
-                        {product.title}
-                      </Link>
-                    </td>
-                    <td className="tnum px-3 py-2 text-brand-500">{product.sku}</td>
-                    <td className="tnum px-3 py-2 text-right">{money(product.costPrice)}</td>
-                    <td className="tnum px-3 py-2 text-right">{money(product.price)}</td>
-                    <td className="tnum px-3 py-2 text-right">{money(product.wholesalePrice)}</td>
-                    <td className="tnum px-3 py-2 text-right">{product.stockQty ?? "—"}</td>
-                    <td className="px-3 py-2">{product.inStock ? "есть" : "нет"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <FrameTypeProducts
+        categoryId={categoryId}
+        type={type}
+        products={rows}
+        candidates={frameTypeProductsOutside(categoryId, type)}
+      />
+
+      <FrameTypeComposer
+        key={`composer-${type}`}
+        categoryId={categoryId}
+        type={type}
+        products={group.products.map((product) => ({ id: product.id, title: product.title }))}
+        sampleGenerationId={sampleGenerationId}
+        hasFrameImage={group.hasFrameImage}
+        settings={group.composer}
+      />
     </div>
   );
 }

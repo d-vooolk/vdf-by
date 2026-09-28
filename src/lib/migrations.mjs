@@ -453,6 +453,30 @@ export const MIGRATIONS = [
 
     CREATE INDEX articles_by_status ON articles(status, published_at);
   `,
+
+  `
+    ALTER TABLE frame_types ADD COLUMN name TEXT NOT NULL DEFAULT '';
+    ALTER TABLE frame_types ADD COLUMN suffix TEXT;
+    ALTER TABLE frame_types ADD COLUMN frame_image BLOB;
+    ALTER TABLE frame_types ADD COLUMN composer TEXT;
+
+    CREATE TABLE frame_renders (
+      product_id TEXT PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      image      TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE vdf_articles (
+      product_id TEXT PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      article    TEXT NOT NULL
+    );
+
+    CREATE INDEX vdf_articles_by_article ON vdf_articles(article);
+  `,
+
+  `
+    ALTER TABLE frame_types ADD COLUMN storage_code TEXT;
+  `,
 ];
 
 /**

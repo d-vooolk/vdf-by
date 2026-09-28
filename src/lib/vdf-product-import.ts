@@ -274,11 +274,12 @@ function mergedTitle(group: SheetRow[]): string {
 function existingSku(skus: string[]): string | null {
   const db = getDb();
   const bySku = db.prepare("SELECT 1 FROM products WHERE json_extract(data, '$.sku') = ?");
+  const byArticle = db.prepare("SELECT 1 FROM vdf_articles WHERE article = ?");
   const byOption = db.prepare(
     `SELECT 1 FROM products, json_each(products.data, '$.optionGroups') AS g, json_each(g.value, '$.values') AS v
       WHERE json_extract(v.value, '$.sku') = ? LIMIT 1`,
   );
-  return skus.find((sku) => bySku.get(sku) || byOption.get(sku)) ?? null;
+  return skus.find((sku) => bySku.get(sku) || byArticle.get(sku) || byOption.get(sku)) ?? null;
 }
 
 function productWithTitle(title: string): string | null {

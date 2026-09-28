@@ -72,6 +72,39 @@ export interface ComposeOptions {
   background: Background;
 }
 
+export type ComposerSettings = Omit<ComposeOptions, "product" | "car" | "label">;
+
+export const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
+  mirrorProduct: false,
+  mirrorCar: false,
+  slope: "up",
+  productScale: 1,
+  carShift: 0.5,
+  carShiftX: 0.5,
+  carZoom: 1.2,
+  background: "white",
+};
+
+function finiteOr(value: unknown, fallback: number): number {
+  const number = Number(value);
+  return value !== null && value !== "" && Number.isFinite(number) ? number : fallback;
+}
+
+export function parseComposerSettings(raw: unknown): ComposerSettings {
+  const value = (raw ?? {}) as Record<string, unknown>;
+  const defaults = DEFAULT_COMPOSER_SETTINGS;
+  return {
+    mirrorProduct: value.mirrorProduct === true,
+    mirrorCar: value.mirrorCar === true,
+    slope: value.slope === "down" ? "down" : "up",
+    productScale: finiteOr(value.productScale, defaults.productScale),
+    carShift: finiteOr(value.carShift, defaults.carShift),
+    carShiftX: finiteOr(value.carShiftX, defaults.carShiftX),
+    carZoom: finiteOr(value.carZoom, defaults.carZoom),
+    background: isBackground(value.background) ? value.background : defaults.background,
+  };
+}
+
 function escapeMarkup(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

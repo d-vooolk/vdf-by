@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Combobox, type ComboOption } from "@/components/Combobox";
 import {
@@ -13,7 +13,7 @@ import {
   UploadIcon,
 } from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
-import type { Background } from "@/lib/composer";
+import type { Background, ComposerSettings } from "@/lib/composer";
 import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
@@ -56,11 +56,23 @@ export interface ComposedImage {
   thumb: string;
 }
 
+export interface ComposerState {
+  product: Blob | null;
+  settings: ComposerSettings;
+  ready: boolean;
+}
+
 interface ImageComposerProps {
   initialGenerationId?: string;
   productImages?: ComposerProductImage[];
   folder?: string;
   onSaved?: (image: ComposedImage) => void;
+  initialProductUrl?: string;
+  initialSettings?: ComposerSettings | null;
+  productHeading?: string;
+  uploadLabel?: string;
+  labelNote?: string;
+  actions?: (state: ComposerState) => ReactNode;
 }
 
 interface RenderSettings {
@@ -141,7 +153,18 @@ function renderForm(settings: RenderSettings): FormData {
   return form;
 }
 
-export function ImageComposer({ initialGenerationId, productImages = [], folder, onSaved }: ImageComposerProps) {
+export function ImageComposer({
+  initialGenerationId,
+  productImages = [],
+  folder,
+  onSaved,
+  initialProductUrl,
+  initialSettings,
+  productHeading = "Товар",
+  uploadLabel = "Загрузить фото товара",
+  labelNote,
+  actions,
+}: ImageComposerProps) {
   const [marks, setMarks] = useState<AdminMark[] | null>(null);
   const [models, setModels] = useState<CarModel[] | undefined>();
   const [generations, setGenerations] = useState<CarGeneration[] | undefined>();
@@ -159,14 +182,14 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
   const productFileRef = useRef<HTMLInputElement>(null);
 
   const [label, setLabel] = useState("");
-  const [mirrorProduct, setMirrorProduct] = useState(false);
-  const [mirrorCar, setMirrorCar] = useState(false);
-  const [slope, setSlope] = useState<"up" | "down">("up");
-  const [productScale, setProductScale] = useState(1);
-  const [carShift, setCarShift] = useState(0.5);
-  const [carShiftX, setCarShiftX] = useState(0.5);
-  const [carZoom, setCarZoom] = useState(1.2);
-  const [background, setBackground] = useState<Background>("white");
+  const [mirrorProduct, setMirrorProduct] = useState(initialSettings?.mirrorProduct ?? false);
+  const [mirrorCar, setMirrorCar] = useState(initialSettings?.mirrorCar ?? false);
+  const [slope, setSlope] = useState<"up" | "down">(initialSettings?.slope ?? "up");
+  const [productScale, setProductScale] = useState(initialSettings?.productScale ?? 1);
+  const [carShift, setCarShift] = useState(initialSettings?.carShift ?? 0.5);
+  const [carShiftX, setCarShiftX] = useState(initialSettings?.carShiftX ?? 0.5);
+  const [carZoom, setCarZoom] = useState(initialSettings?.carZoom ?? 1.2);
+  const [background, setBackground] = useState<Background>(initialSettings?.background ?? "white");
 
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -208,6 +231,27 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
       alive = false;
     };
   }, [initialGenerationId]);
+
+  useEffect(() => {
+    if (!initialProductUrl) return;
+    let alive = true;
+    fetch(initialProductUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error("Не удалось загрузить сохранённое фото");
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!alive) return;
+        setOriginal(blob);
+        setCutout(null);
+        setRemoveBackground(false);
+        setProductName("Сохранённое фото");
+      })
+      .catch((problem: Error) => alive && setError(problem.message));
+    return () => {
+      alive = false;
+    };
+  }, [initialProductUrl]);
 
   useEffect(
     () => () => {
@@ -443,7 +487,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
         </section>
 
         <section className="card space-y-4 p-5">
-          <h2 className="font-semibold text-brand-900">2. Товар</h2>
+          <h2 className="font-semibold text-brand-900">2. {productHeading}</h2>
           {productImages.length > 0 && (
             <div className="space-y-2">
               <p className="label">Фото из карточки товара</p>
@@ -471,7 +515,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
               onClick={() => productFileRef.current?.click()}
             >
               <UploadIcon className="h-4 w-4" />
-              {productImages.length ? "Загрузить другое фото" : "Загрузить фото товара"}
+              {productImages.length || original ? "Загрузить другое фото" : uploadLabel}
             </button>
             {productName && <span className="truncate text-sm text-brand-500">{productName}</span>}
             <input
@@ -502,6 +546,7 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
             <span className="label">Надпись на линии</span>
             <input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={120} className="field py-2 text-sm" />
           </label>
+          {labelNote && <p className="text-xs text-brand-500">{labelNote}</p>}
           <div className="flex flex-wrap gap-x-8 gap-y-5">
             <div>
               <span className="label">Наклон линии</span>
@@ -615,16 +660,24 @@ export function ImageComposer({ initialGenerationId, productImages = [], folder,
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-secondary" onClick={download} disabled={!preview || rendering}>
-            <DownloadIcon className="h-4 w-4" />
-            Скачать JPG
-          </button>
-          <button type="button" className="btn-primary flex-1" onClick={save} disabled={!preview || rendering || saving}>
-            {saving ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <ImagePlusIcon className="h-4 w-4" />}
-            {onSaved ? "Добавить в фото товара" : "Сохранить в «Фото»"}
-          </button>
-        </div>
+        {actions ? (
+          actions({
+            product,
+            settings: { mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background },
+            ready: Boolean(product && preview && !rendering && !cutting),
+          })
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary" onClick={download} disabled={!preview || rendering}>
+              <DownloadIcon className="h-4 w-4" />
+              Скачать JPG
+            </button>
+            <button type="button" className="btn-primary flex-1" onClick={save} disabled={!preview || rendering || saving}>
+              {saving ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <ImagePlusIcon className="h-4 w-4" />}
+              {onSaved ? "Добавить в фото товара" : "Сохранить в «Фото»"}
+            </button>
+          </div>
+        )}
         {saved && (
           <p className="text-sm text-emerald-700">
             {onSaved ? (

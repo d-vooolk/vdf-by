@@ -1,10 +1,10 @@
 import { getDb } from "./db";
+import { isFrameCategory } from "./frame-category";
+import { frameTypeOfSku } from "./frame-sku";
 import type { Product } from "./schema";
 import { stockedByQty } from "./variant";
 
-export function frameTypeOfSku(sku: string | undefined | null): string {
-  return sku?.trim().match(/(\d{3})$/)?.[1] ?? "";
-}
+export { frameTypeOfSku };
 
 export interface StockGroup {
   categoryId: string;
@@ -18,7 +18,7 @@ export function stockGroupOf(productId: string): StockGroup | null {
     .prepare("SELECT category_id AS categoryId, json_extract(data, '$.sku') AS sku FROM products WHERE id = ?")
     .get(productId) as { categoryId: string; sku: string | null } | undefined;
   const type = frameTypeOfSku(product?.sku);
-  if (!product || !type) return null;
+  if (!product || !type || !isFrameCategory(product.categoryId)) return null;
 
   const saved = db
     .prepare("SELECT stock_qty AS stockQty FROM frame_types WHERE category_id = ? AND type = ?")

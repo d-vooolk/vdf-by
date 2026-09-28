@@ -93,10 +93,14 @@ export function FrameTypeForm({
         <button
           type="button"
           onClick={apply}
-          disabled={pending || count === 0}
+          disabled={pending}
           className="btn-primary py-2 text-sm"
         >
-          {pending ? "Применяем…" : `Применить ко всем товарам типа ${type} (${count})`}
+          {pending
+            ? "Применяем…"
+            : count
+              ? `Применить ко всем товарам типа ${type} (${count})`
+              : "Сохранить для типа"}
         </button>
         {done !== null && (
           <span className="flex items-center gap-1.5 text-sm text-green-700">

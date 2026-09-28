@@ -64,3 +64,6 @@ next-env.d.ts
 # IDE и локальные настройки инструментов
 /.idea/
 .claude/settings.local.json
+
+# Итоговый отчёт по задаче
+/result.txt

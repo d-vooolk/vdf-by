@@ -238,6 +238,15 @@ function applyPrices(frames: ListedFrame[], rate: number) {
     )
     .all() as Array<{ id: string; categoryId: string; data: string; sku: string }>;
   const bySku = new Map(rows.map((row) => [row.sku, row]));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const articles = db.prepare("SELECT product_id AS productId, article FROM vdf_articles").all() as Array<{
+    productId: string;
+    article: string;
+  }>;
+  for (const { productId, article } of articles) {
+    const row = byId.get(productId);
+    if (row && !bySku.has(article)) bySku.set(article, row);
+  }
 
   const write = db.prepare("UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?");
   const seen = new Set<string>();
