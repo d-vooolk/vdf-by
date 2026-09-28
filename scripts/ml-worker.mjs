@@ -27,6 +27,11 @@ const MODELS = {
     url: "https://github.com/ankandrew/open-image-models/releases/download/assets/yolo-v9-t-640-license-plates-end2end.onnx",
     bytes: 7835770,
   },
+  inpaint: {
+    file: "lama_fp32.onnx",
+    url: "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx",
+    bytes: 208044816,
+  },
 };
 
 const CUTOUT_SIZE = 1024;
@@ -34,6 +39,9 @@ const PLATES_SIZE = 640;
 const PLATE_SCORE = 0.4;
 const ALPHA_LOW = 0.3;
 const ALPHA_HIGH = 0.88;
+const INPAINT_SIZE = 512;
+const INPAINT_CONTEXT = 2.2;
+const STROKE_THRESHOLD = 16;
 
 const SESSION_OPTIONS = {
   intraOpNumThreads: 2,
@@ -42,6 +50,8 @@ const SESSION_OPTIONS = {
   enableMemPattern: false,
   executionMode: "sequential",
 };
+
+const EXCLUSIVE_MODELS = ["cutout", "inpaint"];
 
 const sessions = new Map();
 const downloads = new Map();
@@ -80,7 +90,18 @@ function ensureModel(name) {
   return downloads.get(name);
 }
 
+async function releaseOthers(name) {
+  if (!EXCLUSIVE_MODELS.includes(name)) return;
+  for (const other of EXCLUSIVE_MODELS) {
+    if (other === name || !sessions.has(other)) continue;
+    const loaded = sessions.get(other);
+    sessions.delete(other);
+    await loaded.then((open) => open.release()).catch(() => {});
+  }
+}
+
 async function session(name) {
+  await releaseOthers(name);
   if (!sessions.has(name)) {
     sessions.set(
       name,
@@ -200,6 +221,136 @@ async function plates(image) {
   return boxes;
 }
 
+function strokeBounds(strokes, width, height) {
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (strokes[y * width + x] < STROKE_THRESHOLD) continue;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  return right < 0 ? null : { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
+function contextWindow(bounds, width, height) {
+  const wanted = Math.max(INPAINT_SIZE, Math.round(Math.max(bounds.width, bounds.height) * INPAINT_CONTEXT));
+  const side = Math.min(Math.max(width, height), wanted);
+  const cropWidth = Math.min(width, side);
+  const cropHeight = Math.min(height, side);
+  const centerX = bounds.left + bounds.width / 2;
+  const centerY = bounds.top + bounds.height / 2;
+  return {
+    left: Math.min(width - cropWidth, Math.max(0, Math.round(centerX - cropWidth / 2))),
+    top: Math.min(height - cropHeight, Math.max(0, Math.round(centerY - cropHeight / 2))),
+    width: cropWidth,
+    height: cropHeight,
+    side,
+  };
+}
+
+async function inpaint({ image, mask }) {
+  const model = await session("inpaint");
+  const source = Buffer.from(image);
+  const { width, height } = await sharp(source).metadata();
+  const strokes = await sharp(Buffer.from(mask))
+    .ensureAlpha()
+    .extractChannel(3)
+    .resize(width, height, { fit: "fill" })
+    .raw()
+    .toBuffer();
+
+  const bounds = strokeBounds(strokes, width, height);
+  if (!bounds) throw new Error("Закрасьте водяной знак кистью");
+
+  const area = contextWindow(bounds, width, height);
+  const size = INPAINT_SIZE;
+  const padding = { right: area.side - area.width, bottom: area.side - area.height };
+
+  const context = await sharp(source)
+    .removeAlpha()
+    .extract({ left: area.left, top: area.top, width: area.width, height: area.height })
+    .extend({ ...padding, extendWith: "mirror" })
+    .png()
+    .toBuffer();
+  const pixels = await sharp(context).resize(size, size, { fit: "fill" }).raw().toBuffer();
+
+  const holeWindow = await sharp(strokes, { raw: { width, height, channels: 1 } })
+    .extract({ left: area.left, top: area.top, width: area.width, height: area.height })
+    .extend({ ...padding, background: { r: 0, g: 0, b: 0 } })
+    .png()
+    .toBuffer();
+  const holes = await sharp(holeWindow)
+    .resize(size, size, { fit: "fill" })
+    .blur(2)
+    .threshold(STROKE_THRESHOLD)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+
+  const plane = size * size;
+  const input = new Float32Array(3 * plane);
+  const holeInput = new Float32Array(plane);
+  for (let index = 0; index < plane; index += 1) {
+    for (let channel = 0; channel < 3; channel += 1) {
+      input[channel * plane + index] = pixels[index * 3 + channel] / 255;
+    }
+    holeInput[index] = holes[index] ? 1 : 0;
+  }
+
+  const output = await model.run({
+    image: new ort.Tensor("float32", input, [1, 3, size, size]),
+    mask: new ort.Tensor("float32", holeInput, [1, 1, size, size]),
+  });
+  const painted = output[model.outputNames[0]].data;
+
+  const rgb = Buffer.alloc(3 * plane);
+  for (let index = 0; index < plane; index += 1) {
+    for (let channel = 0; channel < 3; channel += 1) {
+      rgb[index * 3 + channel] = Math.min(255, Math.max(0, Math.round(painted[channel * plane + index])));
+    }
+  }
+
+  const crop = { left: 0, top: 0, width: area.width, height: area.height };
+  const patch = await sharp(rgb, { raw: { width: size, height: size, channels: 3 } })
+    .resize(area.side, area.side, { fit: "fill", kernel: "cubic" })
+    .extract(crop)
+    .raw()
+    .toBuffer();
+  const blend = await sharp(holes, { raw: { width: size, height: size, channels: 1 } })
+    .resize(area.side, area.side, { fit: "fill" })
+    .extract(crop)
+    .blur(1.5)
+    .extractChannel(0)
+    .raw()
+    .toBuffer();
+
+  const rgba = Buffer.alloc(area.width * area.height * 4);
+  for (let index = 0; index < area.width * area.height; index += 1) {
+    rgba[index * 4] = patch[index * 3];
+    rgba[index * 4 + 1] = patch[index * 3 + 1];
+    rgba[index * 4 + 2] = patch[index * 3 + 2];
+    rgba[index * 4 + 3] = blend[index];
+  }
+
+  return sharp(source)
+    .composite([
+      {
+        input: rgba,
+        raw: { width: area.width, height: area.height, channels: 4 },
+        left: area.left,
+        top: area.top,
+      },
+    ])
+    .webp({ quality: 95 })
+    .toBuffer();
+}
+
 let composer = null;
 
 async function compose(options) {
@@ -214,6 +365,7 @@ async function compose(options) {
 const TASKS = {
   cutout: (payload) => cutout(Buffer.from(payload)),
   plates: (payload) => plates(Buffer.from(payload)),
+  inpaint,
   compose,
 };
 

@@ -185,7 +185,15 @@ export const BlurIcon = (props: IconProps) => (
   </Icon>
 );
 
-export const FlipIcon = (props: IconProps) => (
+export const EraserIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m7 21-4.3-4.3a1.5 1.5 0 0 1 0-2.1L13.4 3.9a1.5 1.5 0 0 1 2.1 0l4.6 4.6a1.5 1.5 0 0 1 0 2.1L10.5 20.2" />
+    <path d="M7 21h14" />
+    <path d="m8.5 9.5 6 6" />
+  </Icon>
+);
+
+export const FlipIcon =(props: IconProps) => (
   <Icon {...props}>
     <path d="M12 3v18" strokeDasharray="2 2.5" />
     <path d="M9 7 4 17h5V7Z" />

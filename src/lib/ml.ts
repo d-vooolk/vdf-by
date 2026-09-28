@@ -82,7 +82,7 @@ function worker(): ChildProcess {
   return child;
 }
 
-function run<T>(task: "cutout" | "plates" | "compose", payload: unknown): Promise<T> {
+function run<T>(task: "cutout" | "plates" | "inpaint" | "compose", payload: unknown): Promise<T> {
   const id = (state.__mlNextId = (state.__mlNextId ?? 0) + 1);
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -100,6 +100,14 @@ async function upright(image: Buffer): Promise<Buffer> {
 
 export async function removeBackground(image: Buffer): Promise<Buffer> {
   const result = await run<Uint8Array>("cutout", new Uint8Array(await upright(image)));
+  return Buffer.from(result);
+}
+
+export async function removeWatermark(image: Buffer, mask: Buffer): Promise<Buffer> {
+  const result = await run<Uint8Array>("inpaint", {
+    image: new Uint8Array(await upright(image)),
+    mask: new Uint8Array(mask),
+  });
   return Buffer.from(result);
 }
 

@@ -81,7 +81,7 @@ export const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
   productScale: 1,
   carShift: 0.5,
   carShiftX: 0.5,
-  carZoom: 1.2,
+  carZoom: 1,
   background: "white",
 };
 

@@ -5,11 +5,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Combobox, type ComboOption } from "@/components/Combobox";
 import {
   DownloadIcon,
+  EraserIcon,
   FlipIcon,
   ImagePlusIcon,
   SlopeDownIcon,
   SlopeUpIcon,
   SpinnerIcon,
+  UndoIcon,
   UploadIcon,
 } from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
@@ -18,6 +20,7 @@ import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
 import { Segmented, Switch } from "./Toggles";
+import { WatermarkEraser } from "./WatermarkEraser";
 
 const THIS_YEAR = new Date().getFullYear();
 const PRODUCT_MAX_SIDE = 2000;
@@ -179,6 +182,8 @@ export function ImageComposer({
   const [cutting, setCutting] = useState(false);
   const [pickedImage, setPickedImage] = useState("");
   const [productName, setProductName] = useState("");
+  const [erasing, setErasing] = useState(false);
+  const [earlierOriginals, setEarlierOriginals] = useState<Blob[]>([]);
   const productFileRef = useRef<HTMLInputElement>(null);
 
   const [label, setLabel] = useState("");
@@ -188,7 +193,7 @@ export function ImageComposer({
   const [productScale, setProductScale] = useState(initialSettings?.productScale ?? 1);
   const [carShift, setCarShift] = useState(initialSettings?.carShift ?? 0.5);
   const [carShiftX, setCarShiftX] = useState(initialSettings?.carShiftX ?? 0.5);
-  const [carZoom, setCarZoom] = useState(initialSettings?.carZoom ?? 1.2);
+  const [carZoom, setCarZoom] = useState(initialSettings?.carZoom ?? 1);
   const [background, setBackground] = useState<Background>(initialSettings?.background ?? "white");
 
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
@@ -244,6 +249,8 @@ export function ImageComposer({
         if (!alive) return;
         setOriginal(blob);
         setCutout(null);
+        setEarlierOriginals([]);
+        setErasing(false);
         setRemoveBackground(false);
         setProductName("Сохранённое фото");
       })
@@ -322,6 +329,8 @@ export function ImageComposer({
       const image = await shrink(source);
       setOriginal(image);
       setCutout(null);
+      setEarlierOriginals([]);
+      setErasing(false);
       if (removeBackground) await runCutout(image);
     } catch (problem) {
       setError((problem as Error).message);
@@ -345,6 +354,25 @@ export function ImageComposer({
     } catch (problem) {
       setError((problem as Error).message);
     }
+  };
+
+  const replaceOriginal = (next: Blob) => {
+    setOriginal(next);
+    setCutout(null);
+    if (removeBackground) void runCutout(next);
+  };
+
+  const applyCleaned = (cleaned: Blob) => {
+    if (original) setEarlierOriginals((list) => [...list, original]);
+    setErasing(false);
+    replaceOriginal(cleaned);
+  };
+
+  const undoCleaning = () => {
+    const previous = earlierOriginals.at(-1);
+    if (!previous) return;
+    setEarlierOriginals((list) => list.slice(0, -1));
+    replaceOriginal(previous);
   };
 
   const toggleBackground = (next: boolean) => {
@@ -529,6 +557,23 @@ export function ImageComposer({
               }}
             />
           </div>
+          {original && !erasing && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="btn-secondary py-2 text-sm" onClick={() => setErasing(true)} disabled={cutting}>
+                <EraserIcon className="h-4 w-4" />
+                Убрать водяной знак
+              </button>
+              {earlierOriginals.length > 0 && (
+                <button type="button" className="btn-ghost py-2 text-sm" onClick={undoCleaning} disabled={cutting}>
+                  <UndoIcon className="h-4 w-4" />
+                  Вернуть как было
+                </button>
+              )}
+            </div>
+          )}
+          {original && erasing && (
+            <WatermarkEraser image={original} onApply={applyCleaned} onCancel={() => setErasing(false)} />
+          )}
           <div className="flex items-center gap-2">
             <Switch checked={removeBackground} onChange={toggleBackground} label="Убрать фон нейросетью" />
             {cutting && <SpinnerIcon className="h-4 w-4 animate-spin text-brand-500" />}
