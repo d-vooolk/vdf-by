@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FrameTypeComposer } from "@/components/admin/FrameTypeComposer";
+import { FrameTypeCreator } from "@/components/admin/FrameTypeCreator";
 import { FrameTypeForm } from "@/components/admin/FrameTypeForm";
 import { FrameTypeInfoForm } from "@/components/admin/FrameTypeInfoForm";
 import { FrameTypeProducts } from "@/components/admin/FrameTypeProducts";
@@ -9,6 +10,7 @@ import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { isFrameType, normalizeFrameType, splitFrameSku } from "@/lib/frame-sku";
+import { specsToText } from "@/lib/spec-text";
 import {
   defaultFrameCategory,
   frameCategories,
@@ -55,7 +57,7 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
   const sampleNumber =
     group.products
       .map((product) => splitFrameSku(product.sku).number)
-      .find((number) => /^\d{6}$/.test(number)) ?? "482913";
+      .find(Boolean) ?? "AA4B7";
 
   return (
     <div className="space-y-5">
@@ -73,10 +75,18 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
       </div>
 
       <FrameTypeInfoForm
-        key={`info-${type}-${group.suffix}-${group.name}-${group.storageCode}`}
+        key={`info-${type}-${group.suffix}-${group.name}-${group.storageCode}-${group.brief}-${specsToText(group.specs)}-${group.titleTemplate}`}
         categoryId={categoryId}
         previousType={type}
-        initial={{ type, suffix: group.suffix, name: group.name, storageCode: group.storageCode }}
+        initial={{
+          type,
+          suffix: group.suffix,
+          name: group.name,
+          storageCode: group.storageCode,
+          brief: group.brief,
+          specsText: specsToText(group.specs),
+          titleTemplate: group.titleTemplate,
+        }}
         sampleNumber={sampleNumber}
         count={group.products.length}
         storageMixed={group.storageMixed}
@@ -91,13 +101,6 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
         currencySymbol={site.currencySymbol}
       />
 
-      <FrameTypeProducts
-        categoryId={categoryId}
-        type={type}
-        products={rows}
-        candidates={frameTypeProductsOutside(categoryId, type)}
-      />
-
       <FrameTypeComposer
         key={`composer-${type}`}
         categoryId={categoryId}
@@ -106,6 +109,20 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
         sampleGenerationId={sampleGenerationId}
         hasFrameImage={group.hasFrameImage}
         settings={group.composer}
+      />
+
+      <FrameTypeCreator
+        categoryId={categoryId}
+        type={type}
+        existingGenerationIds={rows.flatMap((row) => row.cars.map((car) => car.generationId))}
+        hasFrameImage={group.hasFrameImage}
+      />
+
+      <FrameTypeProducts
+        categoryId={categoryId}
+        type={type}
+        products={rows}
+        candidates={frameTypeProductsOutside(categoryId, type)}
       />
     </div>
   );

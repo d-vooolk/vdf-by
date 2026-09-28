@@ -10,7 +10,7 @@ import {
   normalizeFrameType,
   splitFrameSku,
 } from "./frame-sku";
-import { moneySourceSchema, type Product } from "./schema";
+import { moneySourceSchema, type Product, type Spec } from "./schema";
 import { setGroupStock } from "./shared-stock";
 import { nextSku } from "./store";
 import { stockedByQty } from "./variant";
@@ -48,6 +48,9 @@ export interface FrameTypeGroup {
   suffix: string;
   storageCode: string;
   storageMixed: boolean;
+  brief: string;
+  specs: Spec[];
+  titleTemplate: string;
   saved: FrameTypeValues | null;
   products: FrameTypeProduct[];
   uniform: boolean;
@@ -60,7 +63,12 @@ export interface FrameTypeInfo {
   suffix: string;
   name: string;
   storageCode: string;
+  brief: string;
+  specs: Spec[];
+  titleTemplate: string;
 }
+
+export const DEFAULT_TITLE_TEMPLATE = "Рамки для замены линз в фарах {марка} {модель} {кузов} {годы}";
 
 export type FrameTypeResult = { ok: true; productIds: string[] } | { ok: false; problems: string[] };
 
@@ -71,6 +79,9 @@ interface TypeRow {
   name: string;
   suffix: string | null;
   storage_code: string | null;
+  brief: string;
+  specs: string;
+  title_template: string;
   cost_price: number | null;
   price: number | null;
   wholesale_price: number | null;
@@ -83,7 +94,7 @@ interface TypeRow {
   composer: string | null;
 }
 
-const TYPE_COLUMNS = `type, name, suffix, storage_code, cost_price, price, wholesale_price, stock_qty, in_stock,
+const TYPE_COLUMNS = `type, name, suffix, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
   price_source, cost_source, wholesale_source, frame_image IS NOT NULL AS has_frame_image, composer`;
 
 const EMPTY_VALUES: FrameTypeValues = {
@@ -137,6 +148,26 @@ function sameValues(a: FrameTypeValues, b: FrameTypeValues): boolean {
     JSON.stringify([a.priceSource, a.costSource, a.wholesaleSource]) ===
       JSON.stringify([b.priceSource, b.costSource, b.wholesaleSource])
   );
+}
+
+function parseSpecs(raw: string): Spec[] {
+  try {
+    const list = JSON.parse(raw) as unknown;
+    return Array.isArray(list) ? cleanSpecs(list) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanSpecs(list: unknown[]): Spec[] {
+  return list
+    .map((item) => item as Record<string, unknown>)
+    .map((item) => ({
+      name: String(item?.name ?? "").trim().slice(0, 100),
+      value: String(item?.value ?? "").trim().slice(0, 300),
+    }))
+    .filter((spec) => spec.name && spec.value)
+    .slice(0, 40);
 }
 
 function commonValue(products: FrameTypeProduct[], read: (product: FrameTypeProduct) => string): string {
@@ -218,6 +249,9 @@ export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
         suffix: row?.suffix ?? commonValue(products, (product) => splitFrameSku(product.sku).suffix),
         storageCode: row?.storage_code ?? commonValue(products, (product) => product.storageCode),
         storageMixed: new Set(products.map((product) => product.storageCode)).size > 1,
+        brief: row?.brief ?? "",
+        specs: row ? parseSpecs(row.specs) : [],
+        titleTemplate: row?.title_template || DEFAULT_TITLE_TEMPLATE,
         saved: row ? toValues(row) : null,
         products: products.sort((a, b) => a.title.localeCompare(b.title, "ru")),
         uniform: !first || products.every((product) => sameValues(productValues(product), first)),
@@ -291,11 +325,17 @@ export function validFrameTypeInfo(input: unknown): FrameTypeInfo | string {
   const suffix = normalizeFrameSuffix(String(value.suffix ?? ""));
   const name = String(value.name ?? "").trim().slice(0, 200);
   const storageCode = String(value.storageCode ?? "").trim().slice(0, 60);
+  const brief = String(value.brief ?? "").trim().slice(0, 4000);
+  const specs = Array.isArray(value.specs) ? cleanSpecs(value.specs) : [];
+  const titleTemplate = String(value.titleTemplate ?? "").trim().slice(0, 200);
   if (!isFrameType(type)) {
     return "Номер рамки: начинается с цифры, дальше цифры и латинские буквы, до 10 знаков — например 110 или 110N";
   }
   if (!isFrameSuffix(suffix)) return "Дополнение: только буквы и цифры, части можно разделять дефисом";
-  return { type, suffix, name, storageCode };
+  if (titleTemplate && !titleTemplate.includes("{")) {
+    return "Шаблон названия: вставьте хотя бы одну подстановку, например {марка} {модель}";
+  }
+  return { type, suffix, name, storageCode, brief, specs, titleTemplate: titleTemplate || DEFAULT_TITLE_TEMPLATE };
 }
 
 function writeValues(product: Product, values: FrameTypeValues): Product {
@@ -400,12 +440,16 @@ function freshNumber(taken: Set<string>): string {
   return candidate;
 }
 
+export function newFrameSku(suffix: string, type: string): string {
+  const taken = takenSkus(new Set());
+  let sku = buildFrameSku({ number: freshNumber(taken), suffix, type });
+  while (taken.has(sku)) sku = buildFrameSku({ number: freshNumber(taken), suffix, type });
+  return sku;
+}
+
 function ownNumber(sku: string, taken: Set<string>): string {
-  const whole = sku.trim().toUpperCase();
-  const { number, type } = splitFrameSku(whole);
-  if (whole.includes("-") && type && /^\d{6}$/.test(number)) return number;
-  if (/^\d{6}$/.test(whole)) return whole;
-  return freshNumber(taken);
+  const { number } = splitFrameSku(sku);
+  return /^[0-9A-ZА-ЯЁ]+$/.test(number) ? number : freshNumber(taken);
 }
 
 function rememberVdfArticle(productId: string, sku: string): void {
@@ -477,13 +521,17 @@ export function saveFrameTypeInfo(
     if (previousType) ensureTypeRow(categoryId, previousType);
     else upsertValues(categoryId, info.type, EMPTY_VALUES);
     db.prepare(
-      `UPDATE frame_types SET type = ?, suffix = ?, name = ?, storage_code = ?, updated_at = ?
+      `UPDATE frame_types SET type = ?, suffix = ?, name = ?, storage_code = ?, brief = ?, specs = ?,
+              title_template = ?, updated_at = ?
         WHERE category_id = ? AND type = ?`,
     ).run(
       info.type,
       info.suffix,
       info.name,
       storageCode ?? null,
+      info.brief,
+      JSON.stringify(info.specs),
+      info.titleTemplate === DEFAULT_TITLE_TEMPLATE ? "" : info.titleTemplate,
       Date.now(),
       categoryId,
       previousType ?? info.type,

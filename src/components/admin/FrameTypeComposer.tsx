@@ -37,7 +37,7 @@ async function saveFrame(categoryId: string, type: string, state: ComposerState)
   }
 }
 
-async function renderOne(categoryId: string, type: string, productId: string): Promise<RenderResponse> {
+export async function renderOne(categoryId: string, type: string, productId: string): Promise<RenderResponse> {
   const response = await fetch("/admin/api/frame-types/render/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -81,6 +81,7 @@ export function FrameTypeComposer({
     try {
       await saveFrame(categoryId, type, state);
       setSaved(true);
+      router.refresh();
     } catch (problem) {
       setError((problem as Error).message);
     } finally {

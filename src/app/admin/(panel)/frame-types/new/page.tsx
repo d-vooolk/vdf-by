@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FrameTypeInfoForm } from "@/components/admin/FrameTypeInfoForm";
-import { defaultFrameCategory, frameCategories } from "@/lib/frame-types";
+import { DEFAULT_TITLE_TEMPLATE, defaultFrameCategory, frameCategories } from "@/lib/frame-types";
 
 export const metadata: Metadata = { title: "Новый тип рамки" };
 
@@ -32,16 +32,24 @@ export default async function NewFrameTypePage({ searchParams }: PageProps) {
         <FrameTypeInfoForm
           categoryId={categoryId}
           previousType={null}
-          initial={{ type: "", suffix: "", name: "", storageCode: "" }}
-          sampleNumber="482913"
+          initial={{
+            type: "",
+            suffix: "",
+            name: "",
+            storageCode: "",
+            brief: "",
+            specsText: "Страна производитель: Россия",
+            titleTemplate: DEFAULT_TITLE_TEMPLATE,
+          }}
+          sampleNumber="AA4B7"
           count={0}
         />
       ) : (
         <p className="card p-10 text-center text-sm text-brand-400">Раздел рамок не найден.</p>
       )}
       <p className="text-sm text-brand-500">
-        После создания откроется страница типа: там задаются цены и остаток, добавляются товары и
-        генерируются фото.
+        После создания откроется страница типа: там задаются цены и остаток, выбираются машины, под
+        которые создадутся карточки, и загружается фото рамки для картинок с автомобилем.
       </p>
     </div>
   );

@@ -6,13 +6,19 @@ import { useState, useTransition } from "react";
 import { deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/actions";
 import { AlertIcon, CheckIcon, TrashIcon } from "@/components/icons";
 import { buildFrameSku, normalizeFrameSuffix, normalizeFrameType } from "@/lib/frame-sku";
+import { specsFromText } from "@/lib/spec-text";
 
 export interface FrameTypeInfoValues {
   type: string;
   suffix: string;
   name: string;
   storageCode: string;
+  brief: string;
+  specsText: string;
+  titleTemplate: string;
 }
+
+const PLACEHOLDERS = "{марка} {модель} {кузов} {поколение} {годы} {тип} {название}";
 
 export function FrameTypeInfoForm({
   categoryId,
@@ -48,7 +54,10 @@ export function FrameTypeInfoForm({
   const save = () =>
     startTransition(async () => {
       setProblems([]);
-      const result = await saveFrameTypeInfoAction(categoryId, previousType, values);
+      const result = await saveFrameTypeInfoAction(categoryId, previousType, {
+        ...values,
+        specs: specsFromText(values.specsText),
+      });
       if (!result.ok) {
         setProblems(result.problems);
         return;
@@ -117,6 +126,47 @@ export function FrameTypeInfoForm({
           />
         </label>
       </div>
+      <label className="block">
+        <span className="label">Шаблон названия новых карточек</span>
+        <input
+          value={values.titleTemplate}
+          onChange={(event) => patch({ titleTemplate: event.target.value })}
+          maxLength={200}
+          className="field"
+        />
+        <span className="mt-1 block text-xs text-brand-400">Подстановки: {PLACEHOLDERS}</span>
+      </label>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <label className="block">
+          <span className="label">Описание для нейросети</span>
+          <textarea
+            value={values.brief}
+            onChange={(event) => patch({ brief: event.target.value })}
+            rows={6}
+            maxLength={4000}
+            placeholder="Под какие модули рамка, какие штатные линзы заменяет, что в комплекте, как ставится"
+            className="field resize-y"
+          />
+          <span className="mt-1 block text-xs text-brand-400">
+            Факты о рамке: по ним нейросеть пишет описание и вопросы-ответы каждой новой карточки.
+            Чего здесь нет, она не выдумывает.
+          </span>
+        </label>
+        <label className="block">
+          <span className="label">Характеристики</span>
+          <textarea
+            value={values.specsText}
+            onChange={(event) => patch({ specsText: event.target.value })}
+            rows={6}
+            placeholder={"Страна производитель: Россия\nВес: 0,1"}
+            className="field tnum resize-y"
+          />
+          <span className="mt-1 block text-xs text-brand-400">
+            По строке на характеристику, «название: значение». Копируются в новые карточки типа.
+          </span>
+        </label>
+      </div>
+
       <p className="text-xs text-brand-400">
         Складской номер общий для типа: записывается во все его товары и виден только в админке.
         {storageMixed &&

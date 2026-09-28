@@ -477,6 +477,12 @@ export const MIGRATIONS = [
   `
     ALTER TABLE frame_types ADD COLUMN storage_code TEXT;
   `,
+
+  `
+    ALTER TABLE frame_types ADD COLUMN brief TEXT NOT NULL DEFAULT '';
+    ALTER TABLE frame_types ADD COLUMN specs TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE frame_types ADD COLUMN title_template TEXT NOT NULL DEFAULT '';
+  `,
 ];
 
 /**

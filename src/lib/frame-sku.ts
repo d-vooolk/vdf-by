@@ -1,6 +1,5 @@
 export const FRAME_TYPE_PATTERN = /^\d[0-9A-Z]{0,9}$/;
 export const FRAME_SUFFIX_PATTERN = /^[0-9A-ZА-ЯЁ]+(?:-[0-9A-ZА-ЯЁ]+)*$/;
-const OWN_NUMBER = /^\d{6}$/;
 
 export interface FrameSkuParts {
   number: string;
@@ -39,8 +38,6 @@ export function splitFrameSku(sku: string | undefined | null): FrameSkuParts {
     }
     return { number: value, suffix: "", type: "" };
   }
-  const legacy = OWN_NUMBER.test(value) ? null : value.match(/^(.*?)(\d{3}[A-Z]?)$/);
-  if (legacy) return { number: legacy[1], suffix: "", type: legacy[2] };
   return { number: value, suffix: "", type: "" };
 }
 
