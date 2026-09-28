@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/actions";
+import { copyFrameTypeAction, deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/actions";
 import { AlertIcon, CheckIcon, TrashIcon } from "@/components/icons";
 import { buildFrameSku, normalizeFrameSuffix, normalizeFrameType } from "@/lib/frame-sku";
 import { specsFromText } from "@/lib/spec-text";
@@ -27,6 +27,7 @@ export function FrameTypeInfoForm({
   sampleNumber,
   count,
   storageMixed = false,
+  copyFrom = null,
 }: {
   categoryId: string;
   previousType: string | null;
@@ -34,6 +35,7 @@ export function FrameTypeInfoForm({
   sampleNumber: string;
   count: number;
   storageMixed?: boolean;
+  copyFrom?: string | null;
 }) {
   const router = useRouter();
   const [values, setValues] = useState(initial);
@@ -56,10 +58,10 @@ export function FrameTypeInfoForm({
   const save = () =>
     startTransition(async () => {
       setProblems([]);
-      const result = await saveFrameTypeInfoAction(categoryId, previousType, {
-        ...values,
-        specs: specsFromText(values.specsText),
-      });
+      const input = { ...values, specs: specsFromText(values.specsText) };
+      const result = copyFrom
+        ? await copyFrameTypeAction(categoryId, copyFrom, input)
+        : await saveFrameTypeInfoAction(categoryId, previousType, input);
       if (!result.ok) {
         setProblems(result.problems);
         return;
@@ -192,7 +194,7 @@ export function FrameTypeInfoForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={pending || !type} className="btn-primary py-2 text-sm">
-          {pending ? "Сохраняем…" : previousType ? "Сохранить тип" : "Создать тип"}
+          {pending ? "Сохраняем…" : previousType ? "Сохранить тип" : copyFrom ? "Создать копию" : "Создать тип"}
         </button>
         {done && (
           <span className="flex items-center gap-1.5 text-sm text-green-700">

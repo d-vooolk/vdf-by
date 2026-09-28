@@ -498,6 +498,15 @@ export const MIGRATIONS = [
        AND COALESCE(json_extract(data, '$.carFitment'), 0) = 1
        AND NOT EXISTS (SELECT 1 FROM categories k WHERE k.parent_id = categories.id);
   `,
+
+  `
+    CREATE TABLE frame_type_cars (
+      category_id   TEXT NOT NULL,
+      type          TEXT NOT NULL,
+      generation_id TEXT NOT NULL REFERENCES car_generations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      PRIMARY KEY (category_id, type, generation_id)
+    );
+  `,
 ];
 
 /**

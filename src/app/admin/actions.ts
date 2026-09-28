@@ -80,11 +80,13 @@ import {
 import {
   addToFrameType,
   applyFrameType,
+  copyFrameType,
   deleteFrameType,
   isFrameCategory,
   removeFromFrameType,
   saveFrameTypeInfo,
   setFrameTypeStock,
+  setPlannedFrameCars,
   validFrameTypeInfo,
   validFrameTypeValues,
   type FrameTypeResult,
@@ -808,6 +810,28 @@ export async function saveFrameTypeInfoAction(
   if (typeof info === "string") return fail([info]);
   const state = finishFrameChange(saveFrameTypeInfo(categoryId, previousType, info));
   return state.ok ? { ...state, type: info.type } : state;
+}
+
+export async function copyFrameTypeAction(
+  categoryId: string,
+  sourceType: string,
+  input: unknown,
+): Promise<FormState & { type?: string }> {
+  await requireAdmin();
+  const info = validFrameTypeInfo(input);
+  if (typeof info === "string") return fail([info]);
+  const state = finishFrameChange(copyFrameType(categoryId, sourceType, info));
+  return state.ok ? { ...state, type: info.type } : state;
+}
+
+export async function setPlannedFrameCarsAction(
+  categoryId: string,
+  type: string,
+  generationIds: string[],
+): Promise<FormState> {
+  await requireAdmin();
+  const result = setPlannedFrameCars(categoryId, type, generationIds.map(String).slice(0, 2000));
+  return result.ok ? ok() : fail(result.problems);
 }
 
 export async function deleteFrameTypeAction(

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { setPlannedFrameCarsAction } from "@/app/admin/actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { PlusIcon, SpinnerIcon } from "@/components/icons";
 import { years, type ProductCar } from "@/lib/car-types";
@@ -68,15 +69,29 @@ export function FrameTypeCreator({
   categoryId,
   type,
   existingGenerationIds,
+  plannedCars,
   hasFrameImage,
 }: {
   categoryId: string;
   type: string;
   existingGenerationIds: string[];
+  plannedCars: ProductCar[];
   hasFrameImage: boolean;
 }) {
   const router = useRouter();
-  const [cars, setCars] = useState<ProductCar[]>([]);
+  const [cars, setCars] = useState<ProductCar[]>(() => {
+    const existing = new Set(existingGenerationIds);
+    return plannedCars.filter((car) => !existing.has(car.generationId));
+  });
+  const savedCars = useRef(plannedCars.map((car) => car.generationId).join(","));
+
+  useEffect(() => {
+    const ids = cars.map((car) => car.generationId);
+    const key = ids.join(",");
+    if (key === savedCars.current) return;
+    savedCars.current = key;
+    void setPlannedFrameCarsAction(categoryId, type, ids);
+  }, [cars, categoryId, type]);
   const [withPhotos, setWithPhotos] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");

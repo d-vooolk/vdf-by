@@ -1,3 +1,4 @@
+import type { ProductCar } from "./car-types";
 import { parseComposerSettings, type ComposerSettings } from "./composer";
 import type { MoneySource } from "./currency";
 import { bumpCatalogVersion, getDb } from "./db";
@@ -570,7 +571,14 @@ export function saveFrameTypeInfo(
       categoryId,
       previousType ?? info.type,
     );
-    if (previousType && previousType !== info.type) renameFrameMembers(categoryId, previousType, info.type);
+    if (previousType && previousType !== info.type) {
+      renameFrameMembers(categoryId, previousType, info.type);
+      db.prepare("UPDATE frame_type_cars SET type = ? WHERE category_id = ? AND type = ?").run(
+        info.type,
+        categoryId,
+        previousType,
+      );
+    }
     for (const [productId, sku] of planned) writeIdentity(productId, sku, storageCode);
   })();
 
@@ -584,10 +592,107 @@ export function deleteFrameType(categoryId: string, type: string): FrameTypeResu
   const db = getDb();
   db.transaction(() => {
     db.prepare("DELETE FROM frame_type_products WHERE category_id = ? AND type = ?").run(categoryId, type);
+    db.prepare("DELETE FROM frame_type_cars WHERE category_id = ? AND type = ?").run(categoryId, type);
     db.prepare("DELETE FROM frame_types WHERE category_id = ? AND type = ?").run(categoryId, type);
   })();
   bumpCatalogVersion();
   return { ok: true, productIds: group.products.map((product) => product.id) };
+}
+
+export function copyFrameType(
+  categoryId: string,
+  sourceType: string,
+  info: FrameTypeInfo,
+): FrameTypeResult {
+  if (!isFrameCategory(categoryId)) return { ok: false, problems: ["Раздел рамок не найден"] };
+  const source = getFrameType(categoryId, sourceType);
+  if (!source) return { ok: false, problems: [`Типа ${sourceType} нет`] };
+  if (getFrameType(categoryId, info.type)) {
+    return { ok: false, problems: [`Тип ${info.type} уже есть — выберите другой номер`] };
+  }
+  if (info.name.toLowerCase() === source.name.trim().toLowerCase()) {
+    return {
+      ok: false,
+      problems: [
+        source.name
+          ? `Измените название типа: у копии оно должно отличаться от «${source.name}»`
+          : "Задайте название типа: у копии оно должно отличаться от исходного",
+      ],
+    };
+  }
+
+  const db = getDb();
+  db.transaction(() => {
+    ensureTypeRow(categoryId, sourceType);
+    db.prepare(
+      `INSERT INTO frame_types
+         (category_id, type, name, suffix, storage_code, brief, specs, title_template,
+          cost_price, price, wholesale_price, stock_qty, in_stock,
+          price_source, cost_source, wholesale_source, frame_image, composer, updated_at)
+       SELECT category_id, @type, @name, @suffix, @storageCode, @brief, @specs, @titleTemplate,
+              cost_price, price, wholesale_price, stock_qty, in_stock,
+              price_source, cost_source, wholesale_source, frame_image, composer, @now
+         FROM frame_types
+        WHERE category_id = @categoryId AND type = @sourceType`,
+    ).run({
+      categoryId,
+      sourceType,
+      type: info.type,
+      name: info.name,
+      suffix: info.suffix,
+      storageCode: info.storageCode,
+      brief: info.brief,
+      specs: JSON.stringify(info.specs),
+      titleTemplate: info.titleTemplate === DEFAULT_TITLE_TEMPLATE ? "" : info.titleTemplate,
+      now: Date.now(),
+    });
+    db.prepare(
+      `INSERT OR IGNORE INTO frame_type_cars (category_id, type, generation_id)
+       SELECT @categoryId, @type, pc.generation_id
+         FROM product_cars pc
+         JOIN frame_type_products f ON f.product_id = pc.product_id
+        WHERE f.category_id = @categoryId AND f.type = @sourceType
+       UNION
+       SELECT @categoryId, @type, generation_id
+         FROM frame_type_cars
+        WHERE category_id = @categoryId AND type = @sourceType`,
+    ).run({ categoryId, sourceType, type: info.type });
+  })();
+
+  bumpCatalogVersion();
+  return { ok: true, productIds: [] };
+}
+
+export function plannedFrameCars(categoryId: string, type: string): ProductCar[] {
+  return getDb()
+    .prepare(
+      `SELECT k.slug AS markSlug, k.name AS markName,
+              m.slug AS modelSlug, m.name AS modelName,
+              g.id   AS generationId, g.slug AS generationSlug,
+              g.name AS generationName,
+              g.year_from AS yearFrom, g.year_to AS yearTo
+         FROM frame_type_cars fc
+         JOIN car_generations g ON g.id = fc.generation_id
+         JOIN car_models      m ON m.id = g.model_id
+         JOIN car_marks       k ON k.id = m.mark_id
+        WHERE fc.category_id = ? AND fc.type = ?
+        ORDER BY k.name, m.name, g.year_from DESC`,
+    )
+    .all(categoryId, type) as ProductCar[];
+}
+
+export function setPlannedFrameCars(categoryId: string, type: string, generationIds: string[]): FrameTypeResult {
+  if (!getFrameType(categoryId, type)) return { ok: false, problems: [`Типа ${type} нет`] };
+  const db = getDb();
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO frame_type_cars (category_id, type, generation_id)
+     SELECT ?, ?, id FROM car_generations WHERE id = ?`,
+  );
+  db.transaction(() => {
+    db.prepare("DELETE FROM frame_type_cars WHERE category_id = ? AND type = ?").run(categoryId, type);
+    for (const generationId of new Set(generationIds)) insert.run(categoryId, type, generationId);
+  })();
+  return { ok: true, productIds: [] };
 }
 
 function productInCategory(categoryId: string, productId: string): { sku: string } | null {

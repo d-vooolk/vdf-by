@@ -17,6 +17,7 @@ import {
   frameTypeProductsOutside,
   getFrameType,
   initialFrameValues,
+  plannedFrameCars,
 } from "@/lib/frame-types";
 
 interface PageProps {
@@ -115,6 +116,7 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
         categoryId={categoryId}
         type={type}
         existingGenerationIds={rows.flatMap((row) => row.cars.map((car) => car.generationId))}
+        plannedCars={plannedFrameCars(categoryId, type)}
         hasFrameImage={group.hasFrameImage}
       />
 

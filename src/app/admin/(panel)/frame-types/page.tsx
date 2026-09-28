@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FrameTypeStockField } from "@/components/admin/FrameTypeStockField";
-import { PlusIcon } from "@/components/icons";
+import { CopyIcon, PlusIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
 import { getSite } from "@/lib/catalog";
 import { buildFrameSku } from "@/lib/frame-sku";
@@ -174,6 +174,14 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
                 {!group.uniform && (
                   <span className="badge bg-amber-100 text-amber-900">у товаров разные значения</span>
                 )}
+              </Link>
+              <Link
+                href={`/admin/frame-types/new/${categoryQuery}&from=${encodeURIComponent(group.type)}`}
+                title="Копировать тип"
+                aria-label={`Копировать тип ${group.type}`}
+                className="btn-ghost p-2 text-brand-500 hover:text-brand-900"
+              >
+                <CopyIcon className="h-4 w-4" />
               </Link>
               <FrameTypeStockField
                 categoryId={categoryId}
