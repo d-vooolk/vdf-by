@@ -9,41 +9,60 @@ import { PlusIcon, SpinnerIcon } from "@/components/icons";
 import { years, type ProductCar } from "@/lib/car-types";
 
 import { Switch } from "./Toggles";
-import { renderOne } from "./FrameTypeComposer";
 
 const THIS_YEAR = new Date().getFullYear();
+const RETRY_PASSES = 2;
+const RETRY_DELAYS = [5000, 20000];
 
-interface CreateLine {
-  car: string;
-  status: "created" | "skipped" | "error";
+type Step = "create" | "description" | "faq" | "photo";
+
+const STEP_LABELS: Record<Step, string> = {
+  create: "карточка",
+  description: "описание",
+  faq: "вопросы-ответы",
+  photo: "фото",
+};
+
+interface Item {
+  car: ProductCar;
   productId: string;
   title: string;
-  message: string;
-  photo: string;
+  done: Step[];
+  notes: string[];
+  failed: { step: Step; message: string } | null;
 }
 
-interface CreateResponse {
-  status?: "created" | "skipped";
-  productId?: string;
-  title?: string;
-  message?: string;
-  error?: string;
-}
+class StopError extends Error {}
 
 function carLabel(car: ProductCar): string {
   return `${car.markName} ${car.modelName} ${car.generationName} ${years(car, THIS_YEAR)}`.trim();
 }
 
-async function createOne(categoryId: string, type: string, generationId: string): Promise<CreateResponse> {
-  const response = await fetch("/admin/api/frame-types/create/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ categoryId, type, generationId }),
-  });
-  const data = (await response.json().catch(() => ({}))) as CreateResponse;
-  if (!response.ok) throw new Error(data.error ?? `Ошибка ${response.status}`);
+async function post<T>(url: string, body: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("нет связи с сервером");
+  }
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  if (response.status === 401) throw new StopError("Нужно войти заново");
+  if (!response.ok) {
+    throw new Error(
+      data.error ??
+        (response.status === 502 || response.status === 504
+          ? `сервер не дождался ответа (${response.status})`
+          : `ошибка ${response.status}`),
+    );
+  }
   return data;
 }
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function FrameTypeCreator({
   categoryId,
@@ -60,59 +79,114 @@ export function FrameTypeCreator({
   const [cars, setCars] = useState<ProductCar[]>([]);
   const [withPhotos, setWithPhotos] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [lines, setLines] = useState<CreateLine[]>([]);
+  const [status, setStatus] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+  const [fatal, setFatal] = useState("");
   const stopRef = useRef(false);
 
   const existing = new Set(existingGenerationIds);
-  const fresh = cars.filter((car) => !existing.has(car.generationId));
+  const known = new Set(items.map((item) => item.car.generationId));
+  const fresh = cars.filter((car) => !existing.has(car.generationId) || known.has(car.generationId));
   const repeated = cars.length - fresh.length;
+  const photos = withPhotos && hasFrameImage;
+  const steps: Step[] = photos ? ["create", "description", "faq", "photo"] : ["create", "description", "faq"];
+
+  const complete = (item: Item) => steps.every((step) => item.done.includes(step));
+
+  const runStep = async (item: Item, step: Step): Promise<void> => {
+    if (step === "create") {
+      const result = await post<{ status: "created" | "skipped"; productId: string; title: string }>(
+        "/admin/api/frame-types/create/",
+        { categoryId, type, generationId: item.car.generationId },
+      );
+      item.productId = result.productId;
+      item.title = result.title;
+      return;
+    }
+    if (step === "photo") {
+      const result = await post<{ status: "done" | "skipped"; message?: string }>(
+        "/admin/api/frame-types/render/",
+        { categoryId, type, productId: item.productId },
+      );
+      if (result.status === "skipped") item.notes.push(`фото не сделано: ${result.message ?? ""}`);
+      return;
+    }
+    const result = await post<{ status: "done" | "skipped"; message: string }>("/admin/api/frame-types/fill/", {
+      productId: item.productId,
+      part: step,
+    });
+    if (result.status === "skipped" && result.message === "нейросеть не подключена") {
+      item.notes.push(`${STEP_LABELS[step]}: нейросеть не подключена`);
+    }
+  };
+
+  const process = async (item: Item) => {
+    item.failed = null;
+    for (const step of steps) {
+      if (item.done.includes(step)) continue;
+      if (stopRef.current) return;
+      try {
+        await runStep(item, step);
+        item.done.push(step);
+      } catch (problem) {
+        if (problem instanceof StopError) throw problem;
+        item.failed = { step, message: (problem as Error).message };
+        return;
+      } finally {
+        setItems((current) => [...current]);
+      }
+    }
+  };
 
   const run = async () => {
     setBusy(true);
-    setLines([]);
-    setProgress(0);
+    setFatal("");
     stopRef.current = false;
-    for (const [index, car] of fresh.entries()) {
-      if (stopRef.current) break;
-      let line: CreateLine;
-      try {
-        const result = await createOne(categoryId, type, car.generationId);
-        line = {
-          car: carLabel(car),
-          status: result.status ?? "error",
-          productId: result.productId ?? "",
-          title: result.title ?? "",
-          message: result.message ?? "",
-          photo: "",
-        };
-        if (line.status === "created" && withPhotos && hasFrameImage && !stopRef.current) {
-          try {
-            const photo = await renderOne(categoryId, type, line.productId);
-            line.photo = photo.status === "done" ? "фото готово" : `фото: ${photo.message ?? "не сделано"}`;
-          } catch (problem) {
-            line.photo = `фото: ${(problem as Error).message}`;
-          }
-        }
-      } catch (problem) {
-        line = {
-          car: carLabel(car),
-          status: "error",
+    const previous = new Map(items.map((item) => [item.car.generationId, item]));
+    const queue: Item[] = fresh.map(
+      (car) =>
+        previous.get(car.generationId) ?? {
+          car,
           productId: "",
           title: "",
-          message: (problem as Error).message,
-          photo: "",
-        };
+          done: [],
+          notes: [],
+          failed: null,
+        },
+    );
+    setItems(queue);
+
+    try {
+      for (let pass = 0; pass <= RETRY_PASSES; pass += 1) {
+        const pending = queue.filter((item) => !complete(item));
+        if (!pending.length || stopRef.current) break;
+        if (pass > 0) {
+          const delay = RETRY_DELAYS[pass - 1] ?? 20000;
+          setStatus(`Повтор для несозданных (${pending.length}) через ${Math.round(delay / 1000)} с…`);
+          await pause(delay);
+          if (stopRef.current) break;
+        }
+        for (const [index, item] of pending.entries()) {
+          if (stopRef.current) break;
+          setStatus(
+            `${pass ? `Повтор ${pass}: ` : ""}${index + 1} / ${pending.length} — ${carLabel(item.car)}`,
+          );
+          await process(item);
+        }
       }
-      setLines((current) => [...current, line]);
-      setProgress(index + 1);
+    } catch (problem) {
+      setFatal((problem as Error).message);
     }
+
+    const finished = new Set(queue.filter(complete).map((item) => item.car.generationId));
+    setCars((current) => current.filter((car) => !finished.has(car.generationId)));
+    setStatus("");
     setBusy(false);
-    setCars([]);
     router.refresh();
   };
 
-  const created = lines.filter((line) => line.status === "created").length;
+  const doneCount = items.filter(complete).length;
+  const failedCount = items.filter((item) => !complete(item)).length;
 
   return (
     <section className="card space-y-4 p-5">
@@ -126,7 +200,11 @@ export function FrameTypeCreator({
         </p>
       </div>
 
-      <CarFitmentEditor value={cars} onChange={setCars} />
+      <CarFitmentEditor
+        value={cars}
+        onChange={setCars}
+        emptyNote="Машины не выбраны. Выберите марку, модель и поколение — можно добавить сколько угодно."
+      />
 
       {repeated > 0 && (
         <p className="text-xs text-amber-800">
@@ -135,14 +213,10 @@ export function FrameTypeCreator({
       )}
 
       <div className="flex flex-wrap items-center gap-4">
-        <Switch
-          checked={withPhotos && hasFrameImage}
-          onChange={setWithPhotos}
-          label="Сразу сделать фото рамки с автомобилем"
-        />
+        <Switch checked={photos} onChange={setWithPhotos} label="Сразу сделать фото рамки с автомобилем" />
         {!hasFrameImage && (
           <span className="text-xs text-brand-400">
-            Сначала сохраните фото рамки и оформление в блоке ниже.
+            Сначала сохраните фото рамки и оформление в блоке выше.
           </span>
         )}
       </div>
@@ -155,55 +229,56 @@ export function FrameTypeCreator({
           className="btn-primary py-2 text-sm"
         >
           {busy ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
-          Создать карточки ({fresh.length})
+          {items.some((item) => !complete(item)) && !busy
+            ? `Повторить для несозданных (${fresh.length})`
+            : `Создать карточки (${fresh.length})`}
         </button>
         {busy && (
-          <>
-            <span className="tnum text-sm text-brand-600">
-              {progress} / {fresh.length}
-            </span>
-            <button type="button" className="btn-ghost py-1 text-xs" onClick={() => (stopRef.current = true)}>
-              Остановить
-            </button>
-          </>
+          <button type="button" className="btn-ghost py-1 text-xs" onClick={() => (stopRef.current = true)}>
+            Остановить
+          </button>
         )}
-        {!busy && lines.length > 0 && (
-          <span className="text-sm text-emerald-700">
-            Создано: {created} из {lines.length}
+        {!busy && items.length > 0 && (
+          <span className={failedCount ? "text-sm text-amber-800" : "text-sm text-emerald-700"}>
+            Готово: {doneCount} из {items.length}
+            {failedCount > 0 && ` — ${failedCount} не удалось, они остались в списке выше`}
           </span>
         )}
       </div>
+      {status && <p className="text-xs text-brand-500">{status}</p>}
       {busy && (
         <p className="text-xs text-brand-400">
-          Нейросеть пишет текст 10–30 секунд на карточку. Не закрывайте страницу до конца.
+          Нейросеть пишет текст 10–30 секунд на шаг. Не закрывайте страницу до конца.
         </p>
       )}
+      {fatal && <p className="text-sm text-red-700">{fatal}</p>}
 
-      {lines.length > 0 && (
+      {items.length > 0 && (
         <ul className="max-h-80 space-y-1 overflow-y-auto text-xs">
-          {lines.map((line, index) => (
-            <li
-              key={`${line.car}-${index}`}
-              className={
-                line.status === "error"
-                  ? "text-red-700"
-                  : line.status === "skipped"
-                    ? "text-amber-800"
-                    : "text-brand-700"
-              }
-            >
-              {line.productId ? (
-                <Link href={`/admin/products/${line.productId}/`} className="underline">
-                  {line.title || line.car}
-                </Link>
-              ) : (
-                line.car
-              )}
-              {line.status === "skipped" && " — пропущено"}
-              {line.message && `: ${line.message}`}
-              {line.photo && ` · ${line.photo}`}
-            </li>
-          ))}
+          {items.map((item) => {
+            const ready = complete(item);
+            return (
+              <li
+                key={item.car.generationId}
+                className={ready ? "text-brand-700" : item.failed ? "text-red-700" : "text-brand-500"}
+              >
+                {item.productId ? (
+                  <Link href={`/admin/products/${item.productId}/`} className="underline">
+                    {item.title || carLabel(item.car)}
+                  </Link>
+                ) : (
+                  carLabel(item.car)
+                )}
+                {" — "}
+                {ready
+                  ? "готово"
+                  : item.failed
+                    ? `не получилось на шаге «${STEP_LABELS[item.failed.step]}»: ${item.failed.message}`
+                    : `сделано: ${item.done.map((step) => STEP_LABELS[step]).join(", ") || "ничего"}`}
+                {item.notes.length > 0 && ` · ${item.notes.join("; ")}`}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

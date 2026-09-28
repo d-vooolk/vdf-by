@@ -6,6 +6,8 @@ import { getSite } from "@/lib/catalog";
 import { thumbsFor, withCategoryThumbs } from "@/lib/admin-thumbs";
 import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
 import { relinkValues } from "@/lib/currency";
+import { isFrameCategory } from "@/lib/frame-category";
+import { frameMembershipOf } from "@/lib/frame-membership";
 import { currentRates } from "@/lib/linked-prices";
 import { allProductImages } from "@/lib/variant";
 import { getProductRaw, listBrands, listCategoriesBrief } from "@/lib/store";
@@ -28,6 +30,11 @@ export default async function EditProductPage({ params }: PageProps) {
   const site = getSite();
   const linked = product.priceSource || product.wholesaleSource || product.costSource;
   const current = linked ? relinkValues(product, await currentRates()) : product;
+  const membership = frameMembershipOf(product.id);
+  const frameType =
+    membership && membership.categoryId === product.categoryId && isFrameCategory(membership.categoryId)
+      ? membership
+      : undefined;
 
   return (
     <ProductForm
@@ -43,6 +50,7 @@ export default async function EditProductPage({ params }: PageProps) {
       currencySymbol={site.currencySymbol}
       siteName={site.name}
       ai={{ ready: aiConfigured(), prompts: getPrompts(), defaults: DEFAULT_PROMPTS }}
+      frameType={frameType}
     />
   );
 }

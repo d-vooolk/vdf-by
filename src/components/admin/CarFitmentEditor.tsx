@@ -57,9 +57,10 @@ async function load(query: string): Promise<CarsResponse> {
 interface CarFitmentEditorProps {
   value: ProductCar[];
   onChange: (value: ProductCar[]) => void;
+  emptyNote?: string;
 }
 
-export function CarFitmentEditor({ value, onChange }: CarFitmentEditorProps) {
+export function CarFitmentEditor({ value, onChange, emptyNote }: CarFitmentEditorProps) {
   const [marks, setMarks] = useState<AdminMark[] | null>(null);
   const [modelsByMark, setModelsByMark] = useState<Record<string, CarModel[]>>(
     {},
@@ -215,8 +216,8 @@ export function CarFitmentEditor({ value, onChange }: CarFitmentEditorProps) {
 
       {value.length === 0 ? (
         <p className="text-sm text-brand-400">
-          Ни одной машины не выбрано. Товар будет виден в каталоге и в поиске,
-          но на страницах подбора его не будет.
+          {emptyNote ??
+            "Ни одной машины не выбрано. Товар будет виден в каталоге и в поиске, но на страницах подбора его не будет."}
         </p>
       ) : (
         <ul className="flex flex-wrap gap-2">

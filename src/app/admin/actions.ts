@@ -90,6 +90,8 @@ import {
   type FrameTypeResult,
 } from "@/lib/frame-types";
 import { isFrameType } from "@/lib/frame-sku";
+import { frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
+import type { Product } from "@/lib/schema";
 import { getSite } from "@/lib/catalog";
 import {
   deleteCustomer,
@@ -185,6 +187,26 @@ export async function logoutAction(): Promise<void> {
 /* Товары                                                              */
 /* ------------------------------------------------------------------ */
 
+const FRAME_FIELDS = [
+  "price",
+  "priceSource",
+  "costPrice",
+  "costSource",
+  "wholesalePrice",
+  "wholesaleSource",
+  "sku",
+  "storageCode",
+] as const;
+
+function withFrameFields(input: unknown, stored: Product): unknown {
+  const next = { ...(input as Record<string, unknown>) };
+  for (const field of FRAME_FIELDS) {
+    if (stored[field] === undefined) delete next[field];
+    else next[field] = stored[field];
+  }
+  return next;
+}
+
 function revalidateProductsById(ids: Iterable<string>): void {
   for (const id of new Set(ids)) {
     const product = getProductRaw(id);
@@ -207,10 +229,13 @@ export async function saveProductAction(
   const beforePaths = before ? categoryPaths(before.categoryId) : [];
   const beforeCarPaths = previousId ? carPathsForProduct(previousId) : [];
 
-  const result = saveProduct(await relinkInput(input), previousId);
+  const membership = previousId ? frameMembershipOf(previousId) : null;
+  const locked = membership && before && isFrameCategory(membership.categoryId) ? before : null;
+  const result = saveProduct(await relinkInput(locked ? withFrameFields(input, locked) : input), previousId);
   if (!result.ok) return toState(result);
 
   const product = input as { id: string; slug: string; categoryId: string; stockQty?: number | null };
+  if (membership && membership.categoryId !== product.categoryId) setFrameMembership(product.id, null);
 
   const group = stockGroupOf(product.id);
   const stockQty = product.stockQty ?? null;
@@ -326,6 +351,10 @@ export async function setProductPriceAction(
 
   const product = getProductRaw(id);
   if (!product) return fail(["Товар не найден"]);
+  const membership = frameMembershipOf(id);
+  if (membership && isFrameCategory(membership.categoryId)) {
+    return fail([`Цена задаётся в типе рамки ${membership.type} — поменяйте её там`]);
+  }
 
   const result = setProductPrice(id, price);
   if (!result.ok) return toState(result);

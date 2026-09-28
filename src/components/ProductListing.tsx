@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 import { ListingSort } from "@/components/ListingSort";
 import { ProductCard } from "@/components/ProductCard";
@@ -64,13 +63,13 @@ export function ProductListing({
           aria-label="Страницы каталога"
         >
           {page > 1 && (
-            <Link
+            <a
               href={listingHref(basePath, page - 1, sort)}
               rel="prev"
               className="btn-secondary px-3 py-2 text-sm"
             >
               ← Назад
-            </Link>
+            </a>
           )}
           {pageNumbers(page, pages).map((n, index) =>
             n === null ? (
@@ -78,7 +77,7 @@ export function ProductListing({
                 …
               </span>
             ) : (
-              <Link
+              <a
                 key={n}
                 href={listingHref(basePath, n, sort)}
                 aria-current={n === page ? "page" : undefined}
@@ -87,17 +86,17 @@ export function ProductListing({
                 }`}
               >
                 {n}
-              </Link>
+              </a>
             ),
           )}
           {page < pages && (
-            <Link
+            <a
               href={listingHref(basePath, page + 1, sort)}
               rel="next"
               className="btn-secondary px-3 py-2 text-sm"
             >
               Вперёд →
-            </Link>
+            </a>
           )}
         </nav>
       )}

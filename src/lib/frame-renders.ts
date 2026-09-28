@@ -8,6 +8,7 @@ import {
   readCarFrontPhoto,
 } from "./car-photos";
 import { bumpCatalogVersion, getDb } from "./db";
+import { exclusive } from "./frame-lock";
 import { frameComposerSettings, getFrameType, readFrameImage } from "./frame-types";
 import { removeImageFiles } from "./image-pipeline.mjs";
 import { storeImage } from "./image-store";
@@ -60,7 +61,15 @@ function putFirst(productId: string, image: string, previous: string | null): vo
   bumpCatalogVersion();
 }
 
-export async function renderFrameProduct(
+export function renderFrameProduct(
+  categoryId: string,
+  type: string,
+  productId: string,
+): Promise<FrameRenderResult> {
+  return exclusive(`render:${productId}`, () => renderUnlocked(categoryId, type, productId));
+}
+
+async function renderUnlocked(
   categoryId: string,
   type: string,
   productId: string,

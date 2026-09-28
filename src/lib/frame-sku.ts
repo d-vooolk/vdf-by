@@ -41,10 +41,6 @@ export function splitFrameSku(sku: string | undefined | null): FrameSkuParts {
   return { number: value, suffix: "", type: "" };
 }
 
-export function frameTypeOfSku(sku: string | undefined | null): string {
-  return splitFrameSku(sku).type;
-}
-
 export function buildFrameSku({ number, suffix, type }: FrameSkuParts): string {
   return [number, suffix, type].filter(Boolean).join("-");
 }

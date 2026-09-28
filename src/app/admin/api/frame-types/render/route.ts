@@ -1,6 +1,7 @@
 import { getAdmin } from "@/lib/auth";
 import { carPathsForProduct } from "@/lib/cars";
 import { categoryPaths, invalidateCatalog } from "@/lib/catalog";
+import { FrameBusyError } from "@/lib/frame-lock";
 import { renderFrameProduct } from "@/lib/frame-renders";
 import { revalidateImages, revalidateProduct } from "@/lib/revalidate";
 import { getProductRaw } from "@/lib/store";
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     }
     return Response.json(result);
   } catch (error) {
+    if (error instanceof FrameBusyError) return Response.json({ error: error.message }, { status: 409 });
     console.error("[frame-render]", error);
     return Response.json({ error: (error as Error).message }, { status: 500 });
   }

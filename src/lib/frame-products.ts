@@ -1,9 +1,11 @@
 import { AiError, aiConfigured, complete, describeProduct, finishRewrite, parseFaq, promptFor } from "./ai";
 import { WRITE_FROM_TITLE } from "./ai-import";
-import { fetchCarImages, setProductCars } from "./cars";
+import { fetchCarImages, getProductCars, setProductCars } from "./cars";
 import { getGenerationInfo, type GenerationInfo } from "./car-photos";
 import { getCategoryById, invalidateCatalog } from "./catalog";
-import { getDb } from "./db";
+import { bumpCatalogVersion, getDb } from "./db";
+import { exclusive } from "./frame-lock";
+import { frameMembershipOf, setFrameMembership } from "./frame-membership";
 import {
   applyToProduct,
   getFrameType,
@@ -13,7 +15,7 @@ import {
 } from "./frame-types";
 import { relinkInput } from "./linked-prices";
 import { freeIdentity } from "./product-identity";
-import type { FaqItem } from "./schema";
+import type { FaqItem, Product } from "./schema";
 import { saveProduct } from "./store";
 
 const UNIT = "комплект";
@@ -25,6 +27,15 @@ export interface FrameProductResult {
   title: string;
   message: string;
 }
+
+export type FramePart = "description" | "faq";
+
+export interface FramePartResult {
+  status: "done" | "skipped";
+  message: string;
+}
+
+
 
 function shortModel(info: GenerationInfo): string {
   const model = info.modelName.trim();
@@ -97,91 +108,128 @@ function aiMessage(error: unknown): string {
   return error instanceof AiError ? error.message : (error as Error).message || "ошибка";
 }
 
-export async function createFrameProduct(
+function carText(info: GenerationInfo): string {
+  return `${info.markName} ${shortModel(info)} ${info.generationName} ${yearSpan(info, new Date().getFullYear())}`
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function createFrameProduct(
   categoryId: string,
   type: string,
   generationId: string,
 ): Promise<FrameProductResult> {
-  const group = getFrameType(categoryId, type);
-  if (!group) throw new Error(`Типа ${type} нет`);
-  const category = getCategoryById(categoryId);
-  if (!category) throw new Error("Раздел рамок не найден");
-  const info = getGenerationInfo(generationId);
-  if (!info) throw new Error("Поколение не найдено в справочнике");
+  return exclusive(`create:${categoryId}:${type}:${generationId}`, async () => {
+    const group = getFrameType(categoryId, type);
+    if (!group) throw new Error(`Типа ${type} нет`);
+    const info = getGenerationInfo(generationId);
+    if (!info) throw new Error("Поколение не найдено в справочнике");
 
-  let title = frameProductTitle(group.titleTemplate, info, group);
-  const existing = existingForGeneration(group, generationId);
-  if (existing) {
-    return { status: "skipped", productId: existing, title, message: "карточка для этой машины уже есть" };
-  }
-  if (titleTaken(title)) title = `${title} тип ${type}`;
-
-  const warnings: string[] = [];
-  const brand = typeBrand(group);
-  const car = `${info.markName} ${shortModel(info)} ${info.generationName} ${yearSpan(info, new Date().getFullYear())}`;
-  const source = [
-    group.name && `Тип рамки: ${group.name}`,
-    `Автомобиль: ${car.replace(/\s+/g, " ").trim()}`,
-    group.brief,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-  const base = { title, description: source, categoryName: category.name, brand, specs: group.specs, options: [] };
-
-  let description = "";
-  let faq: FaqItem[] = [];
-  if (!aiConfigured()) {
-    warnings.push("нейросеть не подключена — описание и вопросы не написаны");
-  } else {
-    try {
-      description = finishRewrite(
-        await complete(
-          promptFor("rewrite", undefined) + (group.brief.trim() ? "" : WRITE_FROM_TITLE),
-          describeProduct(base, false),
-          "rewrite",
-        ),
-      );
-    } catch (error) {
-      warnings.push(`описание не получилось: ${aiMessage(error)}`);
+    let title = frameProductTitle(group.titleTemplate, info, group);
+    const existing = existingForGeneration(group, generationId);
+    if (existing) {
+      return { status: "skipped", productId: existing, title, message: "карточка для этой машины уже есть" };
     }
-    try {
-      faq = parseFaq(
-        await complete(
-          promptFor("faq", undefined),
-          describeProduct({ ...base, description: description || source }, true),
-          "faq",
-        ),
-      );
-    } catch (error) {
-      warnings.push(`вопросы-ответы не получились: ${aiMessage(error)}`);
-    }
-  }
+    if (titleTaken(title)) title = `${title} тип ${type}`;
 
-  const productId = freeIdentity(title, `${type}-${generationId}`);
-  const product = await relinkInput({
-    id: productId,
-    slug: productId,
-    categoryId,
-    title,
-    brand,
-    price: 0,
-    inStock: false,
-    unit: UNIT,
-    sku: newFrameSku(group.suffix, type),
-    images: [],
-    specs: group.specs,
-    optionGroups: [],
-    ...(description ? { description } : {}),
-    ...(faq.length ? { faq } : {}),
-    ...(group.storageCode ? { storageCode: group.storageCode } : {}),
+    const productId = freeIdentity(title, `${type}-${generationId}`);
+    const product = await relinkInput({
+      id: productId,
+      slug: productId,
+      categoryId,
+      title,
+      brand: typeBrand(group),
+      price: 0,
+      inStock: false,
+      unit: UNIT,
+      sku: newFrameSku(group.suffix, type),
+      images: [],
+      specs: group.specs,
+      optionGroups: [],
+      ...(group.storageCode ? { storageCode: group.storageCode } : {}),
+    });
+    const saved = saveProduct(product);
+    if (!saved.ok) throw new Error(saved.problems.join(" "));
+
+    setFrameMembership(productId, { categoryId, type });
+    applyToProduct(productId, initialFrameValues(group));
+    setProductCars(productId, [generationId]);
+    await fetchCarImages([generationId]);
+    invalidateCatalog();
+
+    return { status: "created", productId, title, message: "" };
   });
-  const saved = saveProduct(product);
-  if (!saved.ok) throw new Error(saved.problems.join(" "));
+}
 
-  applyToProduct(productId, initialFrameValues(group));
-  setProductCars(productId, [generationId]);
-  await fetchCarImages([generationId]);
+function readProduct(productId: string): Product {
+  const row = getDb().prepare("SELECT data FROM products WHERE id = ?").get(productId) as
+    | { data: string }
+    | undefined;
+  if (!row) throw new Error("Товар не найден");
+  return JSON.parse(row.data) as Product;
+}
+
+function writeProduct(product: Product): void {
+  getDb()
+    .prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?")
+    .run(JSON.stringify(product), Date.now(), product.id);
+  bumpCatalogVersion();
   invalidateCatalog();
+}
 
-  return { status: "created", productId, title, message: warnings.join("; ") };
+export function fillFrameProduct(productId: string, part: FramePart): Promise<FramePartResult> {
+  return exclusive(`fill:${productId}:${part}`, async () => {
+    const product = readProduct(productId);
+    if (part === "description" && product.description?.trim()) {
+      return { status: "skipped", message: "описание уже есть" };
+    }
+    if (part === "faq" && product.faq?.length) return { status: "skipped", message: "вопросы уже есть" };
+    if (!aiConfigured()) return { status: "skipped", message: "нейросеть не подключена" };
+
+    const membership = frameMembershipOf(productId);
+    const group = membership ? getFrameType(membership.categoryId, membership.type) : null;
+    if (!group || !membership) throw new Error("Товар не относится к типу рамки");
+    const category = getCategoryById(membership.categoryId);
+    const car = [...getProductCars(productId)].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
+    const info = car ? getGenerationInfo(car.generationId) : null;
+
+    const source = [group.name && `Тип рамки: ${group.name}`, info && `Автомобиль: ${carText(info)}`, group.brief]
+      .filter(Boolean)
+      .join("\n\n");
+    const base = {
+      title: product.title,
+      description: source,
+      categoryName: category?.name,
+      brand: product.brand,
+      specs: product.specs,
+      options: [],
+    };
+
+    try {
+      if (part === "description") {
+        const description = finishRewrite(
+          await complete(
+            promptFor("rewrite", undefined) + (group.brief.trim() ? "" : WRITE_FROM_TITLE),
+            describeProduct(base, false),
+            "rewrite",
+          ),
+        );
+        if (!description.trim()) throw new Error("нейросеть вернула пустой текст");
+        writeProduct({ ...readProduct(productId), description });
+      } else {
+        const faq: FaqItem[] = parseFaq(
+          await complete(
+            promptFor("faq", undefined),
+            describeProduct({ ...base, description: product.description?.trim() || source }, true),
+            "faq",
+          ),
+        );
+        if (!faq.length) throw new Error("нейросеть не вернула ни одного вопроса");
+        writeProduct({ ...readProduct(productId), faq });
+      }
+    } catch (error) {
+      throw new Error(aiMessage(error));
+    }
+    return { status: "done", message: "" };
+  });
 }

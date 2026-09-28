@@ -6,6 +6,9 @@ import type { MoneySource } from "./currency";
 import { getDb } from "./db";
 import { downloadDonorImages } from "./donor-images";
 import { carCatalog, matchVdfCars } from "./frame-cars";
+import { isFrameCategory } from "./frame-category";
+import { setFrameMembership } from "./frame-membership";
+import { splitFrameSku } from "./frame-sku";
 import { relinkInput } from "./linked-prices";
 import { revalidateProduct } from "./revalidate";
 import type { FaqItem, OptionGroup, Spec } from "./schema";
@@ -456,6 +459,9 @@ export async function importNext(id: number): Promise<ImportLogEntry | null> {
     });
     const saved = saveProduct(product);
     if (!saved.ok) throw new Error(saved.problems.join(" "));
+
+    const frameType = isFrameCategory(job.category_id) ? splitFrameSku(main.article).type : "";
+    if (frameType) setFrameMembership(productId, { categoryId: job.category_id, type: frameType });
 
     if (isCarFitmentCategory(job.category_id)) {
       const matches = matchVdfCars(carSources(main), carCatalog());

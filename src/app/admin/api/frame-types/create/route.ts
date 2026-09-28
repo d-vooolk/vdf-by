@@ -1,6 +1,7 @@
 import { getAdmin } from "@/lib/auth";
 import { carPathsForProduct } from "@/lib/cars";
 import { categoryPaths } from "@/lib/catalog";
+import { FrameBusyError } from "@/lib/frame-lock";
 import { createFrameProduct } from "@/lib/frame-products";
 import { isFrameCategory } from "@/lib/frame-types";
 import { revalidateProduct } from "@/lib/revalidate";
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     }
     return Response.json(result);
   } catch (error) {
+    if (error instanceof FrameBusyError) return Response.json({ error: error.message }, { status: 409 });
     console.error("[frame-create]", error);
     return Response.json({ error: (error as Error).message }, { status: 500 });
   }

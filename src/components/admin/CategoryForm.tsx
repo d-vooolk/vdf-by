@@ -305,6 +305,24 @@ export function CategoryForm({
             машины пропадут с витрины и из формы, вернёте — встанут на место.
           </p>
         )}
+
+        {draft.carFitment && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand-200 px-4 py-3 text-sm hover:bg-brand-50">
+            <input
+              type="checkbox"
+              checked={draft.frameTypes ?? false}
+              onChange={(event) => patch({ frameTypes: event.target.checked || undefined })}
+              className="mt-0.5 h-4 w-4 rounded border-brand-200 text-brand-700 focus:ring-brand-600"
+            />
+            <span>
+              <span className="font-medium text-brand-900">Вести товары по типам рамок</span>
+              <span className="mt-1 block text-xs">
+                Раздел появится в «Типах рамок»: цены, остаток, складской номер и артикул товаров
+                задаются для типа целиком. Работает только у раздела без подразделов.
+              </span>
+            </span>
+          </label>
+        )}
       </Section>
 
       <Section

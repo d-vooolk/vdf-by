@@ -157,6 +157,14 @@ revalidatePath('/', 'layout')                // сброс всего + клие
 - Сброс кеша — шаблоном: `revalidatePath('/listing/[page]/[sort]/[[...path]]', 'page')`.
 - `usePathname()` при rewrite в браузере вернёт исходный адрес, а на сервере
   — внутренний; рендерить по нему разметку нельзя (hydration mismatch).
+- **Ссылки на `?page=` и `?sort=` — только обычный `<a>` или
+  `window.location`, не `<Link>` и не `router.push`.** Клиентский роутер
+  (`segment-cache/cache.js`, `deprecated_requestOptimisticRouteCacheEntry`)
+  считает, что query не меняет маршрут: если для `?page=3` ещё нет готовой
+  записи, он берёт дерево адреса без query (`/catalog/x/`) и уже
+  закешированный сегмент первой страницы — запроса к серверу нет, на экране
+  товары первой страницы. `prefetch={false}` не спасает,
+  `experimental.optimisticRouting` тоже.
 
 ## 5. generateStaticParams
 

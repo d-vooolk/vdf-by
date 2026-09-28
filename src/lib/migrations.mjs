@@ -483,6 +483,21 @@ export const MIGRATIONS = [
     ALTER TABLE frame_types ADD COLUMN specs TEXT NOT NULL DEFAULT '[]';
     ALTER TABLE frame_types ADD COLUMN title_template TEXT NOT NULL DEFAULT '';
   `,
+
+  `
+    CREATE TABLE frame_type_products (
+      product_id  TEXT PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      category_id TEXT NOT NULL,
+      type        TEXT NOT NULL
+    );
+
+    CREATE INDEX frame_type_products_by_type ON frame_type_products(category_id, type);
+
+    UPDATE categories SET data = json_set(data, '$.frameTypes', json('true'))
+     WHERE name LIKE '%рамк%'
+       AND COALESCE(json_extract(data, '$.carFitment'), 0) = 1
+       AND NOT EXISTS (SELECT 1 FROM categories k WHERE k.parent_id = categories.id);
+  `,
 ];
 
 /**

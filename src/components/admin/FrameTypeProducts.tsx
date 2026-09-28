@@ -29,6 +29,7 @@ export interface FrameTypeCandidate {
   id: string;
   title: string;
   sku: string;
+  currentType: string;
 }
 
 function carLabel(car: ProductCar): string {
@@ -201,8 +202,8 @@ export function FrameTypeProducts({
           />
         </label>
         <p className="text-xs text-brand-400">
-          Артикул товара перепишется на «номер-дополнение-{type}», а цены и остаток возьмутся из
-          типа.
+          Артикул товара перепишется на «номер-дополнение-{type}», а цены, остаток и складской
+          номер возьмутся из типа. Товар из другого типа переедет в этот.
         </p>
         {needle && (
           <ul className="divide-y divide-brand-100 rounded-lg border border-brand-100">
@@ -211,6 +212,9 @@ export function FrameTypeProducts({
               <li key={candidate.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <span className="min-w-0 flex-1 truncate text-brand-900">{candidate.title}</span>
                 <span className="tnum text-xs text-brand-500">{candidate.sku || "без артикула"}</span>
+                {candidate.currentType && (
+                  <span className="badge bg-amber-100 text-amber-900">сейчас в типе {candidate.currentType}</span>
+                )}
                 <button
                   type="button"
                   disabled={pending}

@@ -11,6 +11,7 @@ import {
   splitFrameSku,
 } from "./frame-sku";
 import { moneySourceSchema, type Product, type Spec } from "./schema";
+import { frameMembershipsIn, renameFrameMembers, setFrameMembership } from "./frame-membership";
 import { setGroupStock } from "./shared-stock";
 import { nextSku } from "./store";
 import { stockedByQty } from "./variant";
@@ -175,10 +176,36 @@ function commonValue(products: FrameTypeProduct[], read: (product: FrameTypeProd
   return values.size === 1 ? [...values][0] : "";
 }
 
+function mostCommon<T>(items: T[]): T {
+  const counts = new Map<string, { item: T; count: number }>();
+  for (const item of items) {
+    const key = JSON.stringify(item);
+    const entry = counts.get(key) ?? { item, count: 0 };
+    entry.count += 1;
+    counts.set(key, entry);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count)[0].item;
+}
+
+function prevailingValues(products: FrameTypeProduct[]): FrameTypeValues {
+  const values = products.map(productValues);
+  const pick = <K extends keyof FrameTypeValues>(key: K) => mostCommon(values.map((value) => value[key]));
+  const stockQty = pick("stockQty");
+  return {
+    costPrice: pick("costPrice"),
+    price: pick("price"),
+    wholesalePrice: pick("wholesalePrice"),
+    stockQty,
+    inStock: stockedByQty(stockQty),
+    priceSource: pick("priceSource"),
+    costSource: pick("costSource"),
+    wholesaleSource: pick("wholesaleSource"),
+  };
+}
+
 export function initialFrameValues(group: FrameTypeGroup | null | undefined): FrameTypeValues {
   if (group?.saved) return group.saved;
-  const first = group?.products[0];
-  return first && group.uniform ? productValues(first) : EMPTY_VALUES;
+  return group?.products.length ? prevailingValues(group.products) : EMPTY_VALUES;
 }
 
 function categoryProducts(categoryId: string): FrameTypeProduct[] {
@@ -227,11 +254,12 @@ function typeRow(categoryId: string, type: string): TypeRow | undefined {
 export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
   if (!isFrameCategory(categoryId)) return [];
   const saved = new Map(typeRows(categoryId).map((row) => [row.type, row]));
+  const memberships = frameMembershipsIn(categoryId);
 
   const groups = new Map<string, FrameTypeProduct[]>();
   for (const type of saved.keys()) groups.set(type, []);
   for (const product of categoryProducts(categoryId)) {
-    const type = splitFrameSku(product.sku).type;
+    const type = memberships.get(product.id);
     if (!type) continue;
     const list = groups.get(type) ?? [];
     list.push(product);
@@ -268,11 +296,17 @@ export function getFrameType(categoryId: string, type: string): FrameTypeGroup |
 export function frameTypeProductsOutside(
   categoryId: string,
   type: string,
-): Array<{ id: string; title: string; sku: string }> {
+): Array<{ id: string; title: string; sku: string; currentType: string }> {
   if (!isFrameCategory(categoryId)) return [];
+  const memberships = frameMembershipsIn(categoryId);
   return categoryProducts(categoryId)
-    .filter((product) => splitFrameSku(product.sku).type !== type)
-    .map((product) => ({ id: product.id, title: product.title, sku: product.sku }))
+    .filter((product) => memberships.get(product.id) !== type)
+    .map((product) => ({
+      id: product.id,
+      title: product.title,
+      sku: product.sku,
+      currentType: memberships.get(product.id) ?? "",
+    }))
     .sort((a, b) => a.title.localeCompare(b.title, "ru"));
 }
 
@@ -536,6 +570,7 @@ export function saveFrameTypeInfo(
       categoryId,
       previousType ?? info.type,
     );
+    if (previousType && previousType !== info.type) renameFrameMembers(categoryId, previousType, info.type);
     for (const [productId, sku] of planned) writeIdentity(productId, sku, storageCode);
   })();
 
@@ -570,10 +605,11 @@ export function addToFrameType(categoryId: string, type: string, productId: stri
 
   const db = getDb();
   db.transaction(() => {
-    const created = ensureTypeRow(categoryId, type);
+    ensureTypeRow(categoryId, type);
+    setFrameMembership(productId, { categoryId, type });
     writeIdentity(productId, planned.get(productId) ?? "", group.storageCode || undefined);
     const row = typeRow(categoryId, type);
-    if (!created && row) applyToProduct(productId, toValues(row));
+    if (row) applyToProduct(productId, toValues(row));
   })();
 
   bumpCatalogVersion();
@@ -583,7 +619,7 @@ export function addToFrameType(categoryId: string, type: string, productId: stri
 export function removeFromFrameType(categoryId: string, productId: string): FrameTypeResult {
   const product = productInCategory(categoryId, productId);
   if (!product) return { ok: false, problems: ["Товар не найден в разделе рамок"] };
-  const { type } = splitFrameSku(product.sku);
+  const type = frameMembershipsIn(categoryId).get(productId);
   if (!type) return { ok: true, productIds: [] };
 
   const taken = takenSkus(new Set([productId]));
@@ -592,6 +628,7 @@ export function removeFromFrameType(categoryId: string, productId: string): Fram
   const db = getDb();
   db.transaction(() => {
     ensureTypeRow(categoryId, type);
+    setFrameMembership(productId, null);
     writeIdentity(productId, sku);
   })();
 

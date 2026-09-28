@@ -68,9 +68,19 @@ interface ProductFormProps {
   siteName: string;
   copiedFrom?: string;
   ai: AiSettings;
+  frameType?: { type: string; categoryId: string };
 }
 
 const UNITS = ["комплект", "шт."];
+
+function LockedField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="label">{label}</span>
+      <p className="field tnum bg-brand-50 text-brand-600">{value}</p>
+    </div>
+  );
+}
 
 function newestCar(cars: ProductCar[]): ProductCar | undefined {
   return [...cars].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
@@ -87,6 +97,7 @@ export function ProductForm({
   siteName,
   copiedFrom,
   ai,
+  frameType,
 }: ProductFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -106,6 +117,9 @@ export function ProductForm({
 
   const creating = !previousId;
   const closeComposer = useCallback(() => setComposerOpen(false), []);
+
+  const money = (value: number | null | undefined) =>
+    value !== null && value !== undefined && value > 0 ? formatPrice(value, currencySymbol) : "—";
 
   const patch = (changes: Partial<Product>) => {
     setDraft((current) => ({ ...current, ...changes }));
@@ -335,19 +349,36 @@ export function ProductForm({
           </Field>
         </div>
 
+        {frameType && (
+          <p className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+            Себестоимость, цена, оптовая цена, артикул и складской номер задаются в{" "}
+            <Link
+              href={`/admin/frame-types/${frameType.type}/?category=${encodeURIComponent(frameType.categoryId)}`}
+              className="font-medium underline"
+            >
+              типе рамки {frameType.type}
+            </Link>{" "}
+            — там они меняются сразу у всех его товаров.
+          </p>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-3">
-          <MoneyField
-            label="Себестоимость"
-            hint="Только для вас — на сайте не показывается"
-            value={draft.costPrice ?? null}
-            source={draft.costSource ?? null}
-            rounding="kopeck"
-            currencySymbol={currencySymbol}
-            placeholder="не задана"
-            onChange={(costPrice, costSource) =>
-              patch({ costPrice, costSource: costSource ?? undefined })
-            }
-          />
+          {frameType ? (
+            <LockedField label="Себестоимость" value={money(draft.costPrice)} />
+          ) : (
+            <MoneyField
+              label="Себестоимость"
+              hint="Только для вас — на сайте не показывается"
+              value={draft.costPrice ?? null}
+              source={draft.costSource ?? null}
+              rounding="kopeck"
+              currencySymbol={currencySymbol}
+              placeholder="не задана"
+              onChange={(costPrice, costSource) =>
+                patch({ costPrice, costSource: costSource ?? undefined })
+              }
+            />
+          )}
 
           <div className="sm:col-span-2">
             <Margin
@@ -360,30 +391,39 @@ export function ProductForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <MoneyField
-            label="Цена розницы"
-            hint="Пусто — на сайте «Цену уточняйте». Если есть опции со своими ценами — запасная"
-            value={draft.price > 0 ? draft.price : null}
-            source={draft.priceSource ?? null}
-            rounding="ruble"
-            currencySymbol={currencySymbol}
-            onChange={(price, priceSource) =>
-              patch({ price: price ?? 0, priceSource: priceSource ?? undefined })
-            }
-          />
+          {frameType ? (
+            <>
+              <LockedField label="Цена розницы" value={money(draft.price > 0 ? draft.price : null)} />
+              <LockedField label="Оптовая цена" value={money(draft.wholesalePrice)} />
+            </>
+          ) : (
+            <>
+              <MoneyField
+                label="Цена розницы"
+                hint="Пусто — на сайте «Цену уточняйте». Если есть опции со своими ценами — запасная"
+                value={draft.price > 0 ? draft.price : null}
+                source={draft.priceSource ?? null}
+                rounding="ruble"
+                currencySymbol={currencySymbol}
+                onChange={(price, priceSource) =>
+                  patch({ price: price ?? 0, priceSource: priceSource ?? undefined })
+                }
+              />
 
-          <MoneyField
-            label="Оптовая цена"
-            hint="Видят только подтверждённые оптовики. У вариантов опций разница с этой ценой — как в рознице"
-            value={draft.wholesalePrice ?? null}
-            source={draft.wholesaleSource ?? null}
-            rounding="ruble"
-            currencySymbol={currencySymbol}
-            placeholder="нет"
-            onChange={(wholesalePrice, wholesaleSource) =>
-              patch({ wholesalePrice, wholesaleSource: wholesaleSource ?? undefined })
-            }
-          />
+              <MoneyField
+                label="Оптовая цена"
+                hint="Видят только подтверждённые оптовики. У вариантов опций разница с этой ценой — как в рознице"
+                value={draft.wholesalePrice ?? null}
+                source={draft.wholesaleSource ?? null}
+                rounding="ruble"
+                currencySymbol={currencySymbol}
+                placeholder="нет"
+                onChange={(wholesalePrice, wholesaleSource) =>
+                  patch({ wholesalePrice, wholesaleSource: wholesaleSource ?? undefined })
+                }
+              />
+            </>
+          )}
 
           <Field label={`Старая цена, ${currencySymbol}`} hint="Покажется зачёркнутой">
             <NumberInput
@@ -417,49 +457,57 @@ export function ProductForm({
               <label>, а в нём может быть только одно поле ввода, иначе
               непонятно, к чему относится подпись, и щелчок по ней попадает
               не туда. Точно так же сделано в SlugField. */}
-          <div>
+          {frameType ? (
+            <LockedField label="Артикул" value={draft.sku || "—"} />
+          ) : (
+            <div>
+              <Field
+                label="Артикул"
+                hint="Шесть цифр, у каждого товара свои. Подставляется сам"
+              >
+                <input
+                  value={draft.sku ?? ""}
+                  onChange={(event) => patch({ sku: event.target.value })}
+                  className="field tnum"
+                  inputMode="numeric"
+                />
+              </Field>
+
+              <button
+                type="button"
+                onClick={regenerateSku}
+                disabled={skuPending}
+                className="btn-secondary mt-2 py-1.5 text-xs"
+              >
+                {skuPending ? (
+                  <>
+                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                    Генерируем…
+                  </>
+                ) : draft.sku ? (
+                  "Перегенерировать"
+                ) : (
+                  "Сгенерировать"
+                )}
+              </button>
+            </div>
+          )}
+
+          {frameType ? (
+            <LockedField label="Складской номер" value={draft.storageCode || "—"} />
+          ) : (
             <Field
-              label="Артикул"
-              hint="Шесть цифр, у каждого товара свои. Подставляется сам"
+              label="Складской номер"
+              hint="Где лежит на складе. Только для вас — на сайте не показывается"
             >
               <input
-                value={draft.sku ?? ""}
-                onChange={(event) => patch({ sku: event.target.value })}
-                className="field tnum"
-                inputMode="numeric"
+                value={draft.storageCode ?? ""}
+                onChange={(event) => patch({ storageCode: event.target.value })}
+                className="field"
+                placeholder="А-12-3"
               />
             </Field>
-
-            <button
-              type="button"
-              onClick={regenerateSku}
-              disabled={skuPending}
-              className="btn-secondary mt-2 py-1.5 text-xs"
-            >
-              {skuPending ? (
-                <>
-                  <SpinnerIcon className="h-4 w-4 animate-spin" />
-                  Генерируем…
-                </>
-              ) : draft.sku ? (
-                "Перегенерировать"
-              ) : (
-                "Сгенерировать"
-              )}
-            </button>
-          </div>
-
-          <Field
-            label="Складской номер"
-            hint="Где лежит на складе. Только для вас — на сайте не показывается"
-          >
-            <input
-              value={draft.storageCode ?? ""}
-              onChange={(event) => patch({ storageCode: event.target.value })}
-              className="field"
-              placeholder="А-12-3"
-            />
-          </Field>
+          )}
 
           <Field label="Плашка на карточке" hint="«Хит», «Новинка», «Распродажа»">
             <input
