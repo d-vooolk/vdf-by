@@ -235,7 +235,7 @@ export interface EnsuredPhoto {
   plates: number | null;
 }
 
-export async function ensureCarFrontPhoto(generationId: string): Promise<EnsuredPhoto> {
+export async function ensureCarFrontPhoto(generationId: string, blur = true): Promise<EnsuredPhoto> {
   const existing = getCarFrontPhoto(generationId);
   if (existing) return { photo: existing, plates: null };
 
@@ -244,12 +244,14 @@ export async function ensureCarFrontPhoto(generationId: string): Promise<Ensured
 
   let source = await readStoredImage(imagePath);
   let plates: number | null = null;
-  try {
-    const blurred = await blurPlates(source);
-    source = blurred.image;
-    plates = blurred.count;
-  } catch (error) {
-    console.error("[car-photos] номера не размыты", error);
+  if (blur) {
+    try {
+      const blurred = await blurPlates(source);
+      source = blurred.image;
+      plates = blurred.count;
+    } catch (error) {
+      console.error("[car-photos] номера не размыты", error);
+    }
   }
 
   const photo = await saveCarFrontPhoto(

@@ -114,15 +114,14 @@ export function ComposerCarPhoto({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const resetToCatalog = () =>
-    run("reset", async () => {
-      apply(
-        await readJson<SavedPhoto>(
-          await fetch(`/admin/api/composer/car/?generation=${encodeURIComponent(generationId)}`, {
-            method: "DELETE",
-          }),
-        ),
+  const resetToCatalog = (blur: boolean) =>
+    run(blur ? "reset" : "reset-raw", async () => {
+      const params = new URLSearchParams({ generation: generationId });
+      if (!blur) params.set("blur", "0");
+      const saved = await readJson<SavedPhoto>(
+        await fetch(`/admin/api/composer/car/?${params}`, { method: "DELETE" }),
       );
+      apply(saved, blur ? plateNotice(saved.plates) : "Фото из справочника загружено без размытия.");
     });
 
   const blurRegion = () =>
@@ -221,11 +220,27 @@ export function ComposerCarPhoto({
             Размыть выделенное
           </button>
         )}
-        {photo && photo.origin !== "catalog" && hasCatalogPhoto && (
-          <button type="button" className="btn-ghost py-2 text-sm" onClick={resetToCatalog} disabled={Boolean(busy)}>
-            {busy === "reset" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <UndoIcon className="h-4 w-4" />}
-            Вернуть фото из справочника
-          </button>
+        {photo && hasCatalogPhoto && (
+          <>
+            <button
+              type="button"
+              className="btn-ghost py-2 text-sm"
+              onClick={() => resetToCatalog(true)}
+              disabled={Boolean(busy)}
+            >
+              {busy === "reset" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <UndoIcon className="h-4 w-4" />}
+              Вернуть фото из справочника
+            </button>
+            <button
+              type="button"
+              className="btn-ghost py-2 text-sm"
+              onClick={() => resetToCatalog(false)}
+              disabled={Boolean(busy)}
+            >
+              {busy === "reset-raw" ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <UndoIcon className="h-4 w-4" />}
+              Вернуть без размытия
+            </button>
+          </>
         )}
       </div>
 

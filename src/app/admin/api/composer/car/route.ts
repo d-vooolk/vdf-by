@@ -140,11 +140,13 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   if (!(await getAdmin())) return unauthorized();
 
-  const generationId = new URL(request.url).searchParams.get("generation") ?? "";
+  const params = new URL(request.url).searchParams;
+  const generationId = params.get("generation") ?? "";
+  const blur = params.get("blur") !== "0";
   try {
     await deleteCarFrontPhoto(generationId);
     revalidatePath(CREDITS_PATH);
-    const ensured = await ensureCarFrontPhoto(generationId);
+    const ensured = await ensureCarFrontPhoto(generationId, blur);
     return Response.json({ photo: describeCarPhoto(ensured.photo), plates: ensured.plates });
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 500 });
