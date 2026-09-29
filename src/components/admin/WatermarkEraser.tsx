@@ -30,10 +30,31 @@ interface CropRect {
 
 type Tool = "brush" | "crop";
 
+type CropHandle = "move" | "n" | "s" | "w" | "e" | "nw" | "ne" | "sw" | "se";
+
+interface CropDrag {
+  handle: CropHandle;
+  origin: Point;
+  rect: CropRect;
+}
+
 const STROKE_COLOR = "rgb(239 68 68)";
 const BRUSH_MIN = 0.005;
 const BRUSH_MAX = 0.1;
 const MIN_CROP_SIDE = 16;
+
+const CROP_HANDLES: { handle: CropHandle; className: string; grip?: string }[] = [
+  { handle: "n", className: "inset-x-6 top-0 h-3 cursor-ns-resize", grip: "h-1 w-8" },
+  { handle: "s", className: "inset-x-6 bottom-0 h-3 cursor-ns-resize", grip: "h-1 w-8" },
+  { handle: "w", className: "inset-y-6 left-0 w-3 cursor-ew-resize", grip: "h-8 w-1" },
+  { handle: "e", className: "inset-y-6 right-0 w-3 cursor-ew-resize", grip: "h-8 w-1" },
+  { handle: "nw", className: "top-0 left-0 h-6 w-6 cursor-nwse-resize border-t-4 border-l-4" },
+  { handle: "ne", className: "top-0 right-0 h-6 w-6 cursor-nesw-resize border-t-4 border-r-4" },
+  { handle: "sw", className: "bottom-0 left-0 h-6 w-6 cursor-nesw-resize border-b-4 border-l-4" },
+  { handle: "se", className: "right-0 bottom-0 h-6 w-6 cursor-nwse-resize border-r-4 border-b-4" },
+];
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 async function eraseWatermark(image: Blob, mask: Blob): Promise<Blob> {
   const form = new FormData();
@@ -65,25 +86,36 @@ async function cropImage(image: Blob, rect: CropRect): Promise<Blob> {
   );
 }
 
-function rectBetween(from: Point, to: Point): CropRect {
-  return {
-    x: Math.min(from.x, to.x),
-    y: Math.min(from.y, to.y),
-    width: Math.abs(to.x - from.x),
-    height: Math.abs(to.y - from.y),
-  };
+function dragCrop(drag: CropDrag, to: Point, bounds: { width: number; height: number }): CropRect {
+  const dx = Math.round(to.x - drag.origin.x);
+  const dy = Math.round(to.y - drag.origin.y);
+  const { rect, handle } = drag;
+  if (handle === "move") {
+    return {
+      ...rect,
+      x: clamp(rect.x + dx, 0, bounds.width - rect.width),
+      y: clamp(rect.y + dy, 0, bounds.height - rect.height),
+    };
+  }
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  const left = handle.includes("w") ? clamp(rect.x + dx, 0, right - MIN_CROP_SIDE) : rect.x;
+  const top = handle.includes("n") ? clamp(rect.y + dy, 0, bottom - MIN_CROP_SIDE) : rect.y;
+  const newRight = handle.includes("e") ? clamp(right + dx, left + MIN_CROP_SIDE, bounds.width) : right;
+  const newBottom = handle.includes("s") ? clamp(bottom + dy, top + MIN_CROP_SIDE, bounds.height) : bottom;
+  return { x: left, y: top, width: newRight - left, height: newBottom - top };
 }
 
 export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkEraserProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokes = useRef<Stroke[]>([]);
-  const cropStart = useRef<Point | null>(null);
+  const cropDrag = useRef<CropDrag | null>(null);
   const [tool, setTool] = useState<Tool>("brush");
   const [brush, setBrush] = useState(BRUSH_MAX);
   const [strokeCount, setStrokeCount] = useState(0);
-  const [crop, setCrop] = useState<CropRect | null>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
+  const [crop, setCrop] = useState<CropRect>({ x: 0, y: 0, width: 1, height: 1 });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -103,16 +135,15 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
     setSize({ width: element.naturalWidth, height: element.naturalHeight });
     strokes.current = [];
     setStrokeCount(0);
-    setCrop(null);
+    setCrop({ x: 0, y: 0, width: element.naturalWidth, height: element.naturalHeight });
   };
 
   const point = (event: PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value));
     return {
-      x: clamp(((event.clientX - rect.left) / rect.width) * canvas.width, canvas.width),
-      y: clamp(((event.clientY - rect.top) / rect.height) * canvas.height, canvas.height),
+      x: clamp(((event.clientX - rect.left) / rect.width) * canvas.width, 0, canvas.width),
+      y: clamp(((event.clientY - rect.top) / rect.height) * canvas.height, 0, canvas.height),
     };
   };
 
@@ -144,11 +175,6 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const start = point(event);
-    if (tool === "crop") {
-      cropStart.current = start;
-      setCrop(null);
-      return;
-    }
     const canvas = event.currentTarget;
     const stroke = { width: brush * Math.max(canvas.width, canvas.height), points: [start] };
     strokes.current = [...strokes.current, stroke];
@@ -158,10 +184,6 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
   };
 
   const move = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (tool === "crop") {
-      if (cropStart.current) setCrop(rectBetween(cropStart.current, point(event)));
-      return;
-    }
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const stroke = strokes.current.at(-1);
     const previous = stroke?.points.at(-1);
@@ -172,11 +194,33 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
     drawSegment(context, stroke.width, previous, next);
   };
 
-  const end = () => {
-    if (!cropStart.current) return;
-    cropStart.current = null;
-    setCrop((rect) => (rect && rect.width >= MIN_CROP_SIDE && rect.height >= MIN_CROP_SIDE ? rect : null));
+  const cropPoint = (event: PointerEvent<HTMLDivElement>): Point => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * size.width,
+      y: ((event.clientY - rect.top) / rect.height) * size.height,
+    };
   };
+
+  const beginCropDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const handle = (event.target as HTMLElement).closest<HTMLElement>("[data-handle]")?.dataset.handle;
+    if (busy || !handle) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cropDrag.current = { handle: handle as CropHandle, origin: cropPoint(event), rect: crop };
+  };
+
+  const moveCropDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = cropDrag.current;
+    if (drag) setCrop(dragCrop(drag, cropPoint(event), size));
+  };
+
+  const endCropDrag = () => {
+    cropDrag.current = null;
+  };
+
+  const fullCrop = { x: 0, y: 0, width: size.width, height: size.height };
+  const cropped = crop.width < size.width || crop.height < size.height;
 
   const undoStroke = () => {
     strokes.current = strokes.current.slice(0, -1);
@@ -202,7 +246,7 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
   };
 
   const applyCrop = async () => {
-    if (!crop) return;
+    if (!cropped) return;
     setBusy(true);
     setError("");
     try {
@@ -241,7 +285,7 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
       <p className="text-sm text-brand-600">
         {tool === "brush"
           ? "Закрасьте кистью водяной знак целиком, с небольшим запасом по краям. Нейросеть дорисует закрашенное место по окружающему фону."
-          : "Протяните рамку по фото: останется только то, что внутри неё. Мазки кисти после обрезки сбрасываются."}
+          : "Потяните за края или углы рамки, рамку можно и передвинуть целиком: останется только то, что внутри неё. Мазки кисти после обрезки сбрасываются."}
       </p>
       <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg bg-white">
         <img
@@ -255,20 +299,40 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
           ref={canvasRef}
           onPointerDown={begin}
           onPointerMove={move}
-          onPointerUp={end}
-          onPointerCancel={end}
           className={`absolute inset-0 h-full w-full cursor-crosshair touch-none opacity-50 ${busy ? "pointer-events-none" : ""}`}
         />
-        {tool === "crop" && crop && (
+        {tool === "crop" && (
           <div
-            className="pointer-events-none absolute border-2 border-dashed border-white shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
-            style={{
-              left: percent(crop.x, size.width),
-              top: percent(crop.y, size.height),
-              width: percent(crop.width, size.width),
-              height: percent(crop.height, size.height),
-            }}
-          />
+            onPointerDown={beginCropDrag}
+            onPointerMove={moveCropDrag}
+            onPointerUp={endCropDrag}
+            onPointerCancel={endCropDrag}
+            className={`absolute inset-0 touch-none select-none ${busy ? "pointer-events-none" : ""}`}
+          >
+            <div
+              data-handle="move"
+              className="absolute cursor-move border border-white/80 shadow-[0_0_0_9999px_rgb(0_0_0/0.45)]"
+              style={{
+                left: percent(crop.x, size.width),
+                top: percent(crop.y, size.height),
+                width: percent(crop.width, size.width),
+                height: percent(crop.height, size.height),
+              }}
+            >
+              {CROP_HANDLES.map(({ handle, className, grip }) => (
+                <span key={handle} data-handle={handle} className={`absolute border-white ${className}`}>
+                  {grip && (
+                    <span
+                      className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow ${grip}`}
+                    />
+                  )}
+                </span>
+              ))}
+              <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/60 px-1.5 py-0.5 text-xs whitespace-nowrap text-white">
+                {Math.round(crop.width)} × {Math.round(crop.height)}
+              </span>
+            </div>
+          </div>
         )}
         {busy && (
           <span className="absolute top-3 right-3 rounded-full bg-white/90 p-2 shadow">
@@ -310,11 +374,11 @@ export function WatermarkEraser({ image, onApply, onCrop, onCancel }: WatermarkE
         </>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-primary py-2 text-sm" onClick={applyCrop} disabled={!crop || busy}>
+          <button type="button" className="btn-primary py-2 text-sm" onClick={applyCrop} disabled={!cropped || busy}>
             {busy ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <CropIcon className="h-4 w-4" />}
             Обрезать
           </button>
-          <button type="button" className="btn-secondary py-2 text-sm" onClick={() => setCrop(null)} disabled={!crop || busy}>
+          <button type="button" className="btn-secondary py-2 text-sm" onClick={() => setCrop(fullCrop)} disabled={!cropped || busy}>
             Сбросить рамку
           </button>
           <button type="button" className="btn-ghost py-2 text-sm" onClick={onCancel} disabled={busy}>
