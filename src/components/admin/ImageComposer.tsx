@@ -368,6 +368,11 @@ export function ImageComposer({
     replaceOriginal(cleaned);
   };
 
+  const applyCropped = (cropped: Blob) => {
+    if (original) setEarlierOriginals((list) => [...list, original]);
+    replaceOriginal(cropped);
+  };
+
   const undoCleaning = () => {
     const previous = earlierOriginals.at(-1);
     if (!previous) return;
@@ -561,7 +566,7 @@ export function ImageComposer({
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="btn-secondary py-2 text-sm" onClick={() => setErasing(true)} disabled={cutting}>
                 <EraserIcon className="h-4 w-4" />
-                Убрать водяной знак
+                Редактировать фото
               </button>
               {earlierOriginals.length > 0 && (
                 <button type="button" className="btn-ghost py-2 text-sm" onClick={undoCleaning} disabled={cutting}>
@@ -572,7 +577,7 @@ export function ImageComposer({
             </div>
           )}
           {original && erasing && (
-            <WatermarkEraser image={original} onApply={applyCleaned} onCancel={() => setErasing(false)} />
+            <WatermarkEraser image={original} onApply={applyCleaned} onCrop={applyCropped} onCancel={() => setErasing(false)} />
           )}
           <div className="flex items-center gap-2">
             <Switch checked={removeBackground} onChange={toggleBackground} label="Убрать фон нейросетью" />
