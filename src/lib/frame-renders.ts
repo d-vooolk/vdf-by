@@ -9,12 +9,14 @@ import {
 } from "./car-photos";
 import { bumpCatalogVersion, getDb } from "./db";
 import { exclusive } from "./frame-lock";
+import { framePhotoJpeg, framePhotoPath, isFramePhoto, withFramePhoto } from "./frame-photo.mjs";
 import { frameComposerSettings, getFrameType, readFrameImage } from "./frame-types";
 import { removeImageFiles } from "./image-pipeline.mjs";
 import { storeImage } from "./image-store";
 import { deleteImage, getImage, imageUsage } from "./images";
 import { composeInWorker } from "./ml";
 import type { Product } from "./schema";
+import sharp from "./sharp";
 import { toSlug } from "./slug.mjs";
 
 export type FrameRenderStatus = "done" | "skipped";
@@ -38,14 +40,27 @@ async function dropUnused(imagePath: string): Promise<void> {
   if (entry) await removeImageFiles(entry, path.join(process.cwd(), "public"));
 }
 
-function putFirst(productId: string, image: string, previous: string | null): void {
+async function ensureFramePhoto(categoryId: string, type: string, frame: Buffer): Promise<string | null> {
+  const imagePath = framePhotoPath(categoryId, type, frame);
+  if (getImage(imagePath)) return imagePath;
+  const stored = await storeImage({
+    source: await framePhotoJpeg(sharp, frame),
+    folder: path.posix.dirname(imagePath),
+    filename: path.posix.basename(imagePath),
+  });
+  return stored?.path ?? null;
+}
+
+function putFirst(productId: string, image: string, previous: string | null, photo: string | null): string[] {
   const db = getDb();
   const row = db.prepare("SELECT data FROM products WHERE id = ?").get(productId) as
     | { data: string }
     | undefined;
   if (!row) throw new Error("Товар не найден");
   const product = JSON.parse(row.data) as Product;
-  product.images = [image, ...product.images.filter((item) => item !== image && item !== previous)];
+  const before = product.images;
+  const images = [image, ...before.filter((item) => item !== image && item !== previous)];
+  product.images = photo ? withFramePhoto(images, photo) : images;
   const now = Date.now();
   db.transaction(() => {
     db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?").run(
@@ -59,6 +74,7 @@ function putFirst(productId: string, image: string, previous: string | null): vo
     ).run(productId, image, now);
   })();
   bumpCatalogVersion();
+  return before.filter((item) => isFramePhoto(item) && !product.images.includes(item));
 }
 
 export function renderFrameProduct(
@@ -119,8 +135,10 @@ async function renderUnlocked(
         | { image: string }
         | undefined
     )?.image ?? null;
-  putFirst(productId, stored.path, previous);
+  const framePhoto = await ensureFramePhoto(categoryId, type, frame);
+  const replacedPhotos = putFirst(productId, stored.path, previous, framePhoto);
   if (previous && previous !== stored.path) await dropUnused(previous);
+  for (const replaced of replacedPhotos) await dropUnused(replaced);
 
   return { status: "done", car: label, message: "", thumb: stored.thumb };
 }
