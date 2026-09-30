@@ -148,6 +148,20 @@ export default async function IncompletePage({ searchParams }: PageProps) {
                     ))}
                   </span>
                 </Link>
+                {product.twins.length > 0 && (
+                  <p className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-3 pl-[4.75rem] text-xs text-brand-500">
+                    Такое же название:
+                    {product.twins.map((twin) => (
+                      <Link
+                        key={twin.id}
+                        href={`/admin/products/${twin.id}/`}
+                        className="font-medium text-brand-700 underline hover:text-brand-900"
+                      >
+                        {twin.sku || twin.id}
+                      </Link>
+                    ))}
+                  </p>
+                )}
               </li>
             );
           })}

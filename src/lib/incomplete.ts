@@ -28,6 +28,12 @@ export interface IncompleteProduct {
   image: string | null;
   updatedAt: number;
   gaps: Gap[];
+  twins: TwinProduct[];
+}
+
+export interface TwinProduct {
+  id: string;
+  sku: string;
 }
 
 function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): Gap[] {
@@ -72,17 +78,18 @@ export function listIncompleteProducts(): IncompleteProduct[] {
   }>;
 
   const titleKey = (title: string) => title.replace(/\s+/g, " ").trim().toLowerCase();
-  const titleCounts = new Map<string, number>();
-  for (const row of rows) {
+  const products = rows.map((row) => ({ row, product: JSON.parse(row.data) as Partial<Product> }));
+  const sameTitle = new Map<string, TwinProduct[]>();
+  for (const { row, product } of products) {
     const key = titleKey(row.title);
-    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
+    sameTitle.set(key, [...(sameTitle.get(key) ?? []), { id: row.id, sku: product.sku ?? "" }]);
   }
 
-  return rows.flatMap((row) => {
-    const product = JSON.parse(row.data) as Partial<Product>;
+  return products.flatMap(({ row, product }) => {
     const gaps = gapsOf(product, row.carFitment === 1, row.cars);
     if (frameCategoryIds.has(row.categoryId) && row.framed === 0) gaps.push("frameType");
-    if ((titleCounts.get(titleKey(row.title)) ?? 0) > 1) gaps.push("twin");
+    const twins = (sameTitle.get(titleKey(row.title)) ?? []).filter((twin) => twin.id !== row.id);
+    if (twins.length) gaps.push("twin");
     if (!gaps.length) return [];
     return [
       {
@@ -93,6 +100,7 @@ export function listIncompleteProducts(): IncompleteProduct[] {
         image: product.images?.[0] ?? null,
         updatedAt: row.updatedAt,
         gaps,
+        twins,
       },
     ];
   });
