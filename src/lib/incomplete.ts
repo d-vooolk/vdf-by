@@ -1,4 +1,6 @@
 import { getDb } from "./db";
+import { frameCategories } from "./frame-category";
+import { ensureFrameMembership } from "./frame-membership";
 import type { Product } from "./schema";
 
 export const GAPS = {
@@ -8,6 +10,7 @@ export const GAPS = {
   photo: "нет фото",
   faq: "нет вопросов-ответов",
   cars: "не привязан к авто",
+  frameType: "не привязан к типу рамки",
   twin: "название как у другого товара",
 } as const;
 
@@ -44,11 +47,15 @@ function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): G
 }
 
 export function listIncompleteProducts(): IncompleteProduct[] {
+  ensureFrameMembership();
+  const frameCategoryIds = new Set(frameCategories().map((category) => category.id));
   const rows = getDb()
     .prepare(
       `SELECT p.id, p.title, p.category_id AS categoryId, p.data, p.updated_at AS updatedAt,
               COALESCE(json_extract(c.data, '$.carFitment'), 0) AS carFitment,
-              (SELECT COUNT(*) FROM product_cars pc WHERE pc.product_id = p.id) AS cars
+              (SELECT COUNT(*) FROM product_cars pc WHERE pc.product_id = p.id) AS cars,
+              EXISTS (SELECT 1 FROM frame_type_products f
+                       WHERE f.product_id = p.id AND f.category_id = p.category_id) AS framed
          FROM products p
          LEFT JOIN categories c ON c.id = p.category_id
         ORDER BY p.updated_at DESC`,
@@ -61,9 +68,10 @@ export function listIncompleteProducts(): IncompleteProduct[] {
     updatedAt: number;
     carFitment: number;
     cars: number;
+    framed: number;
   }>;
 
-  const titleKey = (title: string) => title.replace(/s+/g, " ").trim().toLowerCase();
+  const titleKey = (title: string) => title.replace(/\s+/g, " ").trim().toLowerCase();
   const titleCounts = new Map<string, number>();
   for (const row of rows) {
     const key = titleKey(row.title);
@@ -73,6 +81,7 @@ export function listIncompleteProducts(): IncompleteProduct[] {
   return rows.flatMap((row) => {
     const product = JSON.parse(row.data) as Partial<Product>;
     const gaps = gapsOf(product, row.carFitment === 1, row.cars);
+    if (frameCategoryIds.has(row.categoryId) && row.framed === 0) gaps.push("frameType");
     if ((titleCounts.get(titleKey(row.title)) ?? 0) > 1) gaps.push("twin");
     if (!gaps.length) return [];
     return [

@@ -56,8 +56,8 @@ export default async function IncompletePage({ searchParams }: PageProps) {
           <span className="tnum text-base font-medium text-brand-400">{all.length}</span>
         </h1>
         <p className="mt-1 text-sm text-brand-500">
-          Товары, у которых не хватает цены, описания, фото, вопросов-ответов или привязки к
-          автомобилям в разделах с подбором по авто.
+          Товары, у которых не хватает цены, описания, фото, вопросов-ответов, привязки к
+          автомобилям в разделах с подбором по авто или привязки к типу рамки в переходных рамках.
         </p>
       </div>
 
