@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AiFaqBatch } from "@/components/admin/AiFaqBatch";
+import { IncompleteFilters } from "@/components/admin/IncompleteFilters";
 import { aiConfigured } from "@/lib/ai";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
-import { GAPS, isGap, listIncompleteProducts, type Gap } from "@/lib/incomplete";
+import { GAPS, isGap, listIncompleteProducts, SEO_GAPS, type Gap } from "@/lib/incomplete";
 import { listCategoriesBrief } from "@/lib/store";
 
 export const metadata: Metadata = { title: "Незаполненные карточки" };
@@ -25,9 +26,8 @@ export default async function IncompletePage({ searchParams }: PageProps) {
   const categories = listCategoriesBrief();
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
 
-  const all = listIncompleteProducts().filter(
-    (product) => !categoryId || product.categoryId === categoryId,
-  );
+  const everything = listIncompleteProducts();
+  const all = everything.filter((product) => !categoryId || product.categoryId === categoryId);
   const counts = Object.fromEntries(
     (Object.keys(GAPS) as Gap[]).map((key) => [
       key,
@@ -35,6 +35,12 @@ export default async function IncompletePage({ searchParams }: PageProps) {
     ]),
   ) as Record<Gap, number>;
   const matching = gap ? all.filter((product) => product.gaps.includes(gap)) : all;
+  const withGap = gap ? everything.filter((product) => product.gaps.includes(gap)) : everything;
+  const perCategory = new Map<string, number>();
+  for (const product of withGap) {
+    perCategory.set(product.categoryId, (perCategory.get(product.categoryId) ?? 0) + 1);
+  }
+  const gapOption = (key: Gap) => ({ value: key, label: GAPS[key], count: counts[key] });
   const pages = Math.max(1, Math.ceil(matching.length / PER_PAGE));
   const rows = matching.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -57,56 +63,34 @@ export default async function IncompletePage({ searchParams }: PageProps) {
         </h1>
         <p className="mt-1 text-sm text-brand-500">
           Товары, у которых не хватает цены, описания, фото, вопросов-ответов, привязки к
-          автомобилям в разделах с подбором по авто или привязки к типу рамки в переходных рамках.
+          автомобилям в разделах с подбором по авто или привязки к типу рамки в переходных рамках,
+          а также карточки с SEO-проблемами: неинформативный alt у фото, длинный title, слишком
+          короткое или длинное мета-описание, нет бренда или артикула.
         </p>
       </div>
 
       <AiFaqBatch
-        total={listIncompleteProducts().filter((product) => product.gaps.includes("faq")).length}
+        total={everything.filter((product) => product.gaps.includes("faq")).length}
         ready={aiConfigured()}
       />
 
-      <div className="card flex flex-wrap items-center gap-2 p-4">
-        <Link
-          href={link({ gap: undefined })}
-          className={`rounded-xl px-3 py-1.5 text-sm font-medium ${
-            gap === null ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-700"
-          }`}
-        >
-          Все <span className="tnum">{all.length}</span>
-        </Link>
-        {(Object.keys(GAPS) as Gap[]).map((key) => (
-          <Link
-            key={key}
-            href={link({ gap: key })}
-            className={`rounded-xl px-3 py-1.5 text-sm font-medium ${
-              gap === key ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-700"
-            }`}
-          >
-            {GAPS[key]} <span className="tnum">{counts[key]}</span>
-          </Link>
-        ))}
-
-        <form method="get" className="ml-auto flex items-center gap-2">
-          {gap && <input type="hidden" name="gap" value={gap} />}
-          <select
-            name="category"
-            defaultValue={categoryId}
-            className="field py-1.5 text-sm"
-            aria-label="Категория"
-          >
-            <option value="">Все категории</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="btn-secondary py-1.5 text-sm">
-            Показать
-          </button>
-        </form>
-      </div>
+      <IncompleteFilters
+        gap={gap ?? ""}
+        category={categoryId}
+        total={all.length}
+        categoryTotal={withGap.length}
+        cardGaps={(Object.keys(GAPS) as Gap[])
+          .filter((key) => !SEO_GAPS.includes(key))
+          .map(gapOption)}
+        seoGaps={SEO_GAPS.map(gapOption)}
+        categories={categories
+          .filter((category) => perCategory.has(category.id) || category.id === categoryId)
+          .map((category) => ({
+            value: category.id,
+            label: category.name,
+            count: perCategory.get(category.id) ?? 0,
+          }))}
+      />
 
       {rows.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
@@ -142,7 +126,14 @@ export default async function IncompletePage({ searchParams }: PageProps) {
                   </span>
                   <span className="flex shrink-0 flex-wrap justify-end gap-1">
                     {product.gaps.map((key) => (
-                      <span key={key} className="badge bg-amber-100 text-amber-900">
+                      <span
+                        key={key}
+                        className={`badge ${
+                          SEO_GAPS.includes(key)
+                            ? "bg-sky-100 text-sky-900"
+                            : "bg-amber-100 text-amber-900"
+                        }`}
+                      >
                         {GAPS[key]}
                       </span>
                     ))}

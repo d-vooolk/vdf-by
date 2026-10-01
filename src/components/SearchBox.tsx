@@ -136,7 +136,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
         <div
           id={listId}
           role="listbox"
-          className="absolute top-full right-0 left-0 z-50 mt-2 overflow-hidden rounded-xl border border-brand-100 bg-white shadow-xl"
+          className="fixed inset-x-3 top-16 z-50 mt-2 overflow-hidden rounded-xl border border-brand-100 bg-white shadow-xl md:absolute md:inset-x-0 md:top-full"
         >
           {results.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-brand-400">
@@ -145,7 +145,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                 : "Ничего не нашли. Попробуйте короче — например «H7» или «линзы»."}
             </p>
           ) : (
-            <ul className="max-h-[70vh] divide-y divide-brand-100 overflow-y-auto">
+            <ul className="max-h-[calc(100dvh-6rem)] divide-y md:max-h-[70vh] divide-brand-100 overflow-y-auto">
               {results.map((entry, position) => (
                 <li key={entry.s} role="option" aria-selected={position === active}>
                   <Link

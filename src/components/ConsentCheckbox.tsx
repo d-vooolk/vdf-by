@@ -45,3 +45,19 @@ export function ConsentCheckbox({ id, checked, onChange, error }: ConsentCheckbo
     </div>
   );
 }
+
+export function SavedConsentNote() {
+  return (
+    <p className="text-xs leading-relaxed text-brand-400">
+      Согласие на обработку персональных данных вы дали при регистрации —{" "}
+      <Link
+        href={PRIVACY_URL}
+        target="_blank"
+        className="font-medium text-brand-700 underline hover:text-brand-900"
+      >
+        Политика обработки персональных данных
+      </Link>
+      .
+    </p>
+  );
+}

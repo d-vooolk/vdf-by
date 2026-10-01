@@ -1,8 +1,9 @@
 import { getSite } from "@/lib/catalog";
+import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getCustomer } from "@/lib/customer-auth";
-import { isWholesale } from "@/lib/customers";
+import { isWholesale, type Customer } from "@/lib/customers";
 import { buildPriceList } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
@@ -118,6 +119,7 @@ interface ValidatedOrder {
 function validate(
   payload: unknown,
   wholesale: WholesaleList | null,
+  account: Customer | null,
 ): { order?: ValidatedOrder; error?: string } {
   if (typeof payload !== "object" || payload === null) {
     return { error: "Пустой запрос" };
@@ -126,9 +128,10 @@ function validate(
   const body = payload as Record<string, unknown>;
   const customer = (body.customer ?? {}) as Record<string, unknown>;
 
-  const name = clean(customer.name, 120);
-  const phone = clean(customer.phone, 40);
-  const phoneDigits = clean(customer.phoneDigits, 20).replace(/\D/g, "");
+  const name = clean(customer.name, 120) || account?.name.slice(0, 120) || "";
+  const phone = clean(customer.phone, 40) || (account ? formatPhone(account.phone) : "");
+  const phoneDigits =
+    clean(customer.phoneDigits, 20).replace(/\D/g, "") || (account?.phone ?? "");
 
   const email = clean(customer.email, 120);
 
@@ -136,7 +139,7 @@ function validate(
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Некорректный email" };
   }
-  if (body.consent !== true) {
+  if (body.consent !== true && !account) {
     return { error: "Нет согласия на обработку персональных данных" };
   }
   if (phoneDigits.length < 9 || phoneDigits.length > 13) {
@@ -240,7 +243,7 @@ function validate(
       phone,
       phoneDigits,
       email,
-      consentAt: Date.now(),
+      consentAt: body.consent === true || !account ? Date.now() : account.consentAt,
       comment: clean(customer.comment, 1000),
       deliveryId,
       deliveryName: method.name,
@@ -364,7 +367,11 @@ export async function POST(request: Request) {
 
   const customer = await getCustomer();
   const wholesaleBuyer = isWholesale(customer);
-  const { order, error } = validate(payload, wholesaleBuyer ? buildWholesaleList() : null);
+  const { order, error } = validate(
+    payload,
+    wholesaleBuyer ? buildWholesaleList() : null,
+    customer,
+  );
   if (error || !order) {
     // Квоту на заказы не списываем: опечатка в телефоне не должна приближать
     // живого клиента к блокировке.

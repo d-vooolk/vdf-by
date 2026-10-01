@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
 import { CartLines } from "@/components/CartLines";
 import {
   AlertIcon,
@@ -85,6 +85,7 @@ export function CartCheckout({
   const wholesale = useAccount((state) => state.wholesale);
   const customer = useAccount((state) => state.customer);
   const loadAccount = useAccount((state) => state.load);
+  const signedIn = accountStatus === "customer";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [prefilled, setPrefilled] = useState(false);
@@ -170,7 +171,7 @@ export function CartCheckout({
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       next.email = "Проверьте адрес почты";
     }
-    if (!form.consent) {
+    if (!form.consent && !signedIn) {
       next.consent = "Без согласия мы не сможем принять заказ";
     }
 
@@ -248,7 +249,11 @@ export function CartCheckout({
       });
 
       if (!response.ok) {
-        throw new Error(`сервер ответил ${response.status}`);
+        if (signedIn) void loadAccount(true);
+        const rejected = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(rejected?.error ?? `сервер ответил ${response.status}`);
       }
 
       const accepted = (await response.json().catch(() => null)) as {
@@ -538,12 +543,16 @@ export function CartCheckout({
               </p>
             </div>
 
-            <ConsentCheckbox
-              id="consent"
-              checked={form.consent}
-              onChange={(consent) => setForm({ ...form, consent })}
-              error={errors.consent}
-            />
+            {signedIn ? (
+              <SavedConsentNote />
+            ) : (
+              <ConsentCheckbox
+                id="consent"
+                checked={form.consent}
+                onChange={(consent) => setForm({ ...form, consent })}
+                error={errors.consent}
+              />
+            )}
 
             {/* Ловушка для ботов: скрыта и от людей, и от скринридеров. */}
             <div className="hidden" aria-hidden="true">

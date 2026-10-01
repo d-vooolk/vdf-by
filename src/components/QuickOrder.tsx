@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
+import { useAccount } from "@/store/account";
 
 /**
  * Быстрый заказ со страницы товара: имя и телефон, больше ничего.
@@ -66,6 +67,19 @@ export function QuickOrder({
     "idle",
   );
   const [failure, setFailure] = useState("");
+  const signedIn = useAccount((state) => state.status === "customer");
+  const customer = useAccount((state) => state.customer);
+  const loadAccount = useAccount((state) => state.load);
+  const [prefilledFor, setPrefilledFor] = useState<typeof customer>(null);
+  if (customer && prefilledFor !== customer) {
+    setPrefilledFor(customer);
+    setName((current) => current || customer.name);
+    setTel((current) => current || customer.phone);
+  }
+
+  useEffect(() => {
+    void loadAccount();
+  }, [loadAccount]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,7 +100,7 @@ export function QuickOrder({
     if (website) return;
 
     const next: { name?: string; tel?: string; consent?: string } = {};
-    if (!consent) next.consent = "Без согласия мы не сможем принять заказ";
+    if (!consent && !signedIn) next.consent = "Без согласия мы не сможем принять заказ";
     if (name.trim().length < 2) next.name = "Как к вам обращаться?";
     const phoneDigits = digits(tel);
     if (phoneDigits.length < 9) next.tel = "Введите номер — перезвоним по нему";
@@ -131,6 +145,7 @@ export function QuickOrder({
       });
 
       if (!response.ok) {
+        if (signedIn) void loadAccount(true);
         const body = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
@@ -170,8 +185,8 @@ export function QuickOrder({
     // Форму сбрасываем при закрытии, а не при открытии: иначе человек,
     // случайно промахнувшийся мимо кнопки, теряет уже введённый номер.
     if (status === "done") {
-      setName("");
-      setTel("");
+      setName(customer?.name ?? "");
+      setTel(customer?.phone ?? "");
       setStatus("idle");
     }
   };
@@ -208,7 +223,9 @@ export function QuickOrder({
                   <p className="mt-1 text-sm text-brand-500">
                     {status === "done"
                       ? "Менеджер перезвонит, подтвердит наличие и согласует доставку."
-                      : "Оставьте имя и телефон — перезвоним и всё оформим сами."}
+                      : signedIn
+                        ? "Проверьте имя и телефон — перезвоним и всё оформим сами."
+                        : "Оставьте имя и телефон — перезвоним и всё оформим сами."}
                   </p>
                 </div>
                 <button
@@ -281,12 +298,16 @@ export function QuickOrder({
                       )}
                     </div>
 
-                    <ConsentCheckbox
-                      id="quick-consent"
-                      checked={consent}
-                      onChange={setConsent}
-                      error={errors.consent}
-                    />
+                    {signedIn ? (
+                      <SavedConsentNote />
+                    ) : (
+                      <ConsentCheckbox
+                        id="quick-consent"
+                        checked={consent}
+                        onChange={setConsent}
+                        error={errors.consent}
+                      />
+                    )}
 
                     <div className="hidden" aria-hidden="true">
                       <label htmlFor="quick-website">Сайт</label>

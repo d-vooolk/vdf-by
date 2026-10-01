@@ -1,7 +1,9 @@
+import { getSite, hasSharedLead } from "./catalog";
 import { getDb } from "./db";
 import { frameCategories } from "./frame-category";
 import { ensureFrameMembership } from "./frame-membership";
 import type { Product } from "./schema";
+import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "./snippet";
 
 export const GAPS = {
   price: "нет цены",
@@ -12,7 +14,17 @@ export const GAPS = {
   cars: "не привязан к авто",
   frameType: "не привязан к типу рамки",
   twin: "название как у другого товара",
+  alt: "SEO: неинформативный alt фото",
+  seoTitle: "SEO: длинный title",
+  seoDescription: "SEO: слабое мета-описание",
+  brand: "SEO: нет бренда",
+  sku: "SEO: нет артикула",
 } as const;
+
+export const SEO_GAPS: readonly Gap[] = ["alt", "seoTitle", "seoDescription", "brand", "sku"];
+
+const MIN_DESCRIPTION = 70;
+const MIN_ALT_WORDS = 3;
 
 export type Gap = keyof typeof GAPS;
 
@@ -52,12 +64,46 @@ function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): G
   return gaps;
 }
 
+function seoGapsOf(
+  product: Product,
+  categoryName: string,
+  twinTitle: boolean,
+  siteName: string,
+  currencySymbol: string,
+): Gap[] {
+  const snippet = productSnippet({
+    product,
+    categoryName,
+    currencySymbol,
+    siteName,
+    twinTitle,
+    sharedLead: hasSharedLead(product),
+  });
+  const values = product.optionGroups.flatMap((group) => group.values);
+  const hasPhotos = product.images.length > 0 || values.some((value) => value.images?.length);
+  const words = product.title.trim().split(/\s+/).filter(Boolean).length;
+  const gaps: Gap[] = [];
+  if (hasPhotos && (twinTitle || words < MIN_ALT_WORDS)) gaps.push("alt");
+  if (snippet.title.length > TITLE_LIMIT) gaps.push("seoTitle");
+  if (
+    snippet.description.length < MIN_DESCRIPTION ||
+    snippet.description.length > DESCRIPTION_LIMIT
+  ) {
+    gaps.push("seoDescription");
+  }
+  if (!product.brand?.trim()) gaps.push("brand");
+  if (!product.sku?.trim() && !values.some((value) => value.sku?.trim())) gaps.push("sku");
+  return gaps;
+}
+
 export function listIncompleteProducts(): IncompleteProduct[] {
   ensureFrameMembership();
   const frameCategoryIds = new Set(frameCategories().map((category) => category.id));
+  const site = getSite();
   const rows = getDb()
     .prepare(
       `SELECT p.id, p.title, p.category_id AS categoryId, p.data, p.updated_at AS updatedAt,
+              COALESCE(c.name, '') AS categoryName,
               COALESCE(json_extract(c.data, '$.carFitment'), 0) AS carFitment,
               (SELECT COUNT(*) FROM product_cars pc WHERE pc.product_id = p.id) AS cars,
               EXISTS (SELECT 1 FROM frame_type_products f
@@ -70,6 +116,7 @@ export function listIncompleteProducts(): IncompleteProduct[] {
     id: string;
     title: string;
     categoryId: string;
+    categoryName: string;
     data: string;
     updatedAt: number;
     carFitment: number;
@@ -90,6 +137,23 @@ export function listIncompleteProducts(): IncompleteProduct[] {
     if (frameCategoryIds.has(row.categoryId) && row.framed === 0) gaps.push("frameType");
     const twins = (sameTitle.get(titleKey(row.title)) ?? []).filter((twin) => twin.id !== row.id);
     if (twins.length) gaps.push("twin");
+    gaps.push(
+      ...seoGapsOf(
+        {
+          images: [],
+          specs: [],
+          optionGroups: [],
+          inStock: true,
+          price: 0,
+          ...product,
+          title: row.title,
+        } as Product,
+        row.categoryName,
+        twins.length > 0,
+        site.name,
+        site.currencySymbol,
+      ),
+    );
     if (!gaps.length) return [];
     return [
       {
