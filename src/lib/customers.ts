@@ -238,6 +238,10 @@ export function deleteCustomerSession(token: string): void {
   getDb().prepare("DELETE FROM customer_sessions WHERE token_hash = ?").run(hashSecret(token));
 }
 
+export function fillCustomerAddress(id: number, address: string): void {
+  getDb().prepare("UPDATE customers SET address = ? WHERE id = ? AND address = ''").run(address, id);
+}
+
 export function updateCustomerProfile(
   id: number,
   changes: { name: string; address: string; requestWholesale: boolean },

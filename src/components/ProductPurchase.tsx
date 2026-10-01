@@ -19,7 +19,7 @@ import {
   TruckIcon,
 } from "@/components/icons";
 import { ImagePlaceholder, Picture } from "@/components/Picture";
-import { QuickOrder } from "@/components/QuickOrder";
+import { QuickOrder, type QuickShippingMethod } from "@/components/QuickOrder";
 import type { Channel } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickUrl, type ImageMap } from "@/lib/image-types";
@@ -62,6 +62,8 @@ interface ProductPurchaseProps {
   /** Куда уходит быстрый заказ и каким способом получения он помечается. */
   orderEndpoint: string;
   quickDeliveryId: string;
+  quickPickupId: string | null;
+  quickShipping: QuickShippingMethod[];
   phone: string;
   phoneHref: string;
   /** Telegram, Viber, WhatsApp — уже с готовым текстом вопроса по товару. */
@@ -128,6 +130,8 @@ export function ProductPurchase({
   warranty,
   orderEndpoint,
   quickDeliveryId,
+  quickPickupId,
+  quickShipping,
   phone,
   phoneHref,
   messengers,
@@ -553,6 +557,9 @@ export function ProductPurchase({
               <QuickOrder
                 orderEndpoint={orderEndpoint}
                 deliveryId={quickDeliveryId}
+                pickupId={quickPickupId}
+                shipping={quickShipping}
+                currencySymbol={currencySymbol}
                 disabled={!variant.inStock}
                 qty={qty}
                 currency={currency}

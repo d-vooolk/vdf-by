@@ -3,6 +3,7 @@
 import { join } from "node:path";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 
 import {
@@ -519,6 +520,7 @@ export async function setOrderStatusAction(
     invalidateCatalog();
     revalidateProductsById(moved.flatMap(({ productId }) => productsSharingStock(productId)));
   }
+  revalidatePath("/admin", "layout");
   return ok();
 }
 
@@ -534,6 +536,7 @@ export async function setOrderNoteAction(
 export async function deleteOrderAction(id: number): Promise<FormState> {
   await requireAdmin();
   deleteOrder(id);
+  revalidatePath("/admin", "layout");
   redirect("/admin/orders/");
 }
 

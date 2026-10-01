@@ -161,6 +161,10 @@ export default async function ProductPage({ params }: PageProps) {
   const quickDelivery =
     site.delivery.methods.find((method) => !method.requiresAddress) ??
     site.delivery.methods[0];
+  const quickPickup = site.delivery.methods.find((method) => !method.requiresAddress);
+  const quickShipping = site.delivery.methods
+    .filter((method) => method.requiresAddress)
+    .map(({ id, name, price, freeFrom }) => ({ id, name, price, freeFrom: freeFrom ?? null }));
 
   return (
     <div className="container-page max-w-[1120px]">
@@ -200,6 +204,8 @@ export default async function ProductPage({ params }: PageProps) {
         warranty={site.warranty}
         orderEndpoint={site.orderEndpoint}
         quickDeliveryId={quickDelivery.id}
+        quickPickupId={quickPickup?.id ?? null}
+        quickShipping={quickShipping}
         phone={site.phone}
         phoneHref={site.phoneHref}
         messengers={messengers}

@@ -3,7 +3,7 @@ import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getCustomer } from "@/lib/customer-auth";
-import { isWholesale, type Customer } from "@/lib/customers";
+import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
 import { buildPriceList } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
@@ -100,6 +100,7 @@ interface ValidatedOrder {
   deliveryId: string;
   deliveryName: string;
   address: string;
+  addressRequired: boolean;
   deliveryCost: number;
   items: OrderItem[];
   subtotal: number;
@@ -198,7 +199,6 @@ function validate(
 
   const delivery = (body.delivery ?? {}) as Record<string, unknown>;
   const deliveryId = clean(delivery.id, 40);
-  const address = clean(delivery.address, 300);
 
   /**
    * Быстрый заказ со страницы товара: только имя и телефон.
@@ -220,10 +220,15 @@ function validate(
   const free = method.freeFrom != null && serverTotal >= method.freeFrom;
   const deliveryCost = free ? 0 : method.price;
 
-  if (method.requiresAddress && !quick && address.length < 5) {
+  const quickFromGuest = quick && !account;
+  const address =
+    clean(delivery.address, 300) ||
+    (quick && method.requiresAddress ? (account?.address.slice(0, 300) ?? "") : "");
+
+  if (method.requiresAddress && !quickFromGuest && address.length < 5) {
     return { error: "Не указан адрес доставки" };
   }
-  if (quick) notes.push("быстрый заказ со страницы товара — уточните доставку");
+  if (quickFromGuest) notes.push("быстрый заказ со страницы товара — уточните доставку");
 
   const subtotal = Math.round(serverTotal * 100) / 100;
   const total = Math.round((serverTotal + deliveryCost) * 100) / 100;
@@ -248,6 +253,7 @@ function validate(
       deliveryId,
       deliveryName: method.name,
       address,
+      addressRequired: method.requiresAddress,
       deliveryCost,
       items,
       subtotal,
@@ -379,6 +385,10 @@ export async function POST(request: Request) {
   }
 
   record(accepted, ip);
+
+  if (customer && !customer.address && order.address && order.addressRequired) {
+    fillCustomerAddress(customer.id, order.address);
+  }
 
   const referer = request.headers.get("referer") ?? "";
 

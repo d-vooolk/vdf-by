@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
+import { formatPrice } from "@/lib/format";
 import { useAccount } from "@/store/account";
 
 /**
@@ -23,10 +24,20 @@ import { useAccount } from "@/store/account";
  * а не в отдельный канал, который однажды забудут проверить.
  */
 
+export interface QuickShippingMethod {
+  id: string;
+  name: string;
+  price: number;
+  freeFrom: number | null;
+}
+
 interface QuickOrderProps {
   orderEndpoint: string;
   /** Способ получения по умолчанию — из настроек магазина. */
   deliveryId: string;
+  pickupId: string | null;
+  shipping: QuickShippingMethod[];
+  currencySymbol: string;
   item: {
     key: string;
     productId: string;
@@ -47,9 +58,16 @@ function digits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function shippingCost(method: QuickShippingMethod, subtotal: number): number {
+  return method.freeFrom != null && subtotal >= method.freeFrom ? 0 : method.price;
+}
+
 export function QuickOrder({
   orderEndpoint,
   deliveryId,
+  pickupId,
+  shipping,
+  currencySymbol,
   item,
   qty,
   currency,
@@ -62,7 +80,15 @@ export function QuickOrder({
   const [tel, setTel] = useState("");
   const [website, setWebsite] = useState(""); // ловушка для ботов
   const [consent, setConsent] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; tel?: string; consent?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    tel?: string;
+    consent?: string;
+    address?: string;
+  }>({});
+  const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
+  const [shippingId, setShippingId] = useState(shipping[0]?.id ?? "");
+  const [address, setAddress] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "failed">(
     "idle",
   );
@@ -75,7 +101,19 @@ export function QuickOrder({
     setPrefilledFor(customer);
     setName((current) => current || customer.name);
     setTel((current) => current || customer.phone);
+    setAddress((current) => current || customer.address);
   }
+
+  const subtotal = item.price * qty;
+  const shippingMethod = shipping.find((method) => method.id === shippingId) ?? shipping[0];
+  const choosesFulfillment = signedIn && shippingMethod != null;
+  const delivers = choosesFulfillment && (fulfillment === "delivery" || !pickupId);
+  const deliveryCost = delivers && shippingMethod ? shippingCost(shippingMethod, subtotal) : 0;
+  const orderDeliveryId = !choosesFulfillment
+    ? deliveryId
+    : delivers && shippingMethod
+      ? shippingMethod.id
+      : (pickupId ?? deliveryId);
 
   useEffect(() => {
     void loadAccount();
@@ -99,12 +137,13 @@ export function QuickOrder({
     event.preventDefault();
     if (website) return;
 
-    const next: { name?: string; tel?: string; consent?: string } = {};
+    const next: { name?: string; tel?: string; consent?: string; address?: string } = {};
     if (!consent && !signedIn) next.consent = "Без согласия мы не сможем принять заказ";
     if (name.trim().length < 2) next.name = "Как к вам обращаться?";
     const phoneDigits = digits(tel);
     if (phoneDigits.length < 9) next.tel = "Введите номер — перезвоним по нему";
     else if (phoneDigits.length > 13) next.tel = "Слишком длинный номер";
+    if (delivers && address.trim().length < 5) next.address = "Укажите адрес: город, улица, дом, квартира";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -124,7 +163,7 @@ export function QuickOrder({
             comment: "Быстрый заказ со страницы товара",
           },
           consent,
-          delivery: { id: deliveryId, address: "" },
+          delivery: { id: orderDeliveryId, address: delivers ? address.trim() : "" },
           items: [
             {
               key: item.key,
@@ -138,8 +177,8 @@ export function QuickOrder({
               url: `/product/${item.slug}/`,
             },
           ],
-          subtotal: item.price * qty,
-          total: item.price * qty,
+          subtotal,
+          total: subtotal + deliveryCost,
           currency,
         }),
       });
@@ -156,9 +195,11 @@ export function QuickOrder({
         id?: number;
       } | null;
 
+      if (delivers && !customer?.address) void loadAccount(true);
+
       trackOrder({
         id: accepted?.id ?? 0,
-        total: item.price * qty,
+        total: subtotal + deliveryCost,
         currency,
         source: "quick",
         items: [
@@ -297,6 +338,92 @@ export function QuickOrder({
                         </p>
                       )}
                     </div>
+
+                    {choosesFulfillment && shippingMethod && (
+                      <div className="space-y-3">
+                        {pickupId && (
+                          <div
+                            role="radiogroup"
+                            aria-label="Способ получения"
+                            className="grid grid-cols-2 gap-1 rounded-xl bg-brand-50 p-1"
+                          >
+                            {(
+                              [
+                                ["delivery", "Доставка"],
+                                ["pickup", "Самовывоз"],
+                              ] as const
+                            ).map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                role="radio"
+                                aria-checked={fulfillment === value}
+                                onClick={() => setFulfillment(value)}
+                                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                  fulfillment === value
+                                    ? "bg-white text-brand-900 shadow-sm"
+                                    : "text-brand-500 hover:text-brand-700"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {delivers && (
+                          <>
+                            {shipping.length > 1 && (
+                              <div className="space-y-1.5">
+                                {shipping.map((method) => {
+                                  const cost = shippingCost(method, subtotal);
+                                  return (
+                                    <label
+                                      key={method.id}
+                                      className="flex cursor-pointer items-center gap-2 text-sm text-brand-700"
+                                    >
+                                      <input
+                                        type="radio"
+                                        name="quick-shipping"
+                                        checked={shippingMethod.id === method.id}
+                                        onChange={() => setShippingId(method.id)}
+                                      />
+                                      <span className="flex-1">{method.name}</span>
+                                      <span className="tnum text-brand-500">
+                                        {cost === 0 ? "бесплатно" : formatPrice(cost, currencySymbol)}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div>
+                              <label htmlFor="quick-address" className="label">
+                                Адрес доставки <span className="text-red-600">*</span>
+                              </label>
+                              <input
+                                id="quick-address"
+                                autoComplete="street-address"
+                                value={address}
+                                onChange={(event) => setAddress(event.target.value)}
+                                className={`field ${errors.address ? "field-error" : ""}`}
+                                placeholder="г. Минск, ул. Притыцкого, 29, кв. 1"
+                              />
+                              {errors.address ? (
+                                <p className="mt-1.5 text-xs text-red-600">{errors.address}</p>
+                              ) : (
+                                !customer?.address && (
+                                  <p className="mt-1.5 text-xs text-brand-400">
+                                    Сохраним в профиле — в следующий раз вводить не придётся.
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {signedIn ? (
                       <SavedConsentNote />
