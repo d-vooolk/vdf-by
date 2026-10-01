@@ -65,12 +65,38 @@ const children = db
 const categories = [...roots, ...children];
 const categoryIds = categories.map((category) => category.id);
 
-const products = db
+function readLinks(file) {
+  const result = new Map();
+  let title = "";
+  for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const text = raw.trim();
+    if (!text) continue;
+    if (/^https?:\/\//i.test(text)) {
+      if (title) result.get(title).push(text);
+    } else {
+      title = normalize(text);
+      if (!result.has(title)) result.set(title, []);
+    }
+  }
+  return result;
+}
+
+const links = arg("links") ? readLinks(arg("links")) : null;
+
+const allProducts = db
   .prepare(
     `SELECT id, category_id, data FROM products WHERE category_id IN (${categoryIds.map(() => "?").join(",")})`,
   )
   .all(...categoryIds)
   .map((row) => ({ id: row.id, categoryId: row.category_id, data: JSON.parse(row.data) }));
+const products = links
+  ? allProducts.filter((product) => links.has(normalize(product.data.title)))
+  : allProducts;
+if (links) {
+  const known = new Set(products.map((product) => normalize(product.data.title)));
+  const unknown = [...links.keys()].filter((title) => !known.has(title));
+  if (unknown.length) console.log(`В разделах нет товаров с названием:\n  ${unknown.join("\n  ")}\n`);
+}
 
 const cardsByUrl = new Map();
 for (const row of db
@@ -127,8 +153,27 @@ function sideValues(product) {
   return values;
 }
 
+function linkedPlan(product, urls) {
+  const assignments = [];
+  const problems = [];
+  for (const url of urls) {
+    const card = cardsByUrl.get(url);
+    if (!card) problems.push(`${url}: нет в выгрузках`);
+    else if (!card.images.length) problems.push(`${url}: у карточки нет фото`);
+    else assignments.push({ side: sideOfCard(card), card });
+  }
+  const sides = new Set(sideValues(product.data).map((item) => item.side));
+  if (sides.size && assignments.every((assignment) => sides.has(assignment.side))) {
+    if (!assignments.length) return { kind: "none", problems };
+    return { kind: "pair", assignments, problems };
+  }
+  if (assignments.length === 1 && !sides.size) return { kind: "single", card: assignments[0].card };
+  return { kind: "ambiguous", problems: [...problems, "стороны карточек не совпадают с вариантами товара"] };
+}
+
 function plan(product) {
   const title = normalize(product.data.title);
+  if (links) return linkedPlan(product, links.get(title));
   const sides = [...new Set(sideValues(product.data).map((item) => item.side))];
   if (sides.length) {
     const assignments = [];
