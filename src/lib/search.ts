@@ -24,6 +24,7 @@ export interface SearchEntry {
   a: 0 | 1;
   /** URL миниатюры */
   i?: string;
+  k?: string;
   /** нормализованная строка, по которой ищем */
   q: string;
 }
@@ -36,16 +37,57 @@ const LAYOUT: Record<string, string> = {
   и: "b", т: "n", ь: "m", б: ",", ю: ".",
 };
 
+const LOOKALIKE: Record<string, string> = {
+  а: "a", в: "b", е: "e", к: "k", м: "m", н: "h", о: "o", р: "p", с: "c",
+  т: "t", у: "y", х: "x", і: "i",
+};
+
+const CODE_SEPARATORS = /[\s\-_./\\]+/g;
+
 export function normalize(text: string): string {
   return text.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
 }
 
+export function compactCode(text: string): string {
+  return normalize(text).replace(CODE_SEPARATORS, "");
+}
+
+export function codeForms(code: string): string[] {
+  const spelled = normalize(code).replace(/\s+/g, "-");
+  const compact = compactCode(code);
+  return compact === spelled ? [compact] : [spelled, compact];
+}
+
+function codeSegments(code: string): string[] {
+  return code.split(CODE_SEPARATORS).filter(Boolean);
+}
+
+const MIN_CODE_LENGTH = 3;
+
+function hasToken(entry: SearchEntry, token: string): boolean {
+  if (entry.q.includes(token)) return true;
+  const code = compactCode(token);
+  return code.length >= MIN_CODE_LENGTH && code !== token && Boolean(entry.k?.includes(code));
+}
+
+function codeScore(entry: SearchEntry, variant: string): number {
+  const code = compactCode(variant);
+  if (!entry.k || code.length < MIN_CODE_LENGTH) return 0;
+  const codes = entry.k.split(" ");
+  if (codes.includes(code)) return 300;
+  if (codes.some((item) => codeSegments(item).includes(code))) return 250;
+  if (codes.some((item) => item.startsWith(code) || codeSegments(item).some((part) => part.startsWith(code)))) {
+    return 150;
+  }
+  return entry.k.includes(code) ? 20 : 0;
+}
+
 /** Тот же текст, но как если бы его набрали в латинской раскладке. */
-function asLatinLayout(text: string): string {
+function asLatinLayout(text: string, table: Record<string, string> = LAYOUT): string {
   let converted = "";
   let changed = false;
   for (const char of text) {
-    const mapped = LAYOUT[char];
+    const mapped = table[char];
     if (mapped) {
       converted += mapped;
       changed = true;
@@ -72,6 +114,8 @@ export function searchProducts(
   const variants = [normalized];
   const latin = asLatinLayout(normalized);
   if (latin) variants.push(latin);
+  const lookalike = asLatinLayout(normalized, LOOKALIKE);
+  if (lookalike && lookalike !== latin) variants.push(lookalike);
 
   const matches: Array<{ entry: SearchEntry; score: number }> = [];
 
@@ -80,11 +124,12 @@ export function searchProducts(
 
     for (const variant of variants) {
       const tokens = variant.split(" ").filter(Boolean);
-      if (!tokens.every((token) => entry.q.includes(token))) continue;
+      const byCode = codeScore(entry, variant);
+      if (!byCode && !tokens.every((token) => hasToken(entry, token))) continue;
 
       // Совпадение в начале названия ценнее совпадения где-то в описании,
       // а товар в наличии — ценнее отсутствующего.
-      let score = 0;
+      let score = byCode;
       const title = normalize(entry.t);
       if (title.startsWith(variant)) score += 100;
       else if (title.includes(variant)) score += 50;

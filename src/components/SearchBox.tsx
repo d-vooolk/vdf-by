@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { CloseIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
@@ -22,6 +23,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [expanded, setExpanded] = useState(false);
 
   const router = useRouter();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,31 +46,42 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
   const results = matches.slice(0, 8);
   const searchUrl = `/poisk/?q=${encodeURIComponent(query.trim())}`;
 
-  const openSearchPage = () => {
+  const close = () => {
     setOpen(false);
+    setExpanded(false);
     inputRef.current?.blur();
+  };
+
+  const expand = () => {
+    flushSync(() => setExpanded(true));
+    inputRef.current?.focus();
+  };
+
+  const openSearchPage = () => {
+    close();
     router.push(searchUrl);
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !expanded) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      setExpanded(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  }, [open, expanded]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") {
-      setOpen(false);
-      inputRef.current?.blur();
+      close();
       return;
     }
     if (event.key === "Enter") {
       event.preventDefault();
       if (active >= 0 && results[active]) {
-        setOpen(false);
+        close();
         router.push(`/product/${results[active].s}/`);
       } else if (query.trim().length >= 2) {
         openSearchPage();
@@ -89,45 +102,71 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
   const showDropdown = open && query.trim().length >= 2;
 
   return (
-    <div ref={rootRef} className="relative w-full">
-      <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2 text-brand-300" />
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          placeholder="Поиск: линзы, лампы H7, стекло Golf…"
-          className="field py-2.5 pr-10 pl-11"
-          role="combobox"
-          aria-expanded={showDropdown}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          autoComplete="off"
-          onFocus={() => {
-            loadIndex();
-            setOpen(true);
-          }}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setActive(-1);
-            setOpen(true);
-          }}
-          onKeyDown={handleKeyDown}
-        />
-        {loading && (
-          <SpinnerIcon className="absolute top-1/2 right-3.5 h-5 w-5 -translate-y-1/2 animate-spin text-brand-300" />
-        )}
-        {!loading && query && (
+    <div ref={rootRef} className="relative flex w-full justify-end md:block">
+      <button
+        type="button"
+        onClick={expand}
+        className="rounded-control p-2 text-brand-600 transition-colors hover:bg-brand-50 hover:text-brand-900 md:hidden"
+        aria-label="Поиск"
+      >
+        <SearchIcon className="h-6 w-6" />
+      </button>
+
+      <div
+        className={
+          expanded
+            ? "fixed inset-x-0 top-0 z-50 flex h-16 items-center gap-2 border-b border-brand-100 bg-white px-3 md:static md:block md:h-auto md:border-0 md:bg-transparent md:p-0"
+            : "hidden md:block"
+        }
+      >
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2 text-brand-300" />
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            placeholder="Поиск: лампы H7, стекло Golf, артикул…"
+            className="field py-2.5 pr-10 pl-11"
+            role="combobox"
+            aria-expanded={showDropdown}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            autoComplete="off"
+            onFocus={() => {
+              loadIndex();
+              setOpen(true);
+            }}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActive(-1);
+              setOpen(true);
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          {loading && (
+            <SpinnerIcon className="absolute top-1/2 right-3.5 h-5 w-5 -translate-y-1/2 animate-spin text-brand-300" />
+          )}
+          {!loading && query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                inputRef.current?.focus();
+              }}
+              className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg p-1.5 text-brand-300 hover:bg-brand-50 hover:text-brand-500"
+              aria-label="Очистить поиск"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {expanded && (
           <button
             type="button"
-            onClick={() => {
-              setQuery("");
-              inputRef.current?.focus();
-            }}
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg p-1.5 text-brand-300 hover:bg-brand-50 hover:text-brand-500"
-            aria-label="Очистить поиск"
+            onClick={close}
+            className="shrink-0 px-2 py-2 text-sm font-medium text-brand-600 md:hidden"
           >
-            <CloseIcon className="h-4 w-4" />
+            Отмена
           </button>
         )}
       </div>
@@ -150,7 +189,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                 <li key={entry.s} role="option" aria-selected={position === active}>
                   <Link
                     href={`/product/${entry.s}/`}
-                    onClick={() => setOpen(false)}
+                    onClick={close}
                     className={`flex items-center gap-3 px-3 py-2.5 ${
                       position === active ? "bg-brand-50" : "hover:bg-brand-50"
                     }`}
@@ -187,7 +226,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
               <li>
                 <Link
                   href={searchUrl}
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   className="block px-3 py-3 text-center text-sm font-medium text-brand-700 hover:bg-brand-50"
                 >
                   {matches.length > results.length ? "Все результаты по разделам · Enter" : "Открыть страницу поиска · Enter"}
