@@ -74,7 +74,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
 
       {/* --------------------------- Фильтры --------------------------- */}
       <form method="get" className="card flex flex-wrap items-end gap-3 p-4">
-        <div className="min-w-0 flex-1">
+        <div className="w-full sm:w-auto sm:min-w-64 sm:flex-1">
           <label htmlFor="q" className="label">
             Поиск
           </label>
@@ -88,7 +88,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           />
         </div>
 
-        <div>
+        <div className="min-w-0 flex-1 sm:flex-none">
           <label htmlFor="category" className="label">
             Раздел
           </label>
@@ -96,7 +96,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             id="category"
             name="category"
             defaultValue={categoryId}
-            className="field py-2 text-sm"
+            className="field w-full py-2 text-sm sm:w-auto sm:max-w-72"
           >
             <option value="">Все категории</option>
             {categories.map((category) => (
