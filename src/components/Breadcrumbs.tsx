@@ -1,7 +1,6 @@
-import Link from "next/link";
-
-import { ChevronRightIcon } from "@/components/icons";
+import { CrumbList, type Crumb } from "@/components/CrumbList";
 import { JsonLd } from "@/components/JsonLd";
+import { ListingCrumbs, RememberListing } from "@/components/ListingTrail";
 import { absoluteUrl } from "@/lib/seo";
 
 /**
@@ -10,12 +9,15 @@ import { absoluteUrl } from "@/lib/seo";
  * Osram Night Breaker».
  */
 
-export interface Crumb {
-  label: string;
-  href?: string;
+export type { Crumb };
+
+interface BreadcrumbsProps {
+  items: Crumb[];
+  rememberListing?: { href: string; slugs: string[] };
+  listingProduct?: string;
 }
 
-export function Breadcrumbs({ items }: { items: Crumb[] }) {
+export function Breadcrumbs({ items, rememberListing, listingProduct }: BreadcrumbsProps) {
   const trail: Crumb[] = [{ label: "Главная", href: "/" }, ...items];
 
   const jsonLd = {
@@ -30,26 +32,22 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
     })),
   };
 
+  const current = trail[trail.length - 1];
+
   return (
     <>
-      <nav aria-label="Хлебные крошки" className="py-4">
-        <ol className="flex flex-wrap items-center gap-1 text-sm text-brand-400">
-          {trail.map((crumb, index) => (
-            <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
-              {index > 0 && (
-                <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-brand-300" />
-              )}
-              {crumb.href ? (
-                <Link href={crumb.href} className="hover:text-brand-700">
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span className="font-medium text-brand-600">{crumb.label}</span>
-              )}
-            </li>
-          ))}
-        </ol>
-      </nav>
+      {listingProduct ? (
+        <ListingCrumbs fallback={trail} slug={listingProduct} title={current.label} />
+      ) : (
+        <CrumbList trail={trail} />
+      )}
+      {rememberListing && (
+        <RememberListing
+          href={rememberListing.href}
+          trail={[...trail.slice(0, -1), { label: current.label, href: rememberListing.href }]}
+          slugs={rememberListing.slugs}
+        />
+      )}
       <JsonLd data={jsonLd} />
     </>
   );

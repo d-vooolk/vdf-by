@@ -226,3 +226,19 @@ export const SlopeDownIcon = (props: IconProps) => (
     <path d="M3 7l18 10" strokeWidth="2.5" />
   </Icon>
 );
+
+export const PackageIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M21 8 12 3 3 8v8l9 5 9-5z" />
+    <path d="m3 8 9 5 9-5" />
+    <path d="M12 13v8" />
+  </Icon>
+);
+
+export const LogOutIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="m16 17 5-5-5-5" />
+    <path d="M21 12H9" />
+  </Icon>
+);

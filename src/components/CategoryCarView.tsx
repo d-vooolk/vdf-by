@@ -181,7 +181,10 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
 
   return (
     <div className="container-page pb-16">
-      <Breadcrumbs items={[...crumbs(category), { label: mark.name }]} />
+      <Breadcrumbs
+        items={[...crumbs(category), { label: mark.name }]}
+        rememberListing={{ href: markUrl(mark.slug, base), slugs: products.map((product) => product.slug) }}
+      />
       <JsonLd
         data={itemListJsonLd(products, markUrl(mark.slug, base))}
       />
@@ -276,6 +279,10 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
           { label: mark.name, href: markUrl(mark.slug, base) },
           { label: model.name },
         ]}
+        rememberListing={{
+          href: modelUrl(mark.slug, model.slug, base),
+          slugs: products.map((product) => product.slug),
+        }}
       />
       <JsonLd
         data={itemListJsonLd(products, modelUrl(mark.slug, model.slug, base))}
@@ -391,6 +398,10 @@ export function CategoryGenerationView({
           { label: model.name, href: modelUrl(mark.slug, model.slug, base) },
           { label: generation.name },
         ]}
+        rememberListing={{
+          href: generationUrl(mark.slug, model.slug, generation.slug, base),
+          slugs: products.map((product) => product.slug),
+        }}
       />
       <JsonLd
         data={itemListJsonLd(

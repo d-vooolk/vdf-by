@@ -181,6 +181,7 @@ export default async function ProductPage({ params }: PageProps) {
             : []),
           { label: product.title },
         ]}
+        listingProduct={product.slug}
       />
       <JsonLd data={productJsonLd(product, category)} />
 

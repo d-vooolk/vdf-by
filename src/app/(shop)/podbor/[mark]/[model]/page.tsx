@@ -111,6 +111,10 @@ export default async function ModelPage({ params }: PageProps) {
           { label: mark.name, href: markUrl(mark.slug) },
           { label: model.name },
         ]}
+        rememberListing={{
+          href: modelUrl(mark.slug, model.slug),
+          slugs: products.map((product) => product.slug),
+        }}
       />
       <JsonLd data={itemListJsonLd(products, modelUrl(mark.slug, model.slug))} />
 

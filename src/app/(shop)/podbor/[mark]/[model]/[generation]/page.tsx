@@ -129,6 +129,10 @@ export default async function GenerationPage({ params }: PageProps) {
           { label: model.name, href: modelUrl(mark.slug, model.slug) },
           { label: generation.name },
         ]}
+        rememberListing={{
+          href: generationUrl(mark.slug, model.slug, generation.slug),
+          slugs: products.map((product) => product.slug),
+        }}
       />
       <JsonLd
         data={itemListJsonLd(

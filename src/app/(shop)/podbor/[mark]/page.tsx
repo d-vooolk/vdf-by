@@ -94,6 +94,7 @@ export default async function MarkPage({ params }: PageProps) {
           { label: "Подбор по автомобилю", href: "/podbor/" },
           { label: mark.name },
         ]}
+        rememberListing={{ href: markUrl(mark.slug), slugs: products.map((product) => product.slug) }}
       />
       <JsonLd data={itemListJsonLd(products, markUrl(mark.slug))} />
 

@@ -53,17 +53,6 @@ export function AccountProfile({
     }
   };
 
-  const logout = async () => {
-    await fetch("/api/account/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout" }),
-    });
-    useAccount.getState().reset();
-    router.push("/");
-    router.refresh();
-  };
-
   return (
     <form
       className="card space-y-4 p-5"
@@ -103,9 +92,6 @@ export function AccountProfile({
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy} className="btn-primary py-2 text-sm">
           Сохранить
-        </button>
-        <button type="button" onClick={logout} className="btn-ghost py-2 text-sm">
-          Выйти
         </button>
         {saved && (
           <span className="flex items-center gap-1.5 text-sm text-green-700">
