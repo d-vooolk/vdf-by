@@ -379,6 +379,7 @@ function ValuesEditor({
                   folder={folder}
                   thumbs={thumbs}
                   label="Своя галерея"
+                  removableBackground
                   hint="Если пусто — покажется общая галерея товара"
                 />
 

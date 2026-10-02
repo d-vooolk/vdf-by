@@ -610,6 +610,7 @@ export function ProductForm({
           folder={folder}
           thumbs={{ ...thumbs, ...importedThumbs }}
           label="Общая галерея"
+          removableBackground
         />
 
         <button type="button" className="btn-secondary" onClick={() => setComposerOpen(true)}>

@@ -2,8 +2,10 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { AlertIcon, CloseIcon, EraserIcon, SpinnerIcon } from "@/components/icons";
 import { runPool, sendWithProgress } from "@/lib/upload-client";
+
+import { BackgroundRemover, type CutoutImage } from "./BackgroundRemover";
 
 /**
  * Выбор фотографий: загрузка новых и подбор уже загруженных.
@@ -64,6 +66,7 @@ interface ImagePickerProps {
    */
   thumbs?: Record<string, string>;
   onThumbs?: (pairs: Record<string, string>) => void;
+  removableBackground?: boolean;
 }
 
 export function ImagePicker({
@@ -75,12 +78,14 @@ export function ImagePicker({
   hint,
   thumbs,
   onThumbs,
+  removableBackground = false,
 }: ImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
+  const [cleaning, setCleaning] = useState<string | null>(null);
   const trackUpload = useContext(UploadTrackerContext);
 
   useEffect(() => {
@@ -180,6 +185,20 @@ export function ImagePicker({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const replaceWith = (original: string, image: CutoutImage) => {
+    remember({ [image.path]: image.thumb });
+    onChange(value.map((path) => (path === original ? image.path : path)));
+  };
+
+  const addAfter = (original: string, image: CutoutImage) => {
+    remember({ [image.path]: image.thumb });
+    const next = value.filter((path) => path !== image.path);
+    next.splice(next.indexOf(original) + 1, 0, image.path);
+    onChange(next.slice(0, max));
+  };
+
+  const thumbOf = (path: string) => known[path] ?? thumbs?.[path] ?? guessThumb(path);
+
   const move = (from: number, to: number) => {
     if (to < 0 || to >= value.length) return;
     const next = [...value];
@@ -208,7 +227,7 @@ export function ImagePicker({
               className="group relative h-20 w-20 overflow-hidden rounded-xl border border-brand-100"
             >
               <img
-                src={known[path] ?? thumbs?.[path] ?? guessThumb(path)}
+                src={thumbOf(path)}
                 alt={path}
                 title={path}
                 className="photo-bed h-full w-full object-contain"
@@ -218,6 +237,19 @@ export function ImagePicker({
                 <span className="absolute top-0 left-0 bg-brand-700 px-1 text-[10px] font-semibold text-white">
                   главное
                 </span>
+              )}
+
+              {removableBackground && (
+                <button
+                  type="button"
+                  onClick={() => setCleaning(path)}
+                  disabled={uploading}
+                  title="Убрать фон"
+                  aria-label="Убрать фон"
+                  className="absolute top-0 right-4 bg-brand-700/90 px-1 py-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                >
+                  <EraserIcon className="h-3.5 w-3.5" />
+                </button>
               )}
 
               <button
@@ -303,6 +335,19 @@ export function ImagePicker({
             </li>
           ))}
         </ul>
+      )}
+
+      {cleaning && (
+        <BackgroundRemover
+          imagePath={cleaning}
+          thumb={thumbOf(cleaning)}
+          folder={folder}
+          canAdd={!full}
+          onReplace={(image) => replaceWith(cleaning, image)}
+          onAdd={(image) => addAfter(cleaning, image)}
+          onSavingChange={setUploading}
+          onClose={() => setCleaning(null)}
+        />
       )}
 
       {browsing && (
