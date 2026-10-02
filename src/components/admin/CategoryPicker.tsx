@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export interface CategoryChoice {
   id: string;
   name: string;
@@ -19,27 +21,38 @@ export function CategoryPicker({
   onChange: (id: string) => void;
 }) {
   const roots = categories.filter((category) => !category.parentId);
-  const standalone = roots.filter((root) => root.children === 0);
-  const groups = roots
-    .filter((root) => root.children > 0)
-    .map((root) => ({
-      root,
-      items: categories.filter((category) => category.parentId === root.id),
-    }));
+  const selected = categories.find((category) => category.id === value);
+  const [openedRoot, setOpenedRoot] = useState(selected?.parentId ?? selected?.id ?? "");
+
+  const activeRoot = roots.find((root) => root.id === openedRoot);
+  const children = activeRoot?.children
+    ? categories.filter((category) => category.parentId === activeRoot.id)
+    : [];
+
+  const chooseRoot = (id: string) => {
+    const root = roots.find((item) => item.id === id);
+    if (!root) return;
+    setOpenedRoot(root.id);
+    if (!root.children) onChange(root.id);
+    else if (selected?.parentId !== root.id) onChange("");
+  };
 
   return (
-    <div className="space-y-3" role="radiogroup" aria-label="Раздел">
-      {standalone.length > 0 && (
-        <TileRow items={standalone} value={value} onChange={onChange} />
-      )}
-      {groups.map((group) => (
-        <div key={group.root.id}>
+    <div className="space-y-3">
+      <div role="radiogroup" aria-label="Раздел">
+        <TileRow items={roots} value={activeRoot?.id ?? ""} onChange={chooseRoot} />
+      </div>
+      {activeRoot && children.length > 0 && (
+        <div role="radiogroup" aria-label={`Подраздел: ${activeRoot.name}`}>
           <p className="mb-1.5 text-xs font-semibold text-brand-500">
-            {group.root.name}
+            {activeRoot.name}
+            {selected?.parentId !== activeRoot.id && (
+              <span className="ml-1.5 font-normal text-amber-700">— выберите подраздел</span>
+            )}
           </p>
-          <TileRow items={group.items} value={value} onChange={onChange} />
+          <TileRow items={children} value={value} onChange={onChange} />
         </div>
-      ))}
+      )}
     </div>
   );
 }
