@@ -76,9 +76,16 @@ export function productSnippet({
 
   const baseTitle =
     twinTitle && product.sku ? `${product.title}, арт. ${product.sku}` : product.title;
-  const titleWithPrice = priceLabel ? `${baseTitle}${TITLE_SEPARATOR}${priceLabel}` : baseTitle;
+  const buyPhrase = `${TITLE_SEPARATOR}купить в Минске`;
+  const titleCandidates = [
+    ...(priceLabel ? [`${baseTitle}${buyPhrase}, ${priceLabel}`] : []),
+    `${baseTitle}${buyPhrase}`,
+    ...(priceLabel ? [`${baseTitle}${TITLE_SEPARATOR}${priceLabel}`] : []),
+  ];
   const generatedTitle =
-    titleWithPrice.length + suffix.length <= TITLE_LIMIT ? titleWithPrice : baseTitle;
+    titleCandidates.find((candidate) => candidate.length + suffix.length <= TITLE_LIMIT) ??
+    titleCandidates.find((candidate) => candidate.length <= TITLE_LIMIT) ??
+    baseTitle;
 
   const paragraph = firstParagraph(product.description);
   const lead = !paragraph

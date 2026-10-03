@@ -221,11 +221,12 @@ function validate(
   const deliveryCost = free ? 0 : method.price;
 
   const quickFromGuest = quick && !account;
+  const staffPurchase = quick && account?.staff === true;
   const address =
     clean(delivery.address, 300) ||
     (quick && method.requiresAddress ? (account?.address.slice(0, 300) ?? "") : "");
 
-  if (method.requiresAddress && !quickFromGuest && address.length < 5) {
+  if (method.requiresAddress && !quickFromGuest && !staffPurchase && address.length < 5) {
     return { error: "Не указан адрес доставки" };
   }
   if (quickFromGuest) notes.push("быстрый заказ со страницы товара — уточните доставку");
@@ -283,9 +284,12 @@ function buildMessage(
   id: number,
   order: ValidatedOrder,
   referer: string,
+  staff: boolean,
 ): string {
   const lines = [
-    `<b>🚗 Заказ №${id} с сайта</b>`,
+    staff
+      ? `<b>🧰 Внутренняя покупка №${id} — сотрудник</b>`
+      : `<b>🚗 Заказ №${id} с сайта</b>`,
     "",
     ...order.items.map(
       (item) =>
@@ -346,7 +350,10 @@ export async function POST(request: Request) {
   }
   record(attempts, ip);
 
-  if (tooMany(accepted, ip, rateLimit)) {
+  const customer = await getCustomer();
+  const staffBuyer = customer?.staff === true;
+
+  if (!staffBuyer && tooMany(accepted, ip, rateLimit)) {
     return Response.json(
       { error: "Слишком много заявок. Позвоните нам — оформим по телефону." },
       { status: 429 },
@@ -371,7 +378,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  const customer = await getCustomer();
   const wholesaleBuyer = isWholesale(customer);
   const { order, error } = validate(
     payload,
@@ -394,13 +400,15 @@ export async function POST(request: Request) {
 
   let id: number;
   try {
-    if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
+    if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — цены оптовые");
+    else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
     id = createOrder({
       ...order,
       ip,
       referer,
       customerId: customer?.id ?? null,
       wholesale: wholesaleBuyer,
+      staff: staffBuyer,
     });
   } catch (dbError) {
     console.error("[order] не удалось записать заказ:", dbError);
@@ -410,7 +418,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const sent = await sendTelegram(buildMessage(id, order, referer));
+  const sent = await sendTelegram(buildMessage(id, order, referer, staffBuyer));
   if (sent.ok) {
     markTelegramSent(id);
   } else {

@@ -25,14 +25,12 @@ interface ProductsTableProps {
   rows: ProductBrief[];
   categoryNames: Record<string, string>;
   thumbs: Record<string, string | null>;
-  currencySymbol: string;
 }
 
 export function ProductsTable({
   rows,
   categoryNames,
   thumbs,
-  currencySymbol,
 }: ProductsTableProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -163,7 +161,6 @@ export function ProductsTable({
             key={product.id}
             product={product}
             categoryName={categoryNames[product.categoryId] ?? "—"}
-            currencySymbol={currencySymbol}
             thumb={thumbs[product.id] ?? null}
             selected={selected.has(product.id)}
             onSelect={toggle}

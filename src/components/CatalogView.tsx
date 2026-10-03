@@ -5,7 +5,6 @@ import { CategoryGrid } from "@/components/CategoryTile";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductListing } from "@/components/ProductListing";
 import {
-  getCategories,
   getProducts,
   getRootCategories,
   getSite,
@@ -49,10 +48,6 @@ export function catalogMetadata(listing: ListingState): Metadata {
 export function CatalogView({ listing }: { listing: ListingState }) {
   const site = getSite();
   const categories = getRootCategories();
-  // Плитка показывает все разделы, включая вложенные: с этой страницы должен
-  // быть виден весь каталог, иначе до подраздела приходится идти через
-  // родителя — и покупателю, и краулеру.
-  const allCategories = getCategories();
   const products = getProducts();
 
   const shown = listingPage(products, listing);
@@ -83,7 +78,7 @@ export function CatalogView({ listing }: { listing: ListingState }) {
           был список названий в рамочках — понять по нему, что за раздел
           «Аксессуары», было нельзя. Теперь те же плитки, что на главной. */}
       <nav className="mb-10" aria-label="Разделы каталога">
-        <CategoryGrid categories={allCategories} priorityCount={shown.page === 1 ? 2 : 0} />
+        <CategoryGrid categories={categories} priorityCount={shown.page === 1 ? 2 : 0} />
       </nav>
 
       <ProductListing

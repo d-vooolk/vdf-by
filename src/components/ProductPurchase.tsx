@@ -20,6 +20,7 @@ import {
 } from "@/components/icons";
 import { ImagePlaceholder, Picture } from "@/components/Picture";
 import { QuickOrder, type QuickShippingMethod } from "@/components/QuickOrder";
+import { ServiceOffer } from "@/components/ServiceOffer";
 import type { Channel } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickUrl, type ImageMap } from "@/lib/image-types";
@@ -166,6 +167,9 @@ export function ProductPurchase({
   };
 
   const variant = resolveVariant(product, selection);
+  const shownStockQty =
+    variant.selected.find((entry) => entry.value.stockQty !== undefined)?.value.stockQty ??
+    product.stockQty;
   const priced = hasPrice(variant.price);
   const wholesale = useWholesalePrice(variant.key);
 
@@ -432,8 +436,8 @@ export function ProductPurchase({
             <>
               <CheckIcon className="h-4 w-4 text-green-600" />
               <span className="tnum text-green-700">
-                {product.stockQty
-                  ? `В наличии: ${product.stockQty} шт., отправим сегодня`
+                {shownStockQty
+                  ? `В наличии: ${shownStockQty} шт., отправим сегодня`
                   : "В наличии, отправим сегодня"}
               </span>
             </>
@@ -578,6 +582,8 @@ export function ProductPurchase({
             </div>
           </>
         )}
+
+        <ServiceOffer productId={product.id} productTitle={product.title} />
 
         {messengers.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-card border border-brand-100 p-4">

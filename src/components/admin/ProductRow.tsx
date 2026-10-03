@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import {
-  setProductPriceAction,
-  setProductStockQtyAction,
-} from "@/app/admin/actions";
+import { setProductStockQtyAction } from "@/app/admin/actions";
+import { CheckIcon, CopyIcon } from "@/components/icons";
 import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { ProductBrief } from "@/lib/store";
 
@@ -23,7 +21,6 @@ import type { ProductBrief } from "@/lib/store";
 interface ProductRowProps {
   product: ProductBrief;
   categoryName: string;
-  currencySymbol: string;
   thumb: string | null;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
@@ -32,7 +29,6 @@ interface ProductRowProps {
 export function ProductRow({
   product,
   categoryName,
-  currencySymbol,
   thumb,
   selected,
   onSelect,
@@ -103,30 +99,16 @@ export function ProductRow({
       )}
 
       <InlineNumber
-        value={product.price > 0 ? product.price : null}
-        suffix={currencySymbol}
-        title={
-          product.priceSource
-            ? `Цена по курсу: ${product.priceSource.amount} ${FOREIGN_CURRENCIES[product.priceSource.currency]}. Правка здесь отвяжет её от курса`
-            : "Цена"
-        }
-        placeholder="нет"
-        className="w-24"
-        onSave={(next) =>
-          startTransition(async () => {
-            setError("");
-            const result = await setProductPriceAction(product.id, next ?? 0);
-            if (!result.ok) setError(result.problems.join(" "));
-          })
-        }
-      />
-
-      <InlineNumber
         value={product.stockQty}
         suffix="шт."
-        title="Остаток на складе — виден на сайте, 0 или пусто — нет в наличии"
+        title={
+          product.optionStock
+            ? "Количество считается по опциям — правится в карточке товара"
+            : "Остаток на складе — виден на сайте, 0 или пусто — нет в наличии"
+        }
         placeholder="—"
         className="w-20"
+        disabled={product.optionStock}
         onSave={(next) =>
           startTransition(async () => {
             setError("");
@@ -139,9 +121,10 @@ export function ProductRow({
       <Link
         href={`/admin/products/new/?copy=${encodeURIComponent(product.id)}`}
         title="Копировать — откроется новый товар с данными этого"
-        className="btn-ghost shrink-0 px-2 py-1 text-xs"
+        aria-label="Копировать товар"
+        className="btn-ghost hidden shrink-0 px-2 py-1.5 sm:inline-flex"
       >
-        Копировать
+        <CopyIcon className="h-4 w-4" />
       </Link>
 
       <Link
@@ -165,6 +148,7 @@ interface InlineNumberProps {
   title: string;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
   /** null — поле очистили: значит «не задано». */
   onSave: (value: number | null) => void;
 }
@@ -172,9 +156,6 @@ interface InlineNumberProps {
 /**
  * Число, которое правится на месте.
  *
- * Сохраняет по уходу фокуса и по Enter, а не на каждое нажатие клавиши:
- * иначе набор «100» отправил бы на сервер сначала 1, потом 10, потом 100 —
- * три записи в базу и три пересборки страниц вместо одной.
  *
  * Значение держится строкой. Числом его хранить нельзя: поле с number 0
  * показывает «0», и набранная поверх сотня превращается в «0100».
@@ -185,6 +166,7 @@ function InlineNumber({
   title,
   placeholder,
   className = "",
+  disabled = false,
   onSave,
 }: InlineNumberProps) {
   const asText = (input: number | null) => (input === null ? "" : String(input));
@@ -200,36 +182,54 @@ function InlineNumber({
     setText(asText(value));
   }
 
-  const commit = () => {
+  const parsed = (() => {
     const trimmed = text.trim();
-    const next = trimmed === "" ? null : Number(trimmed.replace(",", "."));
-    if (next !== null && !Number.isFinite(next)) {
+    return trimmed === "" ? null : Number(trimmed.replace(",", "."));
+  })();
+  const valid = parsed === null || Number.isFinite(parsed);
+  const changed = valid && parsed !== value;
+
+  const commit = () => {
+    if (!valid) {
       setText(asText(value));
       return;
     }
-    if (next === value) return; // ничего не поменялось — не трогаем сервер
-    onSave(next);
+    if (changed) onSave(parsed);
   };
 
   return (
-    <label className={`relative block shrink-0 ${className}`} title={title}>
-      <span className="sr-only">{title}</span>
-      <input
-        type="text"
-        inputMode="decimal"
-        value={text}
-        placeholder={placeholder}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") setText(asText(value));
-        }}
-        className="field tnum w-full py-1.5 pr-9 text-right text-sm"
-      />
-      <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
-        {suffix}
-      </span>
-    </label>
+    <div className="flex shrink-0 items-center gap-1">
+      <label className={`relative block ${className}`} title={title}>
+        <span className="sr-only">{title}</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={text}
+          placeholder={placeholder}
+          disabled={disabled}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commit();
+            if (event.key === "Escape") setText(asText(value));
+          }}
+          className="field tnum w-full py-1.5 pr-9 text-right text-sm disabled:bg-brand-50 disabled:text-brand-400"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
+          {suffix}
+        </span>
+      </label>
+      {!disabled && (
+        <button
+          type="button"
+          onClick={commit}
+          disabled={!changed}
+          title="Сохранить"
+          aria-label="Сохранить количество"
+          className="btn-primary px-2 py-1.5 disabled:opacity-30"
+        >
+          <CheckIcon className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }

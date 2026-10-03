@@ -58,4 +58,5 @@ export interface Order {
   referer: string;
   telegramSent: boolean;
   adminNote: string;
+  staff: boolean;
 }

@@ -224,6 +224,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
+      url: absoluteUrl("/ustanovka/"),
+      lastModified: settings,
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
       url: absoluteUrl("/contacts/"),
       lastModified: settings,
       changeFrequency: "monthly",

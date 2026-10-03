@@ -35,6 +35,9 @@ export default async function OrderPage({ params }: PageProps) {
         <span className="text-sm text-brand-400">
           {new Date(order.createdAt).toLocaleString("ru-RU")}
         </span>
+        {order.staff && (
+          <span className="badge bg-sky-100 text-sky-800">внутренняя покупка сотрудника</span>
+        )}
       </div>
 
       {/* Расхождения, замеченные при приёме заявки. Показываем сразу и

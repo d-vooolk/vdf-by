@@ -27,6 +27,7 @@ import { removeImageFiles } from "@/lib/image-pipeline.mjs";
 import { deleteImage, getImage, imageUsage, usedImagePaths } from "@/lib/images";
 import { isOrderStatus } from "@/lib/order-types";
 import { deleteOrder, setOrderNote, setOrderStatus } from "@/lib/orders";
+import { setServiceRequestDone } from "@/lib/service";
 import {
   revalidateCategory,
   revalidateImages,
@@ -100,6 +101,7 @@ import {
   deleteCustomer,
   getCustomerById,
   setCustomerNote,
+  setCustomerStaff,
   setWholesaleStatus,
 } from "@/lib/customers";
 import {
@@ -936,6 +938,19 @@ export async function setWholesaleStatusAction(
       console.error("[customers] SMS об опте не ушло:", (error as Error).message);
     }
   }
+  return ok();
+}
+
+export async function setServiceRequestDoneAction(id: number, done: boolean): Promise<FormState> {
+  await requireAdmin();
+  setServiceRequestDone(Number(id), done === true);
+  return ok();
+}
+
+export async function setCustomerStaffAction(customerId: number, staff: boolean): Promise<FormState> {
+  await requireAdmin();
+  if (!getCustomerById(customerId)) return fail(["Покупатель не найден"]);
+  setCustomerStaff(customerId, staff === true);
   return ok();
 }
 

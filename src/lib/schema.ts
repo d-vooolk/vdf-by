@@ -82,6 +82,7 @@ export const optionValueSchema = z.strictObject({
   priceDelta: z.number().finite().optional(),
   sku: z.string().optional(),
   inStock: z.boolean().optional(),
+  stockQty: z.number().int().nonnegative().optional(),
   images: z.array(imagePath).optional(),
   priceSource: moneySourceSchema.optional(),
 });

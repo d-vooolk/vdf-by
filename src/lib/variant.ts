@@ -210,6 +210,43 @@ export function stockedByQty(qty: number | null | undefined): boolean {
   return (qty ?? 0) > 0;
 }
 
+type OptionStockProduct = Pick<Product, "optionGroups" | "stockQty" | "inStock">;
+
+export function countedOptionGroupIndex(product: Pick<Product, "optionGroups">): number {
+  return product.optionGroups.findIndex((group) =>
+    group.values.some((value) => value.stockQty !== undefined),
+  );
+}
+
+export function optionStockTotal(product: Pick<Product, "optionGroups">): number | null {
+  const index = countedOptionGroupIndex(product);
+  if (index === -1) return null;
+  return product.optionGroups[index].values.reduce(
+    (sum, value) => sum + (value.stockQty ?? 0),
+    0,
+  );
+}
+
+export function applyOptionStock<T extends OptionStockProduct>(product: T): T {
+  const index = countedOptionGroupIndex(product);
+  if (index === -1) return product;
+  const optionGroups = product.optionGroups.map((group, i) =>
+    i === index
+      ? {
+          ...group,
+          values: group.values.map((value) => {
+            const next = { ...value, stockQty: value.stockQty ?? 0 };
+            delete next.inStock;
+            if (!stockedByQty(next.stockQty)) next.inStock = false;
+            return next;
+          }),
+        }
+      : group,
+  );
+  const stockQty = optionStockTotal({ optionGroups }) ?? 0;
+  return { ...product, optionGroups, stockQty, inStock: stockedByQty(stockQty) };
+}
+
 export function hasPrice(price: number): boolean {
   return price > 0;
 }

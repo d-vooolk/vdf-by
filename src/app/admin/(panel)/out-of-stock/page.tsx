@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { ProductsTable } from "@/components/admin/ProductsTable";
-import { getSite } from "@/lib/catalog";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { listCategoriesBrief, listProducts } from "@/lib/store";
@@ -20,7 +19,6 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
   const categoryId = params.category ?? "";
   const query = params.q ?? "";
 
-  const site = getSite();
   const categories = listCategoriesBrief();
   const { rows, total } = listProducts({
     categoryId: categoryId || undefined,
@@ -114,7 +112,6 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
           rows={rows}
           categoryNames={categoryNames}
           thumbs={thumbs}
-          currencySymbol={site.currencySymbol}
         />
       )}
 

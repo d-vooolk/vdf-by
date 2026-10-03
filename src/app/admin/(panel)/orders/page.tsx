@@ -120,6 +120,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                 </span>
               </span>
 
+              {order.staff && (
+                <span className="badge bg-sky-100 text-sky-800">сотрудник</span>
+              )}
               {order.notes.length > 0 && (
                 <span
                   className="badge bg-amber-100 text-amber-900"

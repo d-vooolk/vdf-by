@@ -15,7 +15,12 @@ import {
 } from "./schema";
 import type { MoneySource } from "./currency";
 import { setGroupStock, stockGroupOf } from "./shared-stock";
-import { stockedByQty } from "./variant";
+import {
+  applyOptionStock,
+  countedOptionGroupIndex,
+  stockedByQty,
+  type Selection,
+} from "./variant";
 
 /**
  * Запись каталога. Всё, что меняет товары, категории и настройки, проходит
@@ -47,7 +52,10 @@ export function saveProduct(input: unknown, previousId?: string): SaveResult {
   if (!parsed.success) {
     return { ok: false, problems: describe(parsed.error.issues) };
   }
-  const product = { ...parsed.data, inStock: stockedByQty(parsed.data.stockQty) };
+  const product = applyOptionStock({
+    ...parsed.data,
+    inStock: stockedByQty(parsed.data.stockQty),
+  });
   const db = getDb();
   const problems: string[] = [];
 
@@ -242,6 +250,26 @@ export function setProductFaq(id: string, faq: Array<{ q: string; a: string }>):
   return { ok: true };
 }
 
+export function setProductDescription(id: string, description: string): SaveResult {
+  const db = getDb();
+  const row = db.prepare("SELECT data FROM products WHERE id = ?").get(id) as
+    | { data: string }
+    | undefined;
+  if (!row) return { ok: false, problems: ["Товар не найден"] };
+
+  const product = JSON.parse(row.data) as Product;
+  product.description = description;
+
+  db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?").run(
+    JSON.stringify(product),
+    Date.now(),
+    id,
+  );
+
+  bumpCatalogVersion();
+  return { ok: true };
+}
+
 export function setProductStockQty(id: string, qty: number | null): SaveResult {
   if (qty !== null && (!Number.isInteger(qty) || qty < 0)) {
     return { ok: false, problems: ["Количество — целое число не меньше нуля"] };
@@ -261,6 +289,12 @@ export function setProductStockQty(id: string, qty: number | null): SaveResult {
   }
 
   const product = JSON.parse(row.data) as Product;
+  if (countedOptionGroupIndex({ optionGroups: product.optionGroups ?? [] }) !== -1) {
+    return {
+      ok: false,
+      problems: ["Количество считается по опциям — поправьте его в карточке товара"],
+    };
+  }
   if (qty === null) delete product.stockQty;
   else product.stockQty = qty;
   product.inStock = stockedByQty(qty);
@@ -276,6 +310,7 @@ export function setProductStockQty(id: string, qty: number | null): SaveResult {
 export interface StockMove {
   productId: string;
   qty: number;
+  selection?: Selection;
 }
 
 export function takeFromStock(wanted: StockMove[]): StockMove[] {
@@ -294,9 +329,25 @@ function moveStock(moves: StockMove[], direction: 1 | -1): StockMove[] {
   );
   const done: StockMove[] = [];
 
-  for (const { productId, qty } of moves) {
+  for (const { productId, qty, selection } of moves) {
     const row = read.get(productId) as { data: string } | undefined;
     if (!row || qty <= 0) continue;
+
+    const stored = JSON.parse(row.data) as Product;
+    const countedIndex = countedOptionGroupIndex({ optionGroups: stored.optionGroups ?? [] });
+    if (countedIndex !== -1) {
+      const group = stored.optionGroups[countedIndex];
+      const value = group.values.find((entry) => entry.id === selection?.[group.id]);
+      if (!value) continue;
+      const before = value.stockQty ?? 0;
+      const moved = direction === -1 ? Math.min(before, qty) : qty;
+      if (moved === 0) continue;
+      value.stockQty = before + direction * moved;
+      const product = applyOptionStock(stored);
+      write.run(product.inStock ? 1 : 0, JSON.stringify(product), Date.now(), productId);
+      done.push({ productId, qty: moved, selection });
+      continue;
+    }
 
     const group = stockGroupOf(productId);
     if (group) {
@@ -844,6 +895,7 @@ export interface ProductBrief {
   inStock: boolean;
   featured: boolean;
   stockQty: number | null;
+  optionStock: boolean;
   priceSource: MoneySource | null;
   /** Складской номер — где товар лежит. Пусто, если не заведён. */
   storageCode: string;
@@ -891,7 +943,12 @@ export function listProducts(filter: {
               updated_at, json_extract(data, '$.images[0]') AS image,
               json_extract(data, '$.stockQty') AS stock_qty,
               json_extract(data, '$.priceSource') AS price_source,
-              json_extract(data, '$.storageCode') AS storage_code
+              json_extract(data, '$.storageCode') AS storage_code,
+              EXISTS (
+                SELECT 1 FROM json_each(data, '$.optionGroups') AS g,
+                              json_each(g.value, '$.values') AS v
+                 WHERE json_extract(v.value, '$.stockQty') IS NOT NULL
+              ) AS option_stock
          FROM products ${clause}
         ORDER BY updated_at DESC
         LIMIT @limit OFFSET @offset`,
@@ -914,6 +971,7 @@ export function listProducts(filter: {
     stock_qty: number | null;
     price_source: string | null;
     storage_code: string | null;
+    option_stock: number;
   }>;
 
   return {
@@ -928,6 +986,7 @@ export function listProducts(filter: {
       inStock: row.in_stock === 1,
       featured: row.featured === 1,
       stockQty: row.stock_qty ?? null,
+      optionStock: row.option_stock === 1,
       priceSource: row.price_source ? (JSON.parse(row.price_source) as MoneySource) : null,
       storageCode: row.storage_code ?? "",
       updatedAt: row.updated_at,

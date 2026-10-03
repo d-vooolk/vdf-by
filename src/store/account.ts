@@ -8,6 +8,7 @@ export interface AccountCustomer {
   kind: "retail" | "wholesale";
   address: string;
   wholesaleStatus: "none" | "pending" | "approved" | "rejected";
+  staff: boolean;
 }
 
 interface AccountState {

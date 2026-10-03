@@ -14,6 +14,7 @@ const TABS = [
   { id: "pending", label: "Заявки на опт" },
   { id: "approved", label: "Оптовики" },
   { id: "rejected", label: "Отклонённые" },
+  { id: "staff", label: "Сотрудники" },
   { id: "all", label: "Все покупатели" },
 ] as const;
 
@@ -57,7 +58,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
         <h1 className="text-xl font-semibold text-brand-900">Покупатели</h1>
         <p className="mt-1 text-sm text-brand-500">
           Кабинеты покупателей. Заявки на опт проверяйте звонком: после «Подтвердить опт» номеру
-          открываются оптовые цены в каталоге, корзине и заказах.
+          открываются оптовые цены в каталоге, корзине и заказах. Сотрудник регистрируется
+          на сайте по телефону как обычный покупатель, после «Сделать сотрудником» ему открываются оптовые цены, а покупки
+          оформляются одной кнопкой на странице товара и приходят сюда как внутренние.
         </p>
         {!smsConfigured() && (
           <p className="mt-2 text-sm text-red-700">
@@ -95,6 +98,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   <span className={`badge ${STATUS_TONE[customer.wholesaleStatus]}`}>
                     {WHOLESALE_LABELS[customer.wholesaleStatus]}
                   </span>
+                  {customer.staff && (
+                    <span className="badge bg-sky-100 text-sky-800">сотрудник</span>
+                  )}
                   <span className="text-xs text-brand-400">
                     {customer.kind === "wholesale" ? "регистрировался как оптовик" : "регистрировался как розница"}
                   </span>
@@ -135,6 +141,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 id={customer.id}
                 status={customer.wholesaleStatus}
                 note={customer.adminNote}
+                staff={customer.staff}
               />
             </li>
           ))}

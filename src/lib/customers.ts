@@ -26,6 +26,7 @@ export interface Customer {
   lastLoginAt: number | null;
   reviewedAt: number | null;
   adminNote: string;
+  staff: boolean;
 }
 
 export interface Registration {
@@ -54,6 +55,7 @@ interface CustomerRow {
   last_login_at: number | null;
   reviewed_at: number | null;
   admin_note: string;
+  staff: number;
 }
 
 function toCustomer(row: CustomerRow): Customer {
@@ -69,6 +71,7 @@ function toCustomer(row: CustomerRow): Customer {
     lastLoginAt: row.last_login_at,
     reviewedAt: row.reviewed_at,
     adminNote: row.admin_note,
+    staff: row.staff === 1,
   };
 }
 
@@ -90,7 +93,7 @@ export function getCustomerById(id: number): Customer | null {
 }
 
 export function isWholesale(customer: Customer | null): boolean {
-  return customer?.wholesaleStatus === "approved";
+  return customer?.wholesaleStatus === "approved" || customer?.staff === true;
 }
 
 export type CodeCheck = { ok: true } | { ok: false; error: string; retryIn?: number };
@@ -266,13 +269,15 @@ export interface CustomerListEntry extends Customer {
   lastOrderAt: number | null;
 }
 
-export function listCustomers(filter: WholesaleStatus | "all" | "wholesale"): CustomerListEntry[] {
+export function listCustomers(filter: WholesaleStatus | "all" | "wholesale" | "staff"): CustomerListEntry[] {
   const where =
     filter === "all"
       ? ""
-      : filter === "wholesale"
-        ? "WHERE c.wholesale_status IN ('pending', 'approved', 'rejected')"
-        : "WHERE c.wholesale_status = @filter";
+      : filter === "staff"
+        ? "WHERE c.staff = 1"
+        : filter === "wholesale"
+          ? "WHERE c.wholesale_status IN ('pending', 'approved', 'rejected')"
+          : "WHERE c.wholesale_status = @filter";
   const rows = getDb()
     .prepare(
       `SELECT c.*,
@@ -282,7 +287,7 @@ export function listCustomers(filter: WholesaleStatus | "all" | "wholesale"): Cu
          FROM customers c ${where}
         ORDER BY CASE c.wholesale_status WHEN 'pending' THEN 0 ELSE 1 END, c.created_at DESC`,
     )
-    .all(filter === "all" || filter === "wholesale" ? {} : { filter }) as Array<
+    .all(filter === "all" || filter === "wholesale" || filter === "staff" ? {} : { filter }) as Array<
     CustomerRow & { orders: number; orders_total: number; last_order_at: number | null }
   >;
   return rows.map((row) => ({
@@ -305,6 +310,10 @@ export function setWholesaleStatus(id: number, status: WholesaleStatus): void {
   getDb()
     .prepare("UPDATE customers SET wholesale_status = ?, reviewed_at = ? WHERE id = ?")
     .run(status, Date.now(), id);
+}
+
+export function setCustomerStaff(id: number, staff: boolean): void {
+  getDb().prepare("UPDATE customers SET staff = ? WHERE id = ?").run(staff ? 1 : 0, id);
 }
 
 export function setCustomerNote(id: number, note: string): void {

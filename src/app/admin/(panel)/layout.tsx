@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AdminNav } from "@/components/admin/AdminNav";
+import { countOpenServiceRequests } from "@/lib/service";
 import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
 import { countPendingWholesale } from "@/lib/customers";
@@ -36,6 +37,7 @@ export default async function PanelLayout({
         login={admin.login}
         newOrders={newCount}
         pendingWholesale={countPendingWholesale()}
+        openService={countOpenServiceRequests()}
       />
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mx-auto w-full max-w-[1400px]">{children}</div>

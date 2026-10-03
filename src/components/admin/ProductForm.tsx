@@ -33,7 +33,7 @@ import { formatPrice, pluralize } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
-import { stockedByQty } from "@/lib/variant";
+import { optionStockTotal, stockedByQty } from "@/lib/variant";
 
 /**
  * Карточка товара.
@@ -519,13 +519,19 @@ export function ProductForm({
 
           <Field
             label="Остаток на складе"
-            hint="Виден на сайте. Больше нуля — в наличии, пусто или 0 — нет в наличии и кнопки заказа нет"
+            hint={
+              optionStockTotal(draft) === null
+                ? "Виден на сайте. Больше нуля — в наличии, пусто или 0 — нет в наличии и кнопки заказа нет"
+                : "Считается по опциям: сумма количеств в наборе с учётом количества"
+            }
           >
             <NumberInput
               integer
-              value={draft.stockQty ?? null}
+              value={optionStockTotal(draft) ?? draft.stockQty ?? null}
               onChange={(stockQty) => patch({ stockQty, inStock: stockedByQty(stockQty) })}
               placeholder="нет в наличии"
+              disabled={optionStockTotal(draft) !== null}
+              className="field tnum disabled:bg-brand-50 disabled:text-brand-400"
             />
           </Field>
         </div>
@@ -659,7 +665,14 @@ export function ProductForm({
       >
         <OptionGroupsEditor
           value={draft.optionGroups}
-          onChange={(optionGroups) => patch({ optionGroups })}
+          onChange={(optionGroups) => {
+            const total = optionStockTotal({ optionGroups });
+            patch(
+              total === null
+                ? { optionGroups }
+                : { optionGroups, stockQty: total, inStock: stockedByQty(total) },
+            );
+          }}
           folder={folder}
           thumbs={thumbs}
           currencySymbol={currencySymbol}

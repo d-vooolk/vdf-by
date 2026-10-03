@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AiCopyBatch } from "@/components/admin/AiCopyBatch";
 import { AiFaqBatch } from "@/components/admin/AiFaqBatch";
 import { IncompleteFilters } from "@/components/admin/IncompleteFilters";
 import { aiConfigured } from "@/lib/ai";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { GAPS, isGap, listIncompleteProducts, SEO_GAPS, type Gap } from "@/lib/incomplete";
+import { COPY_TARGET_SCORE, copyQueue } from "@/lib/product-copy";
 import { listCategoriesBrief } from "@/lib/store";
 
 export const metadata: Metadata = { title: "Незаполненные карточки" };
@@ -27,6 +29,7 @@ export default async function IncompletePage({ searchParams }: PageProps) {
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
 
   const everything = listIncompleteProducts();
+  const copyBacklog = copyQueue(new Set());
   const all = everything.filter((product) => !categoryId || product.categoryId === categoryId);
   const counts = Object.fromEntries(
     (Object.keys(GAPS) as Gap[]).map((key) => [
@@ -68,6 +71,13 @@ export default async function IncompletePage({ searchParams }: PageProps) {
           короткое или длинное мета-описание, нет бренда или артикула.
         </p>
       </div>
+
+      <AiCopyBatch
+        left={copyBacklog.ids.length}
+        total={copyBacklog.total}
+        ready={aiConfigured()}
+        targetScore={COPY_TARGET_SCORE}
+      />
 
       <AiFaqBatch
         total={everything.filter((product) => product.gaps.includes("faq")).length}

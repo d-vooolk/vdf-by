@@ -507,6 +507,41 @@ export const MIGRATIONS = [
       PRIMARY KEY (category_id, type, generation_id)
     );
   `,
+
+  `
+    ALTER TABLE customers ADD COLUMN staff INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE orders ADD COLUMN staff INTEGER NOT NULL DEFAULT 0;
+  `,
+
+  `
+    CREATE TABLE product_copy (
+      product_id TEXT PRIMARY KEY,
+      standard   TEXT NOT NULL,
+      score      INTEGER NOT NULL,
+      reviews    INTEGER NOT NULL,
+      notes      TEXT NOT NULL DEFAULT '[]',
+      at         INTEGER NOT NULL
+    );
+  `,
+
+  `
+    CREATE TABLE service_requests (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at    INTEGER NOT NULL,
+      name          TEXT NOT NULL,
+      phone         TEXT NOT NULL,
+      car           TEXT NOT NULL DEFAULT '',
+      comment       TEXT NOT NULL DEFAULT '',
+      product_id    TEXT,
+      product_title TEXT NOT NULL DEFAULT '',
+      product_url   TEXT NOT NULL DEFAULT '',
+      ip            TEXT NOT NULL DEFAULT '',
+      telegram_sent INTEGER NOT NULL DEFAULT 0,
+      done          INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX service_requests_by_date ON service_requests(created_at DESC);
+  `,
 ];
 
 /**

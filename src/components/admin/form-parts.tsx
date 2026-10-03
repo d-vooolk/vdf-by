@@ -77,11 +77,13 @@ export function NumberInput({
   className = "field tnum",
   placeholder,
   integer = false,
+  disabled = false,
 }: {
   value: number | null | undefined;
   onChange: (value: number | null) => void;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
   /** Только целые — для количеств. Дробную часть отбрасываем. */
   integer?: boolean;
 }) {
@@ -120,6 +122,7 @@ export function NumberInput({
       inputMode={integer ? "numeric" : "decimal"}
       value={text}
       placeholder={placeholder}
+      disabled={disabled}
       onChange={(event) => handle(event.target.value)}
       className={className}
     />

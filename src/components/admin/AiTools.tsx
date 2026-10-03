@@ -125,10 +125,12 @@ export function RewriteTool({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [previous, setPrevious] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
 
   const run = async () => {
     setBusy(true);
     setError("");
+    setStatus("");
     const original = product.description;
     let text = "";
     let started = false;
@@ -166,7 +168,14 @@ export function RewriteTool({
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          const event = JSON.parse(line) as { text?: string; done?: string; error?: string };
+          const event = JSON.parse(line) as {
+            text?: string;
+            done?: string;
+            error?: string;
+            status?: string;
+            score?: number;
+          };
+          if (event.status) setStatus(event.status);
           if (event.error) {
             fail(event.error);
             return;
@@ -182,6 +191,7 @@ export function RewriteTool({
           if (event.done !== undefined) {
             finished = true;
             onRewrite(event.done);
+            if (event.score !== undefined) setStatus(`SEO-оценка: ${event.score}`);
           }
         }
       }
@@ -205,7 +215,7 @@ export function RewriteTool({
           {busy ? (
             <>
               <SpinnerIcon className="h-4 w-4 animate-spin" />
-              Переписываем…
+              {status || "Переписываем…"}
             </>
           ) : (
             "Сделать рерайт"
@@ -224,6 +234,7 @@ export function RewriteTool({
           </button>
         )}
       </div>
+      {!busy && status && <p className="mt-1.5 text-xs text-brand-500">{status}</p>}
       {!settings.ready && <NotConnected />}
       <AiError message={error} />
       <PromptEditor task="rewrite" settings={settings} prompt={prompt} />

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import {
   deleteCustomerAction,
   setCustomerNoteAction,
+  setCustomerStaffAction,
   setWholesaleStatusAction,
 } from "@/app/admin/actions";
 
@@ -13,10 +14,12 @@ export function CustomerControls({
   id,
   status,
   note: initialNote,
+  staff,
 }: {
   id: number;
   status: "none" | "pending" | "approved" | "rejected";
   note: string;
+  staff: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -62,6 +65,14 @@ export function CustomerControls({
             Снять опт
           </button>
         )}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(() => setCustomerStaffAction(id, !staff))}
+          className={`${staff ? "btn-secondary" : "btn-ghost"} px-3 py-1.5 text-xs`}
+        >
+          {staff ? "Снять роль сотрудника" : "Сделать сотрудником"}
+        </button>
         {confirmDelete ? (
           <>
             <button

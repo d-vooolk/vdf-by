@@ -43,6 +43,19 @@ export function OptionGroupsEditor({
       value.map((group, i) => (i === index ? { ...group, ...patch } : group)),
     );
 
+  const setCounted = (index: number, counted: boolean) =>
+    onChange(
+      value.map((group, i) => ({
+        ...group,
+        values: group.values.map((item) => {
+          const next = { ...item };
+          if (counted && i === index) next.stockQty = item.stockQty ?? 0;
+          else delete next.stockQty;
+          return next;
+        }),
+      })),
+    );
+
   const moveGroup = (from: number, to: number) => {
     if (to < 0 || to >= value.length) return;
     const next = [...value];
@@ -59,7 +72,9 @@ export function OptionGroupsEditor({
         </p>
       )}
 
-      {value.map((group, groupIndex) => (
+      {value.map((group, groupIndex) => {
+        const counted = group.values.some((item) => item.stockQty !== undefined);
+        return (
         <div key={groupIndex} className="rounded-card border border-brand-100">
           <div className="flex flex-wrap items-end gap-3 border-b border-brand-100 bg-brand-50 p-3">
             <label className="min-w-0 flex-1">
@@ -90,6 +105,19 @@ export function OptionGroupsEditor({
                 placeholder="Цоколь указан на старой лампе"
                 className="field py-2 text-sm"
               />
+            </label>
+
+            <label
+              className="flex cursor-pointer items-center gap-1.5 self-center"
+              title="Количество задаётся у каждого значения, общий остаток товара — их сумма"
+            >
+              <input
+                type="checkbox"
+                checked={counted}
+                onChange={(event) => setCounted(groupIndex, event.target.checked)}
+                className="h-4 w-4 rounded border-brand-200 text-brand-700 focus:ring-brand-600"
+              />
+              <span className="text-xs text-brand-500">количество по опциям</span>
             </label>
 
             <div className="flex gap-1">
@@ -143,9 +171,11 @@ export function OptionGroupsEditor({
             currencySymbol={currencySymbol}
             basePrice={basePrice}
             isFirstGroup={groupIndex === 0}
+            counted={counted}
           />
         </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"
@@ -179,6 +209,7 @@ interface ValuesEditorProps {
   currencySymbol: string;
   basePrice: number;
   isFirstGroup: boolean;
+  counted: boolean;
 }
 
 function ValuesEditor({
@@ -189,6 +220,7 @@ function ValuesEditor({
   currencySymbol,
   basePrice,
   isFirstGroup,
+  counted,
 }: ValuesEditorProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -272,6 +304,26 @@ function ValuesEditor({
                 <span className="text-xs text-brand-300">{currencySymbol}</span>
               </label>
 
+              {counted ? (
+                <label
+                  className="flex items-center gap-1.5"
+                  title="Количество этого варианта на складе, 0 — нельзя заказать"
+                >
+                  <NumberInput
+                    integer
+                    value={item.stockQty ?? 0}
+                    onChange={(stockQty) =>
+                      update(index, {
+                        stockQty: stockQty ?? 0,
+                        inStock: (stockQty ?? 0) > 0 ? undefined : false,
+                      })
+                    }
+                    placeholder="0"
+                    className="field tnum w-16 py-1.5 text-sm"
+                  />
+                  <span className="text-xs text-brand-300">шт.</span>
+                </label>
+              ) : (
               <label
                 className="flex cursor-pointer items-center gap-1.5"
                 title="Выключено — этот вариант нельзя заказать"
@@ -288,6 +340,7 @@ function ValuesEditor({
                 />
                 <span className="text-xs text-brand-500">в наличии</span>
               </label>
+              )}
 
               {item.images?.length ? (
                 <span className="badge bg-brand-50 text-brand-500">
@@ -401,7 +454,9 @@ function ValuesEditor({
       <div className="p-3">
         <button
           type="button"
-          onClick={() => onChange([...values, { id: "", label: "" }])}
+          onClick={() =>
+            onChange([...values, counted ? { id: "", label: "", stockQty: 0 } : { id: "", label: "" }])
+          }
           className="btn-secondary py-1.5 text-sm"
         >
           + Значение

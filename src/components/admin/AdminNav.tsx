@@ -18,7 +18,7 @@ interface NavLink {
   href: string;
   label: string;
   exact?: boolean;
-  badge?: "orders" | "customers";
+  badge?: "orders" | "customers" | "service";
 }
 
 interface NavGroup {
@@ -39,6 +39,7 @@ const NAV: Array<NavLink | NavGroup> = [
     ],
   },
   { href: "/admin/orders/", label: "Заказы", badge: "orders" },
+  { href: "/admin/service-requests/", label: "Установка", badge: "service" },
   { href: "/admin/customers/", label: "Покупатели", badge: "customers" },
   { href: "/admin/articles/", label: "Статьи" },
   {
@@ -68,9 +69,10 @@ interface AdminNavProps {
   login: string;
   newOrders: number;
   pendingWholesale: number;
+  openService: number;
 }
 
-export function AdminNav({ siteName, login, newOrders, pendingWholesale }: AdminNavProps) {
+export function AdminNav({ siteName, login, newOrders, pendingWholesale, openService }: AdminNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
@@ -80,7 +82,13 @@ export function AdminNav({ siteName, login, newOrders, pendingWholesale }: Admin
       : pathname.startsWith(href.replace(/\/$/, ""));
 
   const badgeCount = (badge: NavLink["badge"]) =>
-    badge === "orders" ? newOrders : badge === "customers" ? pendingWholesale : 0;
+    badge === "orders"
+      ? newOrders
+      : badge === "customers"
+        ? pendingWholesale
+        : badge === "service"
+          ? openService
+          : 0;
 
   const renderLink = (link: NavLink, nested: boolean) => {
     const active = isActive(link.href, link.exact);

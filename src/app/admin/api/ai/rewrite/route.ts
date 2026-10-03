@@ -7,6 +7,7 @@ import {
   promptFor,
   type AiProductInput,
 } from "@/lib/ai";
+import { reviewCopy } from "@/lib/product-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,20 @@ export async function POST(request: Request) {
           text += step.value;
           controller.enqueue(line({ text: step.value }));
         }
-        controller.enqueue(line({ done: finishRewrite(text) }));
+        const draft = finishRewrite(text);
+        controller.enqueue(line({ status: "SEO-проверка…" }));
+        const ping = setInterval(() => controller.enqueue(line({ ping: true })), 15000);
+        try {
+          const reviewed = await reviewCopy(input, draft, ({ round, score }) =>
+            controller.enqueue(line({ status: `SEO-проверка ${round}: оценка ${score}` })),
+          );
+          controller.enqueue(line({ done: reviewed.text, score: reviewed.score }));
+        } catch (error) {
+          if (!(error instanceof AiError)) console.error("[ai]", error);
+          controller.enqueue(line({ done: draft, status: "SEO-проверка не удалась — оставлен черновик" }));
+        } finally {
+          clearInterval(ping);
+        }
       } catch (error) {
         if (!(error instanceof AiError)) console.error("[ai]", error);
         controller.enqueue(

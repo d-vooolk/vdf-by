@@ -43,6 +43,7 @@ interface OrderRow {
   referer: string;
   telegram_sent: number;
   admin_note: string;
+  staff: number;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -69,12 +70,13 @@ function toOrder(row: OrderRow): Order {
     referer: row.referer,
     telegramSent: row.telegram_sent === 1,
     adminNote: row.admin_note,
+    staff: row.staff === 1,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total,
-  currency, items, notes, ip, referer, telegram_sent, admin_note`;
+  currency, items, notes, ip, referer, telegram_sent, admin_note, staff`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -100,6 +102,7 @@ export interface NewOrder {
   referer: string;
   customerId?: number | null;
   wholesale?: boolean;
+  staff?: boolean;
 }
 
 /**
@@ -114,11 +117,11 @@ export function createOrder(order: NewOrder): number {
       `INSERT INTO orders
          (created_at, status, name, phone, phone_digits, email, consent_at, comment,
           delivery_id, delivery_name, address, delivery_cost,
-          subtotal, total, currency, items, notes, ip, referer, customer_id, wholesale)
+          subtotal, total, currency, items, notes, ip, referer, customer_id, wholesale, staff)
        VALUES
          (@createdAt, 'new', @name, @phone, @phoneDigits, @email, @consentAt, @comment,
           @deliveryId, @deliveryName, @address, @deliveryCost,
-          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @wholesale)`,
+          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @wholesale, @staff)`,
     )
     .run({
       createdAt: Date.now(),
@@ -138,6 +141,7 @@ export function createOrder(order: NewOrder): number {
       items: JSON.stringify(order.items),
       customerId: order.customerId ?? null,
       wholesale: order.wholesale ? 1 : 0,
+      staff: order.staff ? 1 : 0,
       notes: JSON.stringify(order.notes),
       ip: order.ip,
       referer: order.referer,
@@ -243,10 +247,15 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
 function orderedQuantities(items: OrderItem[]): StockMove[] {
   const totals = new Map<string, number>();
   for (const item of items) {
-    const productId = item.key.split("|")[0];
-    if (productId) totals.set(productId, (totals.get(productId) ?? 0) + item.qty);
+    if (item.key) totals.set(item.key, (totals.get(item.key) ?? 0) + item.qty);
   }
-  return [...totals].map(([productId, qty]) => ({ productId, qty }));
+  return [...totals].map(([key, qty]) => {
+    const [productId, ...parts] = key.split("|");
+    const selection = Object.fromEntries(
+      parts.map((part) => part.split(":") as [string, string]),
+    );
+    return { productId, qty, selection };
+  });
 }
 
 export function setOrderNote(id: number, note: string): void {

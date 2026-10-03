@@ -42,6 +42,7 @@ function publicCustomer(customer: Customer) {
     kind: customer.kind,
     address: customer.address,
     wholesaleStatus: customer.wholesaleStatus,
+    staff: customer.staff,
   };
 }
 

@@ -7,7 +7,7 @@ import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox"
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
-import { useAccount } from "@/store/account";
+import { useAccount, type AccountCustomer } from "@/store/account";
 
 /**
  * Быстрый заказ со страницы товара: имя и телефон, больше ничего.
@@ -231,6 +231,20 @@ export function QuickOrder({
       setStatus("idle");
     }
   };
+
+  if (customer?.staff) {
+    return (
+      <StaffOrder
+        orderEndpoint={orderEndpoint}
+        deliveryId={pickupId ?? deliveryId}
+        item={item}
+        qty={qty}
+        currency={currency}
+        customer={customer}
+        disabled={disabled}
+      />
+    );
+  }
 
   return (
     <>
@@ -487,5 +501,142 @@ export function QuickOrder({
           document.body,
         )}
     </>
+  );
+}
+
+interface StaffOrderProps {
+  orderEndpoint: string;
+  deliveryId: string;
+  item: QuickOrderProps["item"];
+  qty: number;
+  currency: string;
+  customer: AccountCustomer;
+  disabled: boolean;
+}
+
+function StaffOrder({
+  orderEndpoint,
+  deliveryId,
+  item,
+  qty,
+  currency,
+  customer,
+  disabled,
+}: StaffOrderProps) {
+  const [step, setStep] = useState<"idle" | "confirm" | "sending" | "done" | "failed">("idle");
+  const [orderId, setOrderId] = useState<number | null>(null);
+  const [failure, setFailure] = useState("");
+
+  const send = async () => {
+    setStep("sending");
+    setFailure("");
+    try {
+      const response = await fetch(orderEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quick: true,
+          customer: {
+            name: customer.name,
+            phone: customer.phone,
+            phoneDigits: digits(customer.phone),
+            comment: "Внутренняя покупка сотрудника",
+          },
+          delivery: { id: deliveryId, address: "" },
+          items: [
+            {
+              key: item.key,
+              productId: item.productId,
+              title: item.title,
+              options: item.options,
+              sku: item.sku,
+              price: item.price,
+              qty,
+              sum: item.price * qty,
+              url: `/product/${item.slug}/`,
+            },
+          ],
+          subtotal: item.price * qty,
+          currency,
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        id?: number;
+        error?: string;
+      } | null;
+      if (!response.ok) throw new Error(body?.error ?? `сервер ответил ${response.status}`);
+      setOrderId(body?.id ?? null);
+      setStep("done");
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "не удалось отправить");
+      setStep("failed");
+    }
+  };
+
+  if (step === "done") {
+    return (
+      <div className="flex items-center gap-3 rounded-card bg-green-50 p-3">
+        <CheckIcon className="h-5 w-5 shrink-0 text-green-600" />
+        <p className="flex-1 text-sm text-green-900">
+          Покупка{orderId ? ` №${orderId}` : ""} оформлена: {qty} шт.
+        </p>
+        <button
+          type="button"
+          onClick={() => setStep("idle")}
+          className="btn-ghost px-2 py-1 text-xs"
+        >
+          Ещё
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "confirm" || step === "sending") {
+    return (
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={send}
+          disabled={step === "sending"}
+          className="btn-primary flex-1"
+        >
+          {step === "sending" ? (
+            <>
+              <SpinnerIcon className="h-5 w-5 animate-spin" />
+              Оформляем…
+            </>
+          ) : (
+            `Подтвердить: ${qty} шт.`
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setStep("idle")}
+          disabled={step === "sending"}
+          className="btn-secondary"
+          aria-label="Отмена"
+        >
+          <CloseIcon className="h-5 w-5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setStep("confirm")}
+        disabled={disabled}
+        className="btn-accent w-full"
+      >
+        Купить как сотрудник
+      </button>
+      {step === "failed" && (
+        <p className="rounded-card border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          Не оформилось: {failure}
+        </p>
+      )}
+    </div>
   );
 }
