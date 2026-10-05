@@ -5,7 +5,12 @@ import { bumpCatalogVersion, getDb } from "./db";
 import { frameCategories, isFrameCategory, type FrameCategory } from "./frame-category";
 import { buildFrameSku, isFrameType, normalizeFrameType, splitFrameSku } from "./frame-sku";
 import { moneySourceSchema, type Product, type Spec } from "./schema";
-import { frameMembershipsIn, renameFrameMembers, setFrameMembership } from "./frame-membership";
+import {
+  ensureFrameMembership,
+  frameMembershipsIn,
+  renameFrameMembers,
+  setFrameMembership,
+} from "./frame-membership";
 import { setGroupStock } from "./shared-stock";
 import { buildProductSku, productSkuBase } from "./sku";
 import { nextSku } from "./store";
@@ -88,7 +93,7 @@ interface TypeRow {
 }
 
 const TYPE_COLUMNS = `type, name, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
-  price_source, cost_source, wholesale_source, frame_image IS NOT NULL AS has_frame_image, composer`;
+  price_source, cost_source, wholesale_source, typeof(frame_image) <> 'null' AS has_frame_image, composer`;
 
 const EMPTY_VALUES: FrameTypeValues = {
   costPrice: null,
@@ -200,35 +205,89 @@ export function initialFrameValues(group: FrameTypeGroup | null | undefined): Fr
   return group?.products.length ? prevailingValues(group.products) : EMPTY_VALUES;
 }
 
+const PRODUCT_COLUMNS = `p.id, p.slug, p.title, p.price, p.in_stock,
+  json_extract(p.data, '$.sku', '$.costPrice', '$.wholesalePrice', '$.stockQty',
+    '$.priceSource', '$.costSource', '$.wholesaleSource', '$.storageCode') AS fields`;
+
+interface ProductRow {
+  id: string;
+  slug: string;
+  title: string;
+  price: number;
+  in_stock: number;
+  fields: string;
+  type?: string;
+}
+
+type ProductFields = [
+  string | null,
+  number | null,
+  number | null,
+  number | null,
+  MoneySource | null,
+  MoneySource | null,
+  MoneySource | null,
+  string | null,
+];
+
+const titleOrder = new Intl.Collator("ru");
+const typeOrder = new Intl.Collator("ru", { numeric: true });
+
+function toProduct(row: ProductRow): FrameTypeProduct {
+  const [sku, costPrice, wholesalePrice, stockQty, priceSource, costSource, wholesaleSource, storageCode] =
+    JSON.parse(row.fields) as ProductFields;
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    sku: sku ?? "",
+    price: row.price,
+    costPrice,
+    wholesalePrice,
+    stockQty,
+    inStock: row.in_stock === 1,
+    priceSource,
+    costSource,
+    wholesaleSource,
+    storageCode: storageCode ?? "",
+  };
+}
+
 function categoryProducts(categoryId: string): FrameTypeProduct[] {
   const rows = getDb()
-    .prepare("SELECT id, slug, title, price, in_stock, data FROM products WHERE category_id = ?")
-    .all(categoryId) as Array<{
-    id: string;
-    slug: string;
-    title: string;
-    price: number;
-    in_stock: number;
-    data: string;
-  }>;
-  return rows.map((row) => {
-    const data = JSON.parse(row.data) as Partial<Product>;
-    return {
-      id: row.id,
-      slug: row.slug,
-      title: row.title,
-      sku: data.sku ?? "",
-      price: row.price,
-      costPrice: data.costPrice ?? null,
-      wholesalePrice: data.wholesalePrice ?? null,
-      stockQty: data.stockQty ?? null,
-      inStock: row.in_stock === 1,
-      priceSource: data.priceSource ?? null,
-      costSource: data.costSource ?? null,
-      wholesaleSource: data.wholesaleSource ?? null,
-      storageCode: data.storageCode ?? "",
-    };
-  });
+    .prepare(`SELECT ${PRODUCT_COLUMNS} FROM products p WHERE p.category_id = ?`)
+    .all(categoryId) as ProductRow[];
+  return rows.map(toProduct);
+}
+
+function memberRows(categoryId: string, type?: string): ProductRow[] {
+  ensureFrameMembership();
+  return getDb()
+    .prepare(
+      `SELECT ${PRODUCT_COLUMNS}, f.type
+         FROM frame_type_products f
+         JOIN products p ON p.id = f.product_id AND p.category_id = f.category_id
+        WHERE f.category_id = ?${type === undefined ? "" : " AND f.type = ?"}`,
+    )
+    .all(...(type === undefined ? [categoryId] : [categoryId, type])) as ProductRow[];
+}
+
+function buildGroup(type: string, row: TypeRow | undefined, products: FrameTypeProduct[]): FrameTypeGroup {
+  const first = products[0] ? productValues(products[0]) : null;
+  return {
+    type,
+    name: row?.name ?? "",
+    storageCode: row?.storage_code ?? commonValue(products, (product) => product.storageCode),
+    storageMixed: new Set(products.map((product) => product.storageCode)).size > 1,
+    brief: row?.brief ?? "",
+    specs: row ? parseSpecs(row.specs) : [],
+    titleTemplate: row?.title_template || DEFAULT_TITLE_TEMPLATE,
+    saved: row ? toValues(row) : null,
+    products: products.sort((a, b) => titleOrder.compare(a.title, b.title)),
+    uniform: !first || products.every((product) => sameValues(productValues(product), first)),
+    hasFrameImage: row?.has_frame_image === 1,
+    composer: row?.composer ? parseComposerSettings(JSON.parse(row.composer)) : null,
+  };
 }
 
 function typeRows(categoryId: string): TypeRow[] {
@@ -246,42 +305,26 @@ function typeRow(categoryId: string, type: string): TypeRow | undefined {
 export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
   if (!isFrameCategory(categoryId)) return [];
   const saved = new Map(typeRows(categoryId).map((row) => [row.type, row]));
-  const memberships = frameMembershipsIn(categoryId);
 
   const groups = new Map<string, FrameTypeProduct[]>();
   for (const type of saved.keys()) groups.set(type, []);
-  for (const product of categoryProducts(categoryId)) {
-    const type = memberships.get(product.id);
-    if (!type) continue;
+  for (const row of memberRows(categoryId)) {
+    const type = row.type ?? "";
     const list = groups.get(type) ?? [];
-    list.push(product);
+    list.push(toProduct(row));
     groups.set(type, list);
   }
 
   return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b, "ru", { numeric: true }))
-    .map(([type, products]) => {
-      const row = saved.get(type);
-      const first = products[0] ? productValues(products[0]) : null;
-      return {
-        type,
-        name: row?.name ?? "",
-        storageCode: row?.storage_code ?? commonValue(products, (product) => product.storageCode),
-        storageMixed: new Set(products.map((product) => product.storageCode)).size > 1,
-        brief: row?.brief ?? "",
-        specs: row ? parseSpecs(row.specs) : [],
-        titleTemplate: row?.title_template || DEFAULT_TITLE_TEMPLATE,
-        saved: row ? toValues(row) : null,
-        products: products.sort((a, b) => a.title.localeCompare(b.title, "ru")),
-        uniform: !first || products.every((product) => sameValues(productValues(product), first)),
-        hasFrameImage: row?.has_frame_image === 1,
-        composer: row?.composer ? parseComposerSettings(JSON.parse(row.composer)) : null,
-      };
-    });
+    .sort(([a], [b]) => typeOrder.compare(a, b))
+    .map(([type, products]) => buildGroup(type, saved.get(type), products));
 }
 
 export function getFrameType(categoryId: string, type: string): FrameTypeGroup | null {
-  return listFrameTypes(categoryId).find((group) => group.type === type) ?? null;
+  if (!isFrameCategory(categoryId)) return null;
+  const row = typeRow(categoryId, type);
+  const products = memberRows(categoryId, type).map(toProduct);
+  return row || products.length ? buildGroup(type, row, products) : null;
 }
 
 export function frameTypeProductsOutside(
@@ -298,7 +341,7 @@ export function frameTypeProductsOutside(
       sku: product.sku,
       currentType: memberships.get(product.id) ?? "",
     }))
-    .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+    .sort((a, b) => titleOrder.compare(a.title, b.title));
 }
 
 export function validFrameTypeValues(input: unknown): FrameTypeValues | string {

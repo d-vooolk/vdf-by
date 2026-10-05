@@ -11,10 +11,12 @@ export function FrameTypeStockField({
   categoryId,
   type,
   initial,
+  className = "",
 }: {
   categoryId: string;
   type: string;
   initial: number | null;
+  className?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
@@ -41,7 +43,7 @@ export function FrameTypeStockField({
   };
 
   return (
-    <form onSubmit={save} className="flex items-center gap-2">
+    <form onSubmit={save} className={`flex flex-wrap items-center gap-2 ${className}`}>
       <label className="flex items-center gap-2 text-xs text-brand-500">
         Остаток
         <NumberInput
@@ -52,10 +54,10 @@ export function FrameTypeStockField({
           }}
           placeholder="—"
           integer
-          className="field tnum w-20 py-1.5 text-sm"
+          className="field tnum w-16 py-1.5 text-sm sm:w-20"
         />
       </label>
-      <button type="submit" disabled={pending || !changed} className="btn-primary py-1.5 text-xs">
+      <button type="submit" disabled={pending || !changed} className="btn-primary px-3 py-1.5 text-xs sm:px-5">
         {pending ? "Сохраняем…" : "Сохранить"}
       </button>
       {done && !changed && <CheckIcon className="h-4 w-4 text-green-700" />}

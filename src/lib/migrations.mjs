@@ -544,6 +544,45 @@ export const MIGRATIONS = [
   `,
 
   composeStorageSkus,
+
+  `
+    CREATE TABLE frame_types_reordered (
+      category_id      TEXT NOT NULL,
+      type             TEXT NOT NULL,
+      cost_price       REAL,
+      price            REAL,
+      wholesale_price  REAL,
+      stock_qty        INTEGER,
+      in_stock         INTEGER NOT NULL DEFAULT 0,
+      updated_at       INTEGER NOT NULL,
+      price_source     TEXT,
+      cost_source      TEXT,
+      wholesale_source TEXT,
+      name             TEXT NOT NULL DEFAULT '',
+      suffix           TEXT,
+      composer         TEXT,
+      storage_code     TEXT,
+      brief            TEXT NOT NULL DEFAULT '',
+      specs            TEXT NOT NULL DEFAULT '[]',
+      title_template   TEXT NOT NULL DEFAULT '',
+      frame_image      BLOB,
+      PRIMARY KEY (category_id, type)
+    );
+
+    INSERT INTO frame_types_reordered (
+      category_id, type, cost_price, price, wholesale_price, stock_qty, in_stock, updated_at,
+      price_source, cost_source, wholesale_source, name, suffix, composer, storage_code, brief,
+      specs, title_template, frame_image
+    )
+    SELECT
+      category_id, type, cost_price, price, wholesale_price, stock_qty, in_stock, updated_at,
+      price_source, cost_source, wholesale_source, name, suffix, composer, storage_code, brief,
+      specs, title_template, frame_image
+    FROM frame_types;
+
+    DROP TABLE frame_types;
+    ALTER TABLE frame_types_reordered RENAME TO frame_types;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
