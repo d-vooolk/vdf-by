@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FrameTypeStockField } from "@/components/admin/FrameTypeStockField";
+import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { CopyIcon, PlusIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
 import { getSite } from "@/lib/catalog";
@@ -183,6 +184,10 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
               >
                 <CopyIcon className="h-4 w-4" />
               </Link>
+              <PrintLabelButton
+                target={{ categoryId, type: group.type }}
+                className="p-2 text-brand-500 hover:text-brand-900"
+              />
               <FrameTypeStockField
                 categoryId={categoryId}
                 type={group.type}

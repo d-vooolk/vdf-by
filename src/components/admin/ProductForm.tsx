@@ -18,6 +18,7 @@ import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker, UploadTrackerContext } from "@/components/admin/ImagePicker";
 import { MoneyField } from "@/components/admin/MoneyField";
 import { OptionGroupsEditor } from "@/components/admin/OptionGroupsEditor";
+import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { VideoPicker } from "@/components/admin/VideoPicker";
 import {
   Field,
@@ -291,6 +292,13 @@ export function ProductForm({
           >
             Открыть на сайте ↗
           </Link>
+        )}
+        {!creating && (
+          <PrintLabelButton
+            target={{ productId: initial.id }}
+            withText
+            className="ml-auto py-2 text-sm"
+          />
         )}
       </div>
 

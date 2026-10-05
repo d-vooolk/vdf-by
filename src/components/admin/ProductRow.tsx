@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { setProductStockQtyAction } from "@/app/admin/actions";
+import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { CheckIcon, CopyIcon } from "@/components/icons";
 import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { ProductBrief } from "@/lib/store";
@@ -117,6 +118,8 @@ export function ProductRow({
           })
         }
       />
+
+      <PrintLabelButton target={{ productId: product.id }} className="px-2 py-1.5" />
 
       <Link
         href={`/admin/products/new/?copy=${encodeURIComponent(product.id)}`}
