@@ -583,6 +583,16 @@ export const MIGRATIONS = [
     DROP TABLE frame_types;
     ALTER TABLE frame_types_reordered RENAME TO frame_types;
   `,
+  `
+    CREATE TABLE crm_outbox (
+      order_id INTEGER PRIMARY KEY,
+      queued_at INTEGER NOT NULL,
+      completed_at INTEGER,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT
+    );
+    ALTER TABLE orders ADD COLUMN crm_sent_at INTEGER;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

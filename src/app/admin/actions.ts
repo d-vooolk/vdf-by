@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { cookies, headers } from "next/headers";
 
 import {
@@ -26,6 +27,7 @@ import {
 import { removeImageFiles } from "@/lib/image-pipeline.mjs";
 import { deleteImage, getImage, imageUsage, usedImagePaths } from "@/lib/images";
 import { isOrderStatus } from "@/lib/order-types";
+import { syncCrm } from "@/lib/crm-sync";
 import { deleteOrder, setOrderNote, setOrderStatus } from "@/lib/orders";
 import { setServiceRequestDone } from "@/lib/service";
 import {
@@ -541,6 +543,7 @@ export async function setOrderStatusAction(
     invalidateCatalog();
     revalidateProductsById(moved.flatMap(({ productId }) => productsSharingStock(productId)));
   }
+  after(syncCrm);
   revalidatePath("/admin", "layout");
   return ok();
 }
@@ -557,6 +560,7 @@ export async function setOrderNoteAction(
 export async function deleteOrderAction(id: number): Promise<FormState> {
   await requireAdmin();
   deleteOrder(id);
+  after(syncCrm);
   revalidatePath("/admin", "layout");
   redirect("/admin/orders/");
 }

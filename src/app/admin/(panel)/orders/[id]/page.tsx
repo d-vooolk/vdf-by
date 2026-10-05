@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { OrderControls } from "@/components/admin/OrderControls";
 import { getSite } from "@/lib/catalog";
+import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
 import { getOrder } from "@/lib/orders";
 
@@ -22,6 +23,7 @@ export default async function OrderPage({ params }: PageProps) {
 
   const site = getSite();
   const price = (value: number) => formatPrice(value, site.currencySymbol);
+  const crm = order.staff ? crmSyncState(order.id) : null;
 
   return (
     <div className="space-y-5">
@@ -39,6 +41,23 @@ export default async function OrderPage({ params }: PageProps) {
           <span className="badge bg-sky-100 text-sky-800">внутренняя покупка сотрудника</span>
         )}
       </div>
+
+      {crm?.queued ? (
+        <p className="rounded-card border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          {crm.configured
+            ? "Ждёт отправки в CRM — повтор каждые 5 минут."
+            : "CRM не подключена (CRM_URL и CRM_INTEGRATION_KEY в .env) — заказ ждёт в очереди."}
+          {crm.queued.lastError && (
+            <span className="mt-1 block text-xs text-amber-800">
+              Попыток: {crm.queued.attempts}. Последняя ошибка: {crm.queued.lastError}
+            </span>
+          )}
+        </p>
+      ) : crm?.sentAt ? (
+        <p className="text-sm text-green-800">
+          Передан в бухгалтерию CRM {new Date(crm.sentAt).toLocaleString("ru-RU")}
+        </p>
+      ) : null}
 
       {/* Расхождения, замеченные при приёме заявки. Показываем сразу и
           заметно: именно они портят разговор с покупателем. */}

@@ -1,29 +1,12 @@
-import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-
 import { invalidateCatalog } from "@/lib/catalog";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { refreshLinkedPrices } from "@/lib/linked-prices";
 import { revalidateSite } from "@/lib/revalidate";
 
 export const dynamic = "force-dynamic";
 
-const KEY_FILE = path.join(process.cwd(), "var", "cron-key");
-
-function authorized(request: Request): boolean {
-  let expected: string;
-  try {
-    expected = fs.readFileSync(KEY_FILE, "utf8").trim();
-  } catch {
-    return false;
-  }
-  const given = request.headers.get("x-cron-key") ?? "";
-  if (!expected || given.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
-}
-
 export async function POST(request: Request) {
-  if (!authorized(request)) return Response.json({ error: "forbidden" }, { status: 403 });
+  if (!cronAuthorized(request)) return Response.json({ error: "forbidden" }, { status: 403 });
   const report = await refreshLinkedPrices();
   if (report.products) {
     invalidateCatalog();

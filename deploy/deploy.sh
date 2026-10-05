@@ -134,6 +134,13 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-rates
 
+echo "==> Досылка заказов сотрудников в CRM"
+cat > /etc/cron.d/vdf-crm <<CRON
+SHELL=/bin/bash
+*/5 * * * * root curl -s -X POST --max-time 120 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/crm/ -o $APP/var/crm-sync.log
+CRON
+chmod 644 /etc/cron.d/vdf-crm
+
 echo "==> Перезапускаю $PM2_APP"
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
   pm2 reload ecosystem.config.cjs --update-env

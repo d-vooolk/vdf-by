@@ -1,3 +1,4 @@
+import { queueCrmSync } from "./crm-sync";
 import { getDb } from "./db";
 import {
   isOrderStatus,
@@ -218,8 +219,10 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
   const db = getDb();
   return db.transaction(() => {
     const row = db
-      .prepare("SELECT items, stock_moves FROM orders WHERE id = ?")
-      .get(id) as { items: string; stock_moves: string | null } | undefined;
+      .prepare("SELECT status, staff, items, stock_moves FROM orders WHERE id = ?")
+      .get(id) as
+      | { status: string; staff: number; items: string; stock_moves: string | null }
+      | undefined;
     if (!row) return [];
 
     let moves: StockMove[] | null = row.stock_moves
@@ -240,6 +243,9 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
       moves === null ? null : JSON.stringify(moves),
       id,
     );
+    if (row.staff === 1 && (row.status === "done") !== (status === "done")) {
+      queueCrmSync(id, status === "done");
+    }
     return changed;
   })();
 }
@@ -265,7 +271,14 @@ export function setOrderNote(id: number, note: string): void {
 }
 
 export function deleteOrder(id: number): void {
-  getDb().prepare("DELETE FROM orders WHERE id = ?").run(id);
+  const db = getDb();
+  db.transaction(() => {
+    const row = db.prepare("SELECT status, staff FROM orders WHERE id = ?").get(id) as
+      | { status: string; staff: number }
+      | undefined;
+    if (row?.staff === 1 && row.status === "done") queueCrmSync(id, false);
+    db.prepare("DELETE FROM orders WHERE id = ?").run(id);
+  })();
 }
 
 /* ------------------------------------------------------------------ */
