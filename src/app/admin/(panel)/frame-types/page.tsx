@@ -84,7 +84,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           categories={categories}
           categoryId={categoryId}
           initialQuery={query}
-          initialStockFirst={params.stock === "1"}
+          initialStockOnly={params.stock === "1"}
         />
       )}
     </div>

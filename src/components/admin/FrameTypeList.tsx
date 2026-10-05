@@ -25,16 +25,16 @@ interface FrameTypeListProps {
   categories: Array<{ id: string; name: string }>;
   categoryId: string;
   initialQuery: string;
-  initialStockFirst: boolean;
+  initialStockOnly: boolean;
 }
 
 const QUERY_LENGTH = 10;
 const URL_SYNC_DELAY = 400;
 
-function listHref(categoryId: string, query: string, stockFirst: boolean): string {
+function listHref(categoryId: string, query: string, stockOnly: boolean): string {
   const params = new URLSearchParams({ category: categoryId });
   if (query) params.set("q", query);
-  if (stockFirst) params.set("stock", "1");
+  if (stockOnly) params.set("stock", "1");
   return `/admin/frame-types/?${params}`;
 }
 
@@ -49,11 +49,11 @@ export function FrameTypeList({
   categories,
   categoryId,
   initialQuery,
-  initialStockFirst,
+  initialStockOnly,
 }: FrameTypeListProps) {
   const router = useRouter();
   const [input, setInput] = useState(initialQuery);
-  const [stockFirst, setStockFirst] = useState(initialStockFirst);
+  const [stockOnly, setStockOnly] = useState(initialStockOnly);
   const [switching, startSwitching] = useTransition();
   const query = useDeferredValue(normalizeQuery(input));
   const stale = query !== normalizeQuery(input);
@@ -67,17 +67,19 @@ export function FrameTypeList({
     [rows, query],
   );
   const stockCount = useMemo(() => rows.filter(inStock).length, [rows]);
+  const shownStockCount = useMemo(() => shown.filter(inStock).length, [shown]);
+  const visibleCount = stockOnly ? shownStockCount : shown.length;
 
   useEffect(() => () => clearTimeout(urlTimer.current), []);
 
-  const remember = (nextInput: string, nextStockFirst: boolean) => {
+  const remember = (nextInput: string, nextStockOnly: boolean) => {
     clearTimeout(urlTimer.current);
     urlTimer.current = setTimeout(
       () =>
         window.history.replaceState(
           null,
           "",
-          listHref(categoryId, normalizeQuery(nextInput), nextStockFirst),
+          listHref(categoryId, normalizeQuery(nextInput), nextStockOnly),
         ),
       URL_SYNC_DELAY,
     );
@@ -85,16 +87,16 @@ export function FrameTypeList({
 
   const changeQuery = (value: string) => {
     setInput(value);
-    remember(value, stockFirst);
+    remember(value, stockOnly);
   };
 
-  const toggleStockFirst = () => {
-    setStockFirst(!stockFirst);
-    remember(input, !stockFirst);
+  const toggleStockOnly = () => {
+    setStockOnly(!stockOnly);
+    remember(input, !stockOnly);
   };
 
   const changeCategory = (nextCategoryId: string) =>
-    startSwitching(() => router.push(listHref(nextCategoryId, normalizeQuery(input), stockFirst)));
+    startSwitching(() => router.push(listHref(nextCategoryId, normalizeQuery(input), stockOnly)));
 
   return (
     <>
@@ -140,26 +142,30 @@ export function FrameTypeList({
         {switching && <SpinnerIcon className="mb-2.5 h-5 w-5 animate-spin text-brand-500" />}
         <button
           type="button"
-          onClick={toggleStockFirst}
-          aria-pressed={stockFirst}
-          className={`${stockFirst ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
+          onClick={toggleStockOnly}
+          aria-pressed={stockOnly}
+          className={`${stockOnly ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
         >
-          Сначала в наличии <span className="tnum opacity-70">{stockCount}</span>
+          В наличии <span className="tnum opacity-70">{stockCount}</span>
         </button>
       </form>
 
-      {shown.length === 0 ? (
+      {visibleCount === 0 && (
         <p className="card p-10 text-center text-sm text-brand-400">
-          {rows.length ? "Такого типа нет." : "Типов пока нет — создайте первый."}
+          {!rows.length
+            ? "Типов пока нет — создайте первый."
+            : shown.length
+              ? "Таких типов в наличии нет."
+              : "Такого типа нет."}
         </p>
-      ) : (
-        <div
-          data-stock-first={stockFirst || undefined}
-          className={`group/list transition-opacity ${stale || switching ? "opacity-60" : ""}`}
-        >
-          <FrameTypeRows rows={shown} categoryId={categoryId} />
-        </div>
       )}
+      <div
+        data-stock-only={stockOnly || undefined}
+        hidden={visibleCount === 0}
+        className={`group/list transition-opacity ${stale || switching ? "opacity-60" : ""}`}
+      >
+        <FrameTypeRows rows={shown} categoryId={categoryId} />
+      </div>
     </>
   );
 }
@@ -179,7 +185,7 @@ const FrameTypeRows = memo(function FrameTypeRows({
           <li
             key={row.type}
             data-in-stock={inStock(row) || undefined}
-            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 [contain-intrinsic-size:auto_4.5rem] [content-visibility:auto] group-data-stock-first/list:data-in-stock:order-first sm:gap-x-4"
+            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 [contain-intrinsic-size:auto_4.5rem] [content-visibility:auto] group-data-stock-only/list:not-data-in-stock:hidden sm:gap-x-4"
           >
             <Link
               href={`/admin/frame-types/${row.type}/${categoryQuery}`}
