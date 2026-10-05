@@ -24,7 +24,9 @@ export function FrameTypeStockField({
   const [pending, startTransition] = useTransition();
   const changed = value !== saved;
 
-  const save = () =>
+  const save = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending || !changed) return;
     startTransition(async () => {
       setProblem("");
       const result = await setFrameTypeStockAction(categoryId, type, value);
@@ -36,9 +38,10 @@ export function FrameTypeStockField({
       setDone(true);
       router.refresh();
     });
+  };
 
   return (
-    <div className="flex items-center gap-2">
+    <form onSubmit={save} className="flex items-center gap-2">
       <label className="flex items-center gap-2 text-xs text-brand-500">
         Остаток
         <NumberInput
@@ -52,11 +55,11 @@ export function FrameTypeStockField({
           className="field tnum w-20 py-1.5 text-sm"
         />
       </label>
-      <button type="button" onClick={save} disabled={pending || !changed} className="btn-primary py-1.5 text-xs">
+      <button type="submit" disabled={pending || !changed} className="btn-primary py-1.5 text-xs">
         {pending ? "Сохраняем…" : "Сохранить"}
       </button>
       {done && !changed && <CheckIcon className="h-4 w-4 text-green-700" />}
       {problem && <span className="text-xs text-red-700">{problem}</span>}
-    </div>
+    </form>
   );
 }
