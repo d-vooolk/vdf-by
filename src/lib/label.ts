@@ -67,7 +67,7 @@ body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: ex
   height: 100%; border: 0.35mm solid #000; border-radius: 1.2mm; padding: 1.2mm 1.6mm;
   display: grid; grid-template-rows: auto 1fr auto auto; row-gap: 0.8mm;
 }
-.logo { display: block; height: 4.2mm; margin: 0 auto; filter: brightness(0); }
+.logo { display: block; height: 4.2mm; margin: 0 auto 1.5mm; filter: brightness(0); }
 .title {
   font-size: 2.7mm; line-height: 1.15; font-weight: 700; text-align: center;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
