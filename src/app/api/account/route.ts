@@ -22,7 +22,7 @@ import {
 import { formatPhone, normalizePhone } from "@/lib/phone";
 import { getSmsSettings, renderTemplate, sendSms, SmsError, smsConfigured } from "@/lib/sms";
 import { escapeTelegram, sendTelegram } from "@/lib/telegram";
-import { buildWholesaleList } from "@/lib/wholesale";
+import { buildStaffList, buildWholesaleList } from "@/lib/wholesale";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +60,11 @@ export async function GET() {
   return Response.json(
     {
       customer: publicCustomer(customer),
-      wholesale: isWholesale(customer) ? buildWholesaleList() : null,
+      wholesale: customer.staff
+        ? buildStaffList()
+        : isWholesale(customer)
+          ? buildWholesaleList()
+          : null,
     },
     noStore,
   );

@@ -18,11 +18,11 @@ export function wholesaleFor(
   return Math.max(0, Math.round((wholesalePrice + difference) * 100) / 100);
 }
 
-export function buildWholesaleList(): WholesaleList {
+type SpecialPriceField = "wholesalePrice" | "costPrice";
+
+function buildSpecialList(field: SpecialPriceField): WholesaleList {
   const rows = getDb()
-    .prepare(
-      "SELECT data FROM products WHERE COALESCE(json_extract(data, '$.wholesalePrice'), 0) > 0",
-    )
+    .prepare(`SELECT data FROM products WHERE COALESCE(json_extract(data, '$.${field}'), 0) > 0`)
     .all() as Array<{ data: string }>;
   const list: WholesaleList = {};
   for (const row of rows) {
@@ -31,9 +31,21 @@ export function buildWholesaleList(): WholesaleList {
     const product = parsed.data;
     const selections = product.optionGroups.length ? allSelections(product) : [{}];
     for (const selection of selections) {
-      const price = wholesaleFor(product, product.wholesalePrice, selection);
+      const price = wholesaleFor(product, product[field], selection);
       if (price !== null) list[resolveVariant(product, selection).key] = price;
     }
   }
   return list;
+}
+
+export function buildWholesaleList(): WholesaleList {
+  return buildSpecialList("wholesalePrice");
+}
+
+export function buildCostList(): WholesaleList {
+  return buildSpecialList("costPrice");
+}
+
+export function buildStaffList(): WholesaleList {
+  return { ...buildWholesaleList(), ...buildCostList() };
 }

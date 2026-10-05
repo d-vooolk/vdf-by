@@ -6,7 +6,7 @@ import { getCustomer } from "@/lib/customer-auth";
 import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
 import { buildPriceList } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
-import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
+import { buildCostList, buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
 /**
  * Приём заказа с витрины.
@@ -120,6 +120,7 @@ interface ValidatedOrder {
 function validate(
   payload: unknown,
   wholesale: WholesaleList | null,
+  cost: WholesaleList | null,
   account: Customer | null,
 ): { order?: ValidatedOrder; error?: string } {
   if (typeof payload !== "object" || payload === null) {
@@ -167,8 +168,8 @@ function validate(
     const title = clean(line.title, 200);
 
     const retail = hasPrices ? prices[key] : undefined;
-    const actual =
-      retail && wholesale?.[key] ? { ...retail, price: wholesale[key] } : retail;
+    const special = cost?.[key] || wholesale?.[key];
+    const actual = retail && special ? { ...retail, price: special } : retail;
     const price = actual ? actual.price : claimed;
 
     if (hasPrices && !actual) {
@@ -178,6 +179,11 @@ function validate(
     }
     if (actual && !actual.inStock) {
       notes.push(`«${title}» помечен как отсутствующий`);
+    }
+    if (cost && retail && !cost[key]) {
+      notes.push(
+        `у «${title}» не указана себестоимость — взята ${wholesale?.[key] ? "оптовая" : "розничная"} цена`,
+      );
     }
     if (actual && actual.price <= 0) {
       notes.push(`у «${title}» не указана цена — назвать её клиенту`);
@@ -382,6 +388,7 @@ export async function POST(request: Request) {
   const { order, error } = validate(
     payload,
     wholesaleBuyer ? buildWholesaleList() : null,
+    staffBuyer ? buildCostList() : null,
     customer,
   );
   if (error || !order) {
@@ -400,7 +407,7 @@ export async function POST(request: Request) {
 
   let id: number;
   try {
-    if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — цены оптовые");
+    if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — по себестоимости");
     else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
     id = createOrder({
       ...order,

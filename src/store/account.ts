@@ -77,3 +77,7 @@ export const useAccount = create<AccountState>()((set, get) => ({
 export function useWholesalePrice(key: string): number | null {
   return useAccount((state) => state.wholesale?.[key] ?? null);
 }
+
+export function useStaffPrices(): boolean {
+  return useAccount((state) => state.customer?.staff === true);
+}

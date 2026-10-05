@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPrice } from "@/lib/format";
-import { useWholesalePrice } from "@/store/account";
+import { useStaffPrices, useWholesalePrice } from "@/store/account";
 
 export function PriceTag({
   variantKey,
@@ -21,6 +21,7 @@ export function PriceTag({
   retailClassName: string;
 }) {
   const wholesale = useWholesalePrice(variantKey);
+  const staff = useStaffPrices();
 
   if (wholesale === null || wholesale <= 0) {
     return (
@@ -36,7 +37,7 @@ export function PriceTag({
       <span className={wholesaleClassName ?? className}>
         {formatPrice(wholesale, currencySymbol)}
         <span className="ml-1 align-middle text-[10px] font-medium tracking-wide text-green-700 uppercase sm:text-xs">
-          опт
+          {staff ? "сотр." : "опт"}
         </span>
       </span>
       {price > 0 && (

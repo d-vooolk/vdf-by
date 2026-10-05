@@ -35,7 +35,7 @@ import {
   type Selection,
   type VariantProduct,
 } from "@/lib/variant";
-import { useWholesalePrice } from "@/store/account";
+import { useStaffPrices, useWholesalePrice } from "@/store/account";
 import { useCart, useHydrated } from "@/store/cart";
 
 /**
@@ -172,6 +172,7 @@ export function ProductPurchase({
     product.stockQty;
   const priced = hasPrice(variant.price);
   const wholesale = useWholesalePrice(variant.key);
+  const staffPrices = useStaffPrices();
 
   /*
    * Сколько этого варианта уже лежит в корзине.
@@ -398,7 +399,9 @@ export function ProductPurchase({
               <span className="tnum text-lg text-brand-300 line-through">
                 {formatPrice(variant.price, currencySymbol)}
               </span>
-              <span className="badge bg-green-50 text-green-800">оптовая цена</span>
+              <span className="badge bg-green-50 text-green-800">
+                {staffPrices ? "цена для сотрудника" : "оптовая цена"}
+              </span>
             </>
           ) : priced ? (
             <span className="tnum text-3xl font-semibold text-brand-900">
