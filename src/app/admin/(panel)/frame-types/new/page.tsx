@@ -51,7 +51,6 @@ export default async function NewFrameTypePage({ searchParams }: PageProps) {
           previousType={null}
           initial={{
             type: "",
-            suffix: "",
             name: "",
             storageCode: "",
             brief: "",
@@ -83,7 +82,7 @@ function CopyFrameType({ categoryId, source }: { categoryId: string; source: Fra
   return (
     <>
       <p className="card p-4 text-sm text-brand-600">
-        В копию перейдут дополнение, складской номер, шаблон названия, описание для нейросети,
+        В копию перейдут складской номер, шаблон названия, описание для нейросети,
         характеристики, цены, остаток, фото рамки и оформление картинок, а также машины типа (
         <span className="tnum">{carCount}</span>) — они будут выбраны в блоке «Создать карточки для
         машин». Товары не копируются. Номер рамки и название типа у копии должны быть другими.
@@ -94,7 +93,6 @@ function CopyFrameType({ categoryId, source }: { categoryId: string; source: Fra
         copyFrom={source.type}
         initial={{
           type: source.type,
-          suffix: source.suffix,
           name: source.name,
           storageCode: source.storageCode,
           brief: source.brief,

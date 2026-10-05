@@ -64,8 +64,8 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
             <span className="tnum text-base font-medium text-brand-400">{groups.length}</span>
           </h1>
           <p className="mt-1 text-sm text-brand-500">
-            Артикул товара собирается как «номер-дополнение-тип»: номер свой у каждого товара,
-            дополнение и тип общие. Себестоимость, цена, оптовая цена, остаток и наличие задаются
+            Артикул товара собирается как «номер-складской номер-тип»: номер свой у каждого товара,
+            складской номер и тип общие. Себестоимость, цена, оптовая цена, остаток и наличие задаются
             для типа целиком и записываются во все товары с этим типом.
           </p>
         </div>
@@ -151,7 +151,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
                   </span>
                   <span className="block text-xs text-brand-500">
                     <span className="tnum">
-                      {buildFrameSku({ number: "номер", suffix: group.suffix, type: group.type })}
+                      {buildFrameSku({ number: "номер", storage: group.storageCode, type: group.type })}
                     </span>
                     {" · "}
                     {group.saved ? describe(group.saved) : "цены для типа не заданы"}
@@ -159,7 +159,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
                 </span>
                 <span
                   className="tnum w-28 truncate text-sm text-brand-700"
-                  title="Складской номер — виден только в админке"
+                  title="Складской номер — входит в артикул товаров типа"
                 >
                   {group.storageCode ? (
                     <>склад: {group.storageCode}</>

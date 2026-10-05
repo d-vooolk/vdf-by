@@ -76,12 +76,11 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
       </div>
 
       <FrameTypeInfoForm
-        key={`info-${type}-${group.suffix}-${group.name}-${group.storageCode}-${group.brief}-${specsToText(group.specs)}-${group.titleTemplate}`}
+        key={`info-${type}-${group.name}-${group.storageCode}-${group.brief}-${specsToText(group.specs)}-${group.titleTemplate}`}
         categoryId={categoryId}
         previousType={type}
         initial={{
           type,
-          suffix: group.suffix,
           name: group.name,
           storageCode: group.storageCode,
           brief: group.brief,

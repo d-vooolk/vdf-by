@@ -542,7 +542,61 @@ export const MIGRATIONS = [
 
     CREATE INDEX service_requests_by_date ON service_requests(created_at DESC);
   `,
+
+  composeStorageSkus,
 ];
+
+const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
+const FRAME_NUMBER = /^[0-9A-ZА-ЯЁ]+$/;
+
+function storageSkuPart(storageCode) {
+  return String(storageCode ?? "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function frameNumber(sku) {
+  const value = sku.toUpperCase();
+  const parts = value.split("-").filter(Boolean);
+  return parts.length > 1 && FRAME_TYPE.test(parts[parts.length - 1]) ? parts[0] : value;
+}
+
+function composedSku(sku, storage, frameType) {
+  if (frameType) {
+    const number = frameNumber(sku);
+    return FRAME_NUMBER.test(number) ? [number, storage, frameType].filter(Boolean).join("-") : sku;
+  }
+  return storage && !sku.endsWith(`-${storage}`) ? `${sku}-${storage}` : sku;
+}
+
+function composeStorageSkus(db) {
+  const frameTypes = new Map(
+    db
+      .prepare("SELECT product_id AS productId, category_id AS categoryId, type FROM frame_type_products")
+      .all()
+      .map((row) => [row.productId, row]),
+  );
+  const rows = db.prepare("SELECT id, category_id AS categoryId, data FROM products").all();
+  const taken = new Set(rows.map((row) => JSON.parse(row.data).sku).filter(Boolean));
+  const remember = db.prepare("INSERT OR IGNORE INTO vdf_articles (product_id, article) VALUES (?, ?)");
+  const write = db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?");
+
+  for (const row of rows) {
+    const product = JSON.parse(row.data);
+    const sku = String(product.sku ?? "").trim();
+    if (!sku) continue;
+    const member = frameTypes.get(row.id);
+    const frameType = member && member.categoryId === row.categoryId ? member.type : "";
+    const next = composedSku(sku, storageSkuPart(product.storageCode), frameType);
+    if (next === sku || taken.has(next)) continue;
+    taken.add(next);
+    remember.run(row.id, sku);
+    product.sku = next;
+    write.run(JSON.stringify(product), Date.now(), row.id);
+  }
+}
 
 /**
  * Догоняет базу до последней версии. Каждый шаг в своей транзакции: если
@@ -555,7 +609,9 @@ export function migrate(db) {
   for (let version = current; version < MIGRATIONS.length; version += 1) {
     db.exec("BEGIN");
     try {
-      db.exec(MIGRATIONS[version]);
+      const step = MIGRATIONS[version];
+      if (typeof step === "function") step(db);
+      else db.exec(step);
       db.pragma(`user_version = ${version + 1}`);
       db.exec("COMMIT");
     } catch (error) {

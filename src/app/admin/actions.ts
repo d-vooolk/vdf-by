@@ -85,6 +85,7 @@ import {
   copyFrameType,
   deleteFrameType,
   isFrameCategory,
+  rememberVdfArticle,
   removeFromFrameType,
   saveFrameTypeInfo,
   setFrameTypeStock,
@@ -94,6 +95,7 @@ import {
   type FrameTypeResult,
 } from "@/lib/frame-types";
 import { isFrameType } from "@/lib/frame-sku";
+import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { frameMembers, frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
 import type { Product } from "@/lib/schema";
 import { getSite } from "@/lib/catalog";
@@ -212,6 +214,16 @@ function withFrameFields(input: unknown, stored: Product): unknown {
   return next;
 }
 
+function withComposedSku(input: unknown): Record<string, unknown> {
+  const next = { ...(input as Record<string, unknown>) };
+  const storageCode = typeof next.storageCode === "string" ? next.storageCode : "";
+  const base = productSkuBase(typeof next.sku === "string" ? next.sku : "", storageCode);
+  const sku = buildProductSku(base, storageCode);
+  if (sku) next.sku = sku;
+  else delete next.sku;
+  return next;
+}
+
 function revalidateProductsById(ids: Iterable<string>): void {
   for (const id of new Set(ids)) {
     const product = getProductRaw(id);
@@ -236,10 +248,17 @@ export async function saveProductAction(
 
   const membership = previousId ? frameMembershipOf(previousId) : null;
   const locked = membership && before && isFrameCategory(membership.categoryId) ? before : null;
-  const result = saveProduct(await relinkInput(locked ? withFrameFields(input, locked) : input), previousId);
+  const prepared = locked ? withFrameFields(input, locked) : withComposedSku(input);
+  const result = saveProduct(await relinkInput(prepared), previousId);
   if (!result.ok) return toState(result);
 
   const product = input as { id: string; slug: string; categoryId: string; stockQty?: number | null };
+  if (!locked && before?.sku) {
+    const saved = prepared as { sku?: string; storageCode?: string };
+    if (saved.sku !== before.sku && productSkuBase(saved.sku, saved.storageCode) === before.sku) {
+      rememberVdfArticle(product.id, before.sku);
+    }
+  }
   if (membership && membership.categoryId !== product.categoryId) setFrameMembership(product.id, null);
 
   const group = stockGroupOf(product.id);

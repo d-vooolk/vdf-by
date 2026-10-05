@@ -44,7 +44,7 @@ export function frameTypeLabel(categoryId: string, type: string): LabelData | nu
   if (!group) return null;
   return {
     title: withTypePrefix(group.type, group.name),
-    sku: buildFrameSku({ number: "", suffix: group.suffix, type: group.type }),
+    sku: buildFrameSku({ number: "", storage: group.storageCode, type: group.type }),
     link: `${siteRoot()}/poisk/?q=${encodeURIComponent(group.type)}`,
   };
 }

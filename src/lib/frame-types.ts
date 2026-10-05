@@ -3,17 +3,11 @@ import { parseComposerSettings, type ComposerSettings } from "./composer";
 import type { MoneySource } from "./currency";
 import { bumpCatalogVersion, getDb } from "./db";
 import { frameCategories, isFrameCategory, type FrameCategory } from "./frame-category";
-import {
-  buildFrameSku,
-  isFrameSuffix,
-  isFrameType,
-  normalizeFrameSuffix,
-  normalizeFrameType,
-  splitFrameSku,
-} from "./frame-sku";
+import { buildFrameSku, isFrameType, normalizeFrameType, splitFrameSku } from "./frame-sku";
 import { moneySourceSchema, type Product, type Spec } from "./schema";
 import { frameMembershipsIn, renameFrameMembers, setFrameMembership } from "./frame-membership";
 import { setGroupStock } from "./shared-stock";
+import { buildProductSku, productSkuBase } from "./sku";
 import { nextSku } from "./store";
 import { stockedByQty } from "./variant";
 
@@ -47,7 +41,6 @@ export interface FrameTypeProduct {
 export interface FrameTypeGroup {
   type: string;
   name: string;
-  suffix: string;
   storageCode: string;
   storageMixed: boolean;
   brief: string;
@@ -62,7 +55,6 @@ export interface FrameTypeGroup {
 
 export interface FrameTypeInfo {
   type: string;
-  suffix: string;
   name: string;
   storageCode: string;
   brief: string;
@@ -79,7 +71,6 @@ export { frameCategories, isFrameCategory };
 interface TypeRow {
   type: string;
   name: string;
-  suffix: string | null;
   storage_code: string | null;
   brief: string;
   specs: string;
@@ -96,7 +87,7 @@ interface TypeRow {
   composer: string | null;
 }
 
-const TYPE_COLUMNS = `type, name, suffix, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
+const TYPE_COLUMNS = `type, name, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
   price_source, cost_source, wholesale_source, frame_image IS NOT NULL AS has_frame_image, composer`;
 
 const EMPTY_VALUES: FrameTypeValues = {
@@ -275,7 +266,6 @@ export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
       return {
         type,
         name: row?.name ?? "",
-        suffix: row?.suffix ?? commonValue(products, (product) => splitFrameSku(product.sku).suffix),
         storageCode: row?.storage_code ?? commonValue(products, (product) => product.storageCode),
         storageMixed: new Set(products.map((product) => product.storageCode)).size > 1,
         brief: row?.brief ?? "",
@@ -357,7 +347,6 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
 export function validFrameTypeInfo(input: unknown): FrameTypeInfo | string {
   const value = (input ?? {}) as Record<string, unknown>;
   const type = normalizeFrameType(String(value.type ?? ""));
-  const suffix = normalizeFrameSuffix(String(value.suffix ?? ""));
   const name = String(value.name ?? "").trim().slice(0, 200);
   const storageCode = String(value.storageCode ?? "").trim().slice(0, 60);
   const brief = String(value.brief ?? "").trim().slice(0, 4000);
@@ -366,11 +355,10 @@ export function validFrameTypeInfo(input: unknown): FrameTypeInfo | string {
   if (!isFrameType(type)) {
     return "Номер рамки: начинается с цифры, дальше цифры и латинские буквы, до 10 знаков — например 110 или 110N";
   }
-  if (!isFrameSuffix(suffix)) return "Дополнение: только буквы и цифры, части можно разделять дефисом";
   if (titleTemplate && !titleTemplate.includes("{")) {
     return "Шаблон названия: вставьте хотя бы одну подстановку, например {марка} {модель}";
   }
-  return { type, suffix, name, storageCode, brief, specs, titleTemplate: titleTemplate || DEFAULT_TITLE_TEMPLATE };
+  return { type, name, storageCode, brief, specs, titleTemplate: titleTemplate || DEFAULT_TITLE_TEMPLATE };
 }
 
 function writeValues(product: Product, values: FrameTypeValues): Product {
@@ -436,9 +424,6 @@ function ensureTypeRow(categoryId: string, type: string): boolean {
   if (typeRow(categoryId, type)) return false;
   const group = getFrameType(categoryId, type);
   upsertValues(categoryId, type, initialFrameValues(group));
-  getDb()
-    .prepare("UPDATE frame_types SET suffix = ? WHERE category_id = ? AND type = ?")
-    .run(group?.suffix ?? "", categoryId, type);
   return true;
 }
 
@@ -475,10 +460,10 @@ function freshNumber(taken: Set<string>): string {
   return candidate;
 }
 
-export function newFrameSku(suffix: string, type: string): string {
+export function newFrameSku(storage: string, type: string): string {
   const taken = takenSkus(new Set());
-  let sku = buildFrameSku({ number: freshNumber(taken), suffix, type });
-  while (taken.has(sku)) sku = buildFrameSku({ number: freshNumber(taken), suffix, type });
+  let sku = buildFrameSku({ number: freshNumber(taken), storage, type });
+  while (taken.has(sku)) sku = buildFrameSku({ number: freshNumber(taken), storage, type });
   return sku;
 }
 
@@ -487,7 +472,7 @@ function ownNumber(sku: string, taken: Set<string>): string {
   return /^[0-9A-ZА-ЯЁ]+$/.test(number) ? number : freshNumber(taken);
 }
 
-function rememberVdfArticle(productId: string, sku: string): void {
+export function rememberVdfArticle(productId: string, sku: string): void {
   if (!sku.trim()) return;
   getDb()
     .prepare("INSERT OR IGNORE INTO vdf_articles (product_id, article) VALUES (?, ?)")
@@ -515,8 +500,8 @@ function writeIdentity(productId: string, sku: string, storageCode?: string): vo
 }
 
 function plannedSkus(
-  products: Array<{ id: string; sku: string }>,
-  suffix: string,
+  products: Array<{ id: string; sku: string; storageCode: string }>,
+  storageCode: string | undefined,
   type: string,
 ): Map<string, string> {
   const ids = new Set(products.map((product) => product.id));
@@ -524,9 +509,14 @@ function plannedSkus(
   const planned = new Map<string, string>();
   const used = new Set<string>();
   for (const product of products) {
-    let sku = buildFrameSku({ number: ownNumber(product.sku, taken), suffix, type });
+    const storage = storageCode ?? product.storageCode;
+    let sku = buildFrameSku({
+      number: ownNumber(productSkuBase(product.sku, product.storageCode), taken),
+      storage,
+      type,
+    });
     while (taken.has(sku) || used.has(sku)) {
-      sku = buildFrameSku({ number: freshNumber(taken), suffix, type });
+      sku = buildFrameSku({ number: freshNumber(taken), storage, type });
     }
     used.add(sku);
     planned.set(product.id, sku);
@@ -548,20 +538,19 @@ export function saveFrameTypeInfo(
   }
 
   const products = current?.products ?? [];
-  const planned = plannedSkus(products, info.suffix, info.type);
   const keepMixedCodes = info.storageCode === "" && Boolean(current?.storageMixed);
   const storageCode = keepMixedCodes ? undefined : info.storageCode;
+  const planned = plannedSkus(products, storageCode, info.type);
 
   db.transaction(() => {
     if (previousType) ensureTypeRow(categoryId, previousType);
     else upsertValues(categoryId, info.type, EMPTY_VALUES);
     db.prepare(
-      `UPDATE frame_types SET type = ?, suffix = ?, name = ?, storage_code = ?, brief = ?, specs = ?,
+      `UPDATE frame_types SET type = ?, name = ?, storage_code = ?, brief = ?, specs = ?,
               title_template = ?, updated_at = ?
         WHERE category_id = ? AND type = ?`,
     ).run(
       info.type,
-      info.suffix,
       info.name,
       storageCode ?? null,
       info.brief,
@@ -626,10 +615,10 @@ export function copyFrameType(
     ensureTypeRow(categoryId, sourceType);
     db.prepare(
       `INSERT INTO frame_types
-         (category_id, type, name, suffix, storage_code, brief, specs, title_template,
+         (category_id, type, name, storage_code, brief, specs, title_template,
           cost_price, price, wholesale_price, stock_qty, in_stock,
           price_source, cost_source, wholesale_source, frame_image, composer, updated_at)
-       SELECT category_id, @type, @name, @suffix, @storageCode, @brief, @specs, @titleTemplate,
+       SELECT category_id, @type, @name, @storageCode, @brief, @specs, @titleTemplate,
               cost_price, price, wholesale_price, stock_qty, in_stock,
               price_source, cost_source, wholesale_source, frame_image, composer, @now
          FROM frame_types
@@ -639,7 +628,6 @@ export function copyFrameType(
       sourceType,
       type: info.type,
       name: info.name,
-      suffix: info.suffix,
       storageCode: info.storageCode,
       brief: info.brief,
       specs: JSON.stringify(info.specs),
@@ -695,11 +683,17 @@ export function setPlannedFrameCars(categoryId: string, type: string, generation
   return { ok: true, productIds: [] };
 }
 
-function productInCategory(categoryId: string, productId: string): { sku: string } | null {
+function productInCategory(
+  categoryId: string,
+  productId: string,
+): { id: string; sku: string; storageCode: string } | null {
   const row = getDb()
-    .prepare("SELECT json_extract(data, '$.sku') AS sku FROM products WHERE id = ? AND category_id = ?")
-    .get(productId, categoryId) as { sku: string | null } | undefined;
-  return row ? { sku: row.sku ?? "" } : null;
+    .prepare(
+      `SELECT json_extract(data, '$.sku') AS sku, json_extract(data, '$.storageCode') AS storageCode
+         FROM products WHERE id = ? AND category_id = ?`,
+    )
+    .get(productId, categoryId) as { sku: string | null; storageCode: string | null } | undefined;
+  return row ? { id: productId, sku: row.sku ?? "", storageCode: row.storageCode ?? "" } : null;
 }
 
 export function addToFrameType(categoryId: string, type: string, productId: string): FrameTypeResult {
@@ -708,7 +702,7 @@ export function addToFrameType(categoryId: string, type: string, productId: stri
   const product = productInCategory(categoryId, productId);
   if (!product) return { ok: false, problems: ["Товар не найден в разделе рамок"] };
 
-  const planned = plannedSkus([{ id: productId, sku: product.sku }], group.suffix, type);
+  const planned = plannedSkus([product], group.storageCode || undefined, type);
 
   const db = getDb();
   db.transaction(() => {
@@ -730,7 +724,7 @@ export function removeFromFrameType(categoryId: string, productId: string): Fram
   if (!type) return { ok: true, productIds: [] };
 
   const taken = takenSkus(new Set([productId]));
-  const sku = ownNumber(product.sku, taken);
+  const sku = buildProductSku(ownNumber(product.sku, taken), product.storageCode);
 
   const db = getDb();
   db.transaction(() => {

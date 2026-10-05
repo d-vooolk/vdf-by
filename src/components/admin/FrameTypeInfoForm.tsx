@@ -5,12 +5,12 @@ import { useState, useTransition } from "react";
 
 import { copyFrameTypeAction, deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/actions";
 import { AlertIcon, CheckIcon, TrashIcon } from "@/components/icons";
-import { buildFrameSku, normalizeFrameSuffix, normalizeFrameType } from "@/lib/frame-sku";
+import { buildFrameSku, normalizeFrameType } from "@/lib/frame-sku";
+import { storageSkuPart } from "@/lib/sku";
 import { specsFromText } from "@/lib/spec-text";
 
 export interface FrameTypeInfoValues {
   type: string;
-  suffix: string;
   name: string;
   storageCode: string;
   brief: string;
@@ -46,8 +46,10 @@ export function FrameTypeInfoForm({
   const [withProducts, setWithProducts] = useState(false);
 
   const type = normalizeFrameType(values.type);
-  const suffix = normalizeFrameSuffix(values.suffix);
-  const skuChanges = previousType !== null && (type !== initial.type || suffix !== initial.suffix);
+  const storage = storageSkuPart(values.storageCode);
+  const skuChanges =
+    previousType !== null &&
+    (type !== initial.type || (storage !== storageSkuPart(initial.storageCode) && !(storageMixed && !storage)));
   const listUrl = `/admin/frame-types/?category=${encodeURIComponent(categoryId)}`;
 
   const patch = (changes: Partial<FrameTypeInfoValues>) => {
@@ -88,7 +90,7 @@ export function FrameTypeInfoForm({
   return (
     <div className="card space-y-4 p-5">
       <h2 className="font-semibold text-brand-900">Тип и артикул</h2>
-      <div className="grid gap-4 sm:grid-cols-[10rem_12rem_minmax(0,1fr)_12rem]">
+      <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_12rem]">
         <label className="block">
           <span className="label">Номер рамки</span>
           <input
@@ -96,16 +98,6 @@ export function FrameTypeInfoForm({
             onChange={(event) => patch({ type: event.target.value })}
             maxLength={10}
             placeholder="110N"
-            className="field tnum uppercase"
-          />
-        </label>
-        <label className="block">
-          <span className="label">Дополнение</span>
-          <input
-            value={values.suffix}
-            onChange={(event) => patch({ suffix: event.target.value })}
-            maxLength={30}
-            placeholder="необязательно"
             className="field tnum uppercase"
           />
         </label>
@@ -172,7 +164,7 @@ export function FrameTypeInfoForm({
       </div>
 
       <p className="text-xs text-brand-400">
-        Складской номер общий для типа: записывается во все его товары и виден только в админке.
+        Складской номер общий для типа: записывается во все его товары и входит в их артикул.
         {storageMixed &&
           " Сейчас у товаров типа он разный — пока поле пустое, их номера не меняются."}
       </p>
@@ -180,7 +172,7 @@ export function FrameTypeInfoForm({
       <p className="text-sm text-brand-600">
         Артикул товара:{" "}
         <span className="tnum font-semibold text-brand-900">
-          {buildFrameSku({ number: sampleNumber, suffix, type: type || "…" })}
+          {buildFrameSku({ number: sampleNumber, storage, type: type || "…" })}
         </span>{" "}
         <span className="text-xs text-brand-400">— номер у каждого товара свой</span>
       </p>

@@ -142,7 +142,7 @@ export function createFrameProduct(
       price: 0,
       inStock: false,
       unit: UNIT,
-      sku: newFrameSku(group.suffix, type),
+      sku: newFrameSku(group.storageCode, type),
       images: [],
       specs: group.specs,
       optionGroups: [],

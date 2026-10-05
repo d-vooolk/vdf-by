@@ -32,6 +32,7 @@ import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
+import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
 import { optionStockTotal, stockedByQty } from "@/lib/variant";
@@ -102,7 +103,9 @@ export function ProductForm({
 }: ProductFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [draft, setDraft] = useState<Product>(initial);
+  const [draft, setDraft] = useState<Product>(() =>
+    frameType ? initial : { ...initial, sku: productSkuBase(initial.sku, initial.storageCode) },
+  );
   const [importedThumbs, setImportedThumbs] = useState<Record<string, string>>({});
   const [cars, setCars] = useState<ProductCar[]>(initialCars);
   const [problems, setProblems] = useState<string[]>([]);
@@ -470,7 +473,7 @@ export function ProductForm({
           ) : (
             <div>
               <Field
-                label="Артикул"
+                label="Основной артикул"
                 hint="Шесть цифр, у каждого товара свои. Подставляется сам"
               >
                 <input
@@ -506,7 +509,9 @@ export function ProductForm({
           ) : (
             <Field
               label="Складской номер"
-              hint="Где лежит на складе. Только для вас — на сайте не показывается"
+              hint={`Где лежит на складе. Добавляется в конец артикула: ${
+                buildProductSku(draft.sku, draft.storageCode) || "—"
+              }`}
             >
               <input
                 value={draft.storageCode ?? ""}
