@@ -4,6 +4,7 @@ import {
   getCategoryById,
   getProducts,
 } from "./catalog";
+import { frameTypesByProduct, specsWithFrameType } from "./frame-membership";
 import { getImage } from "./images";
 import { absoluteUrl, bigImageUrl, variantUrl } from "./seo";
 import { allSelections, defaultSelection, hasPrice, resolveVariant } from "./variant";
@@ -66,6 +67,7 @@ function imagesFor(paths: string[]): string[] {
 /** Все предложения каталога — по одному на комбинацию опций. */
 export function feedOffers(): FeedOffer[] {
   const offers: FeedOffer[] = [];
+  const frameTypes = frameTypesByProduct();
 
   for (const product of getProducts()) {
     const category = getCategoryById(product.categoryId);
@@ -117,7 +119,7 @@ export function feedOffers(): FeedOffer[] {
             name: entry.groupName,
             value: entry.value.label,
           })),
-          ...product.specs.map((spec) => ({
+          ...specsWithFrameType(product.specs, frameTypes.get(product.id)).map((spec) => ({
             name: spec.name,
             value: spec.value,
           })),

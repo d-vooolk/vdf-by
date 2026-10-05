@@ -1,5 +1,6 @@
 import { getCategoryById, getProducts } from "./catalog";
 import { getDb } from "./db";
+import { frameTypesByProduct, specsWithFrameType } from "./frame-membership";
 import { pickUrl } from "./image-types";
 import { getImage } from "./images";
 import type { Product } from "./schema";
@@ -46,6 +47,7 @@ export function buildSearchIndex(): SearchEntry[] {
   if (cache?.products === products) return cache.entries;
 
   const articles = supplierArticles();
+  const frameTypes = frameTypesByProduct();
 
   const entries: SearchEntry[] = products.map((product) => {
     const codes = productCodes(product, articles.get(product.id) ?? []);
@@ -67,7 +69,7 @@ export function buildSearchIndex(): SearchEntry[] {
       category?.name ?? "",
       parent?.name ?? "",
       product.description ?? "",
-      product.specs.map((spec) => `${spec.name} ${spec.value}`).join(" "),
+      specsWithFrameType(product.specs, frameTypes.get(product.id)).map((spec) => `${spec.name} ${spec.value}`).join(" "),
       product.optionGroups
         .flatMap((group) => group.values.map((value) => value.label))
         .join(" "),

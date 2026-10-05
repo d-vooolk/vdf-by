@@ -46,7 +46,13 @@ export function FrameTypeForm({
     });
 
   return (
-    <div className="card space-y-4 p-5">
+    <form
+      className="card space-y-4 p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!pending) apply();
+      }}
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MoneyField
           label="Себестоимость"
@@ -91,8 +97,7 @@ export function FrameTypeForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button
-          type="button"
-          onClick={apply}
+          type="submit"
           disabled={pending}
           className="btn-primary py-2 text-sm"
         >
@@ -116,6 +121,6 @@ export function FrameTypeForm({
           {problems.join(" ")}
         </p>
       )}
-    </div>
+    </form>
   );
 }

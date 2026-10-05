@@ -23,6 +23,7 @@ import { carsRoot } from "@/lib/car-types";
 import { getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
+import { frameMembershipOf, specsWithFrameType } from "@/lib/frame-membership";
 import { pickImages } from "@/lib/images";
 import { articlesForProduct } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
@@ -144,6 +145,7 @@ export default async function ProductPage({ params }: PageProps) {
   const images = pickImages(allProductImages(product));
 
   const range = priceRange(product);
+  const specs = specsWithFrameType(product.specs, frameMembershipOf(product.id)?.type);
   const messengers = getMessengers(
     site,
     productMessage(
@@ -183,7 +185,7 @@ export default async function ProductPage({ params }: PageProps) {
         ]}
         listingProduct={product.slug}
       />
-      <JsonLd data={productJsonLd(product, category)} />
+      <JsonLd data={productJsonLd({ ...product, specs }, category)} />
 
       <header className="mb-5">
         {product.brand && (
@@ -233,13 +235,13 @@ export default async function ProductPage({ params }: PageProps) {
           </section>
         )}
 
-        {product.specs.length > 0 && (
+        {specs.length > 0 && (
           <section>
             <h2 className="mb-4 text-xl font-semibold text-brand-900">
               Характеристики
             </h2>
             <dl className="card divide-y divide-brand-100 overflow-hidden">
-              {product.specs.map((spec) => (
+              {specs.map((spec) => (
                 <div
                   key={spec.name}
                   className="flex items-baseline justify-between gap-4 px-4 py-3"
