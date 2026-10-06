@@ -1,3 +1,6 @@
+import { z } from "zod";
+
+import { recordCrmPull, replaceCrmStates } from "./accounting";
 import { getDb } from "./db";
 import { env } from "./env.mjs";
 import type { OrderItem } from "./order-types";
@@ -40,7 +43,33 @@ export interface CrmSyncReport {
   sent: number;
   failed: number;
   left: number;
+  payments: number | null;
+  paymentsError: string | null;
 }
+
+const isoDate = z.string().refine((value) => !Number.isNaN(Date.parse(value)));
+
+const statesResponse = z.object({
+  data: z.object({
+    paid: z.array(
+      z.object({
+        orderId: z.number().int().positive(),
+        employeeName: z.string(),
+        amount: z.number().finite(),
+        paidAt: isoDate,
+        person: z.string(),
+      }),
+    ),
+    cancelled: z.array(
+      z.object({
+        orderId: z.number().int().positive(),
+        cancelledAt: isoDate,
+        person: z.string(),
+        reason: z.string(),
+      }),
+    ),
+  }),
+});
 
 export interface CrmSyncState {
   configured: boolean;
@@ -121,9 +150,44 @@ async function send(config: { url: string; key: string }, report: CrmOrderReport
   }
 }
 
-async function sendQueued(): Promise<CrmSyncReport> {
+async function pullStates(config: { url: string; key: string }): Promise<number> {
+  const response = await fetch(`${config.url}/api/integrations/vdf/states`, {
+    headers: { "x-integration-key": config.key },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    const body = (await response.text().catch(() => "")).slice(0, ERROR_LENGTH);
+    throw new Error(`CRM ответила ${response.status}${body ? `: ${body}` : ""}`);
+  }
+  const parsed = statesResponse.safeParse(await response.json());
+  if (!parsed.success) throw new Error("CRM прислала оплаты в незнакомом виде");
+  const { paid, cancelled } = parsed.data.data;
+  replaceCrmStates({
+    paid: paid.map((payment) => ({ ...payment, paidAt: Date.parse(payment.paidAt) })),
+    cancelled: cancelled.map((entry) => ({ ...entry, cancelledAt: Date.parse(entry.cancelledAt) })),
+  });
+  return paid.length;
+}
+
+async function syncPayments(
+  config: { url: string; key: string },
+): Promise<Pick<CrmSyncReport, "payments" | "paymentsError">> {
+  try {
+    const payments = await pullStates(config);
+    recordCrmPull(null);
+    return { payments, paymentsError: null };
+  } catch (error) {
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, ERROR_LENGTH);
+    recordCrmPull(message);
+    return { payments: null, paymentsError: message };
+  }
+}
+
+async function exchangeWithCrm(): Promise<CrmSyncReport> {
   const config = crmConfig();
-  if (!config) return { configured: false, sent: 0, failed: 0, left: queuedCount() };
+  if (!config) {
+    return { configured: false, sent: 0, failed: 0, left: queuedCount(), payments: null, paymentsError: null };
+  }
 
   const rows = getDb()
     .prepare("SELECT * FROM crm_outbox ORDER BY queued_at LIMIT ?")
@@ -141,13 +205,13 @@ async function sendQueued(): Promise<CrmSyncReport> {
       failed += 1;
     }
   }
-  return { configured: true, sent, failed, left: queuedCount() };
+  return { configured: true, sent, failed, left: queuedCount(), ...(await syncPayments(config)) };
 }
 
 let running: Promise<CrmSyncReport> | null = null;
 
 export function syncCrm(): Promise<CrmSyncReport> {
-  running ??= sendQueued().finally(() => {
+  running ??= exchangeWithCrm().finally(() => {
     running = null;
   });
   return running;

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OrderControls } from "@/components/admin/OrderControls";
+import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
+import { orderMoney } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
 import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
@@ -24,6 +26,7 @@ export default async function OrderPage({ params }: PageProps) {
   const site = getSite();
   const price = (value: number) => formatPrice(value, site.currencySymbol);
   const crm = order.staff ? crmSyncState(order.id) : null;
+  const money = order.staff ? orderMoney(order.id) : null;
 
   return (
     <div className="space-y-5">
@@ -58,6 +61,25 @@ export default async function OrderPage({ params }: PageProps) {
           Передан в бухгалтерию CRM {new Date(crm.sentAt).toLocaleString("ru-RU")}
         </p>
       ) : null}
+
+      {money && (crm?.sentAt || money.status !== "awaiting") && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-brand-700">
+          <MoneyStatusBadge status={money.status} />
+          {money.payment &&
+            `${new Date(money.payment.paidAt).toLocaleDateString("ru-RU")}, ${price(money.payment.amount)}`}
+          {money.cancellation &&
+            [
+              new Date(money.cancellation.cancelledAt).toLocaleDateString("ru-RU"),
+              money.cancellation.person,
+              money.cancellation.reason && `причина: ${money.cancellation.reason}`,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          <Link href="/admin/accounting/staff-orders/" className="underline">
+            в бухгалтерии
+          </Link>
+        </p>
+      )}
 
       {/* Расхождения, замеченные при приёме заявки. Показываем сразу и
           заметно: именно они портят разговор с покупателем. */}

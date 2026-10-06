@@ -593,6 +593,40 @@ export const MIGRATIONS = [
     );
     ALTER TABLE orders ADD COLUMN crm_sent_at INTEGER;
   `,
+  `
+    CREATE TABLE crm_payments (
+      order_id      INTEGER PRIMARY KEY,
+      employee_name TEXT NOT NULL,
+      amount        REAL NOT NULL,
+      paid_at       INTEGER NOT NULL,
+      person        TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX crm_payments_by_date ON crm_payments(paid_at);
+
+    CREATE TABLE crm_cancellations (
+      order_id     INTEGER PRIMARY KEY,
+      cancelled_at INTEGER NOT NULL,
+      person       TEXT NOT NULL DEFAULT '',
+      reason       TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE ledger_writeoffs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      date        INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      amount      REAL NOT NULL,
+      person      TEXT NOT NULL,
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX ledger_writeoffs_by_date ON ledger_writeoffs(date);
+
+    CREATE TABLE crm_pull (
+      id     INTEGER PRIMARY KEY CHECK (id = 1),
+      at     INTEGER NOT NULL,
+      ok_at  INTEGER,
+      error  TEXT
+    );
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
