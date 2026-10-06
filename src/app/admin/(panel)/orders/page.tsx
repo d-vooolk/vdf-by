@@ -1,17 +1,19 @@
 import Link from "next/link";
 
+import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
+import { moneyStatuses } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { ORDER_STATUSES } from "@/lib/order-types";
-import { listOrders, orderStats } from "@/lib/orders";
+import { listOrders, orderStatusCounts } from "@/lib/orders";
 
 export const metadata = { title: "Заказы" };
 
 const PER_PAGE = 40;
 
 interface PageProps {
-  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; q?: string; page?: string }>;
 }
 
 export default async function OrdersPage({ searchParams }: PageProps) {
@@ -19,21 +21,54 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const page = Math.max(1, Number(params.page) || 1);
   const status = params.status ?? "";
   const query = params.q ?? "";
+  const staff = params.kind === "staff";
 
   const site = getSite();
-  const stats = orderStats();
+  const counts = orderStatusCounts(staff);
+  const newCounts = {
+    regular: orderStatusCounts(false).new ?? 0,
+    staff: orderStatusCounts(true).new ?? 0,
+  };
   const { rows, total } = listOrders({
     status: status || undefined,
     query,
+    staff,
     limit: PER_PAGE,
     offset: (page - 1) * PER_PAGE,
   });
 
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const money = moneyStatuses(staff ? rows.map((order) => order.id) : []);
+
+  const kindTab = (kind: "regular" | "staff", label: string) => {
+    const active = staff === (kind === "staff");
+    const count = newCounts[kind];
+    return (
+      <Link
+        key={kind}
+        href={`/admin/orders/${kind === "staff" ? "?kind=staff" : ""}`}
+        aria-current={active ? "page" : undefined}
+        className={`flex items-center gap-2 rounded-xl px-4 py-1.5 text-sm font-medium ${
+          active ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-700"
+        }`}
+      >
+        {label}
+        {count > 0 && (
+          <span
+            className={`badge tnum ${active ? "bg-white text-brand-800" : "bg-amber-400 text-amber-950"}`}
+            title="Новые заказы"
+          >
+            {count}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   const tab = (id: string, label: string, count?: number) => {
     const active = status === id;
     const search = new URLSearchParams();
+    if (staff) search.set("kind", "staff");
     if (id) search.set("status", id);
     if (query) search.set("q", query);
 
@@ -61,14 +96,20 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         <span className="tnum text-base font-medium text-brand-400">{total}</span>
       </h1>
 
+      <nav className="flex flex-wrap gap-2" aria-label="Вид заказов">
+        {kindTab("regular", "Обычные заказы")}
+        {kindTab("staff", "Заказы сотрудников")}
+      </nav>
+
       <div className="flex flex-wrap gap-2">
         {tab("", "Все")}
         {ORDER_STATUSES.map((entry) =>
-          tab(entry.id, entry.name, stats.byStatus[entry.id]),
+          tab(entry.id, entry.name, counts[entry.id]),
         )}
       </div>
 
       <form method="get" className="flex flex-wrap gap-2">
+        {staff && <input type="hidden" name="kind" value="staff" />}
         {status && <input type="hidden" name="status" value={status} />}
         <input
           name="q"
@@ -81,10 +122,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           Найти
         </button>
         {query && (
-          <Link
-            href={`/admin/orders/${status ? `?status=${status}` : ""}`}
-            className="btn-ghost py-2 text-sm"
-          >
+          <Link href={pageLink(1, staff, status, "")} className="btn-ghost py-2 text-sm">
             Сбросить
           </Link>
         )}
@@ -92,7 +130,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
       {rows.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
-          {query || status ? "Ничего не нашлось." : "Заказов пока нет."}
+          {query || status ? "Ничего не нашлось." : staff ? "Заказов сотрудников пока нет." : "Заказов пока нет."}
         </p>
       ) : (
         <div className="card divide-y divide-brand-100 overflow-hidden">
@@ -120,8 +158,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                 </span>
               </span>
 
-              {order.staff && (
-                <span className="badge bg-sky-100 text-sky-800">сотрудник</span>
+              {staff && (order.status === "done" || money.get(order.id) !== "awaiting") && (
+                <MoneyStatusBadge status={money.get(order.id) ?? "awaiting"} />
               )}
               {order.notes.length > 0 && (
                 <span
@@ -152,7 +190,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         <nav className="flex items-center justify-center gap-2" aria-label="Страницы">
           {page > 1 && (
             <Link
-              href={pageLink(page - 1, status, query)}
+              href={pageLink(page - 1, staff, status, query)}
               className="btn-secondary py-2 text-sm"
             >
               ← Назад
@@ -163,7 +201,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           </span>
           {page < pages && (
             <Link
-              href={pageLink(page + 1, status, query)}
+              href={pageLink(page + 1, staff, status, query)}
               className="btn-secondary py-2 text-sm"
             >
               Вперёд →
@@ -175,8 +213,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   );
 }
 
-function pageLink(page: number, status: string, query: string): string {
+function pageLink(page: number, staff: boolean, status: string, query: string): string {
   const search = new URLSearchParams();
+  if (staff) search.set("kind", "staff");
   if (status) search.set("status", status);
   if (query) search.set("q", query);
   if (page > 1) search.set("page", String(page));

@@ -169,11 +169,17 @@ export function getOrder(id: number): Order | null {
 export function listOrders(filter: {
   status?: string;
   query?: string;
+  staff?: boolean;
   limit?: number;
   offset?: number;
 }): { rows: Order[]; total: number } {
   const where: string[] = [];
   const params: Record<string, string | number> = {};
+
+  if (filter.staff !== undefined) {
+    where.push("staff = @staff");
+    params.staff = filter.staff ? 1 : 0;
+  }
 
   if (filter.status && isOrderStatus(filter.status)) {
     where.push("status = @status");
@@ -290,6 +296,15 @@ export interface OrderStats {
   todayCount: number;
   weekTotal: number;
   byStatus: Record<string, number>;
+}
+
+export function orderStatusCounts(staff: boolean): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const rows = getDb()
+    .prepare("SELECT status, COUNT(*) AS n FROM orders WHERE staff = ? GROUP BY status")
+    .all(staff ? 1 : 0) as Array<{ status: string; n: number }>;
+  for (const row of rows) counts[row.status] = row.n;
+  return counts;
 }
 
 export function orderStats(): OrderStats {

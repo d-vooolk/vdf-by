@@ -947,7 +947,9 @@ export async function setWholesaleStatusAction(
   await requireAdmin();
   const customer = getCustomerById(customerId);
   if (!customer) return fail(["Покупатель не найден"]);
-  setWholesaleStatus(customerId, status);
+  if (customer.staff || !setWholesaleStatus(customerId, status)) {
+    return fail(["Сотрудник не может быть оптовиком — сначала снимите роль сотрудника"]);
+  }
   if (status === "approved" && customer.wholesaleStatus !== "approved" && smsConfigured()) {
     try {
       await sendSms(

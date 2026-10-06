@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     if (!customer) return Response.json({ error: "Войдите заново" }, { status: 401 });
     const name = text(body.name, 160);
     const address = text(body.address, 300);
-    const requestWholesale = body.requestWholesale === true;
+    const requestWholesale = body.requestWholesale === true && !customer.staff;
     if (name.length < 2) return Response.json({ error: "Укажите ФИО или название компании" }, { status: 400 });
     if ((requestWholesale || customer.kind === "wholesale") && address.length < 5) {
       return Response.json({ error: "Для опта укажите адрес магазина или мастерской" }, { status: 400 });

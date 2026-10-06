@@ -8,7 +8,7 @@ import { addWriteoff, deleteWriteoff } from "@/lib/accounting";
 import { requireAdmin } from "@/lib/auth";
 import { syncCrm } from "@/lib/crm-sync";
 
-const OWN_ORDERS_PATH = "/admin/accounting/own-orders";
+const ACCOUNTING_PATH = "/admin/accounting";
 
 const ok = (): FormState => ({ ok: true, problems: [], at: Date.now() });
 const fail = (problems: string[]): FormState => ({ ok: false, problems, at: Date.now() });
@@ -43,7 +43,7 @@ export async function addWriteoffAction(input: unknown): Promise<FormState> {
     return fail(["Некорректная дата"]);
   }
   addWriteoff({ ...parsed.data, date: timestamp });
-  revalidatePath(OWN_ORDERS_PATH);
+  revalidatePath(ACCOUNTING_PATH);
   return ok();
 }
 
@@ -51,14 +51,14 @@ export async function deleteWriteoffAction(id: number): Promise<FormState> {
   await requireAdmin();
   if (!Number.isInteger(id) || id <= 0) return fail(["Запись не найдена"]);
   deleteWriteoff(id);
-  revalidatePath(OWN_ORDERS_PATH);
+  revalidatePath(ACCOUNTING_PATH);
   return ok();
 }
 
 export async function refreshCrmPaymentsAction(): Promise<FormState> {
   await requireAdmin();
   const report = await syncCrm();
-  revalidatePath("/admin/accounting", "layout");
+  revalidatePath("/admin", "layout");
   if (!report.configured) return fail(["CRM не подключена: заполните CRM_URL и CRM_INTEGRATION_KEY в .env"]);
   if (report.paymentsError) return fail([`Не удалось получить оплаты из CRM: ${report.paymentsError}`]);
   return ok();

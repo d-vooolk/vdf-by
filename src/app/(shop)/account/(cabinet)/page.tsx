@@ -51,13 +51,16 @@ export default async function AccountDataPage() {
   const customer = await getCustomer();
   if (!customer) redirect("/account/login/");
 
-  const company = customer.kind === "wholesale";
-  const note = WHOLESALE_NOTES[customer.wholesaleStatus];
+  const company = !customer.staff && customer.kind === "wholesale";
+  const note = customer.staff ? null : WHOLESALE_NOTES[customer.wholesaleStatus];
   const facts = [
     { label: company ? "Компания или ФИО" : "ФИО", value: customer.name },
     { label: "Телефон", value: formatPhone(customer.phone), numeric: true },
-    { label: "Тип покупателя", value: company ? "Оптовый покупатель" : "Частный покупатель" },
-    { label: "Цены", value: PRICE_LABELS[customer.wholesaleStatus] },
+    {
+      label: "Тип покупателя",
+      value: customer.staff ? "Сотрудник магазина" : company ? "Оптовый покупатель" : "Частный покупатель",
+    },
+    { label: "Цены", value: customer.staff ? "Для сотрудников" : PRICE_LABELS[customer.wholesaleStatus] },
     ...(customer.address ? [{ label: "Адрес магазина или мастерской", value: customer.address }] : []),
     { label: "В магазине с", value: date(customer.createdAt), numeric: true },
   ];
@@ -87,6 +90,7 @@ export default async function AccountDataPage() {
           address={customer.address}
           kind={customer.kind}
           wholesaleStatus={customer.wholesaleStatus}
+          staff={customer.staff}
         />
       </section>
     </>

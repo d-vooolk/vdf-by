@@ -11,11 +11,13 @@ export function AccountProfile({
   address: initialAddress,
   kind,
   wholesaleStatus,
+  staff,
 }: {
   name: string;
   address: string;
   kind: "retail" | "wholesale";
   wholesaleStatus: "none" | "pending" | "approved" | "rejected";
+  staff: boolean;
 }) {
   const router = useRouter();
   const loadAccount = useAccount((state) => state.load);
@@ -26,7 +28,7 @@ export function AccountProfile({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
-  const canRequest = wholesaleStatus === "none";
+  const canRequest = !staff && wholesaleStatus === "none";
   const needsAddress = kind === "wholesale" || requestWholesale;
 
   const save = async () => {

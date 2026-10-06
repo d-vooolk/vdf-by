@@ -75,8 +75,8 @@ export default async function OrderPage({ params }: PageProps) {
             ]
               .filter(Boolean)
               .join(", ")}
-          <Link href="/admin/accounting/staff-orders/" className="underline">
-            в бухгалтерии
+          <Link href="/admin/orders/?kind=staff" className="underline">
+            все заказы сотрудников
           </Link>
         </p>
       )}

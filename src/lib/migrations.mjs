@@ -627,6 +627,10 @@ export const MIGRATIONS = [
       error  TEXT
     );
   `,
+  `
+    UPDATE customers SET wholesale_status = 'none', kind = 'retail'
+     WHERE staff = 1 AND (wholesale_status != 'none' OR kind != 'retail');
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

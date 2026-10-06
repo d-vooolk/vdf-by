@@ -252,12 +252,13 @@ export function updateCustomerProfile(
   const db = getDb();
   const current = getCustomerById(id);
   if (!current) return;
+  const requestWholesale = changes.requestWholesale && !current.staff;
   const status =
-    changes.requestWholesale && current.wholesaleStatus === "none" ? "pending" : current.wholesaleStatus;
+    requestWholesale && current.wholesaleStatus === "none" ? "pending" : current.wholesaleStatus;
   db.prepare("UPDATE customers SET name = ?, address = ?, kind = ?, wholesale_status = ? WHERE id = ?").run(
     changes.name,
     changes.address,
-    changes.requestWholesale || current.kind === "wholesale" ? "wholesale" : "retail",
+    requestWholesale || current.kind === "wholesale" ? "wholesale" : "retail",
     status,
     id,
   );
@@ -306,14 +307,21 @@ export function countPendingWholesale(): number {
   ).n;
 }
 
-export function setWholesaleStatus(id: number, status: WholesaleStatus): void {
-  getDb()
-    .prepare("UPDATE customers SET wholesale_status = ?, reviewed_at = ? WHERE id = ?")
+export function setWholesaleStatus(id: number, status: WholesaleStatus): boolean {
+  const result = getDb()
+    .prepare("UPDATE customers SET wholesale_status = ?, reviewed_at = ? WHERE id = ? AND staff = 0")
     .run(status, Date.now(), id);
+  return result.changes > 0;
 }
 
 export function setCustomerStaff(id: number, staff: boolean): void {
-  getDb().prepare("UPDATE customers SET staff = ? WHERE id = ?").run(staff ? 1 : 0, id);
+  getDb()
+    .prepare(
+      staff
+        ? "UPDATE customers SET staff = 1, wholesale_status = 'none', kind = 'retail' WHERE id = ?"
+        : "UPDATE customers SET staff = 0 WHERE id = ?",
+    )
+    .run(id);
 }
 
 export function setCustomerNote(id: number, note: string): void {

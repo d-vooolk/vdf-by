@@ -28,26 +28,11 @@ export interface OrderMoney {
   cancellation: CrmCancellation | null;
 }
 
-export interface StaffOrderRow {
-  id: number;
-  createdAt: number;
-  status: string;
-  name: string;
-  phone: string;
-  total: number;
-  inCrm: boolean;
-  money: OrderMoney;
-}
-
 export const MONEY_STATUSES: Array<{ id: MoneyStatus; name: string }> = [
   { id: "awaiting", name: "Ожидает оплаты" },
   { id: "paid", name: "Оплачен" },
   { id: "cancelled", name: "Отменён" },
 ];
-
-export function isMoneyStatus(value: unknown): value is MoneyStatus {
-  return MONEY_STATUSES.some((entry) => entry.id === value);
-}
 
 export interface Writeoff {
   id: number;
@@ -181,44 +166,17 @@ export function orderMoney(orderId: number): OrderMoney {
   return row ? toMoney(orderId, row) : { status: "awaiting", payment: null, cancellation: null };
 }
 
-const STAFF_ORDERS_WHERE = `o.staff = 1 AND (o.status = 'done' OR p.order_id IS NOT NULL OR c.order_id IS NOT NULL)`;
-
-export function staffOrderCounts(): Record<MoneyStatus, number> {
+export function moneyStatuses(orderIds: number[]): Map<number, MoneyStatus> {
+  const statuses = new Map<number, MoneyStatus>();
+  if (!orderIds.length) return statuses;
   const rows = getDb()
     .prepare(
-      `SELECT ${MONEY_STATUS_SQL} AS money, COUNT(*) AS n
-       FROM orders o ${MONEY_JOINS} WHERE ${STAFF_ORDERS_WHERE} GROUP BY money`,
+      `SELECT o.id, ${MONEY_STATUS_SQL} AS money FROM orders o ${MONEY_JOINS}
+       WHERE o.id IN (${orderIds.map(() => "?").join(", ")})`,
     )
-    .all() as Array<{ money: MoneyStatus; n: number }>;
-  const counts: Record<MoneyStatus, number> = { awaiting: 0, paid: 0, cancelled: 0 };
-  for (const row of rows) counts[row.money] = row.n;
-  return counts;
-}
-
-export function listStaffOrders(money?: MoneyStatus): StaffOrderRow[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT o.id, o.created_at AS createdAt, o.status, o.name, o.phone, o.total,
-         (o.crm_sent_at IS NOT NULL AND q.order_id IS NULL) AS inCrm,
-         ${MONEY_COLUMNS}
-       FROM orders o ${MONEY_JOINS}
-       LEFT JOIN crm_outbox q ON q.order_id = o.id
-       WHERE ${STAFF_ORDERS_WHERE} ${money ? `AND ${MONEY_STATUS_SQL} = ?` : ""}
-       ORDER BY o.id DESC`,
-    )
-    .all(...(money ? [money] : [])) as Array<
-    MoneyRow & Omit<StaffOrderRow, "inCrm" | "money"> & { inCrm: number }
-  >;
-  return rows.map((row) => ({
-    id: row.id,
-    createdAt: row.createdAt,
-    status: row.status,
-    name: row.name,
-    phone: row.phone,
-    total: row.total,
-    inCrm: row.inCrm === 1,
-    money: toMoney(row.id, row),
-  }));
+    .all(...orderIds) as Array<{ id: number; money: MoneyStatus }>;
+  for (const row of rows) statuses.set(row.id, row.money);
+  return statuses;
 }
 
 export function ledgerMonth(year: number, month: number): LedgerMonth {

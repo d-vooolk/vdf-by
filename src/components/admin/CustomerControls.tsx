@@ -25,17 +25,19 @@ export function CustomerControls({
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(initialNote);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [problem, setProblem] = useState("");
 
-  const run = (task: () => Promise<unknown>) =>
+  const run = (task: () => Promise<{ ok: boolean; problems: string[] } | void>) =>
     startTransition(async () => {
-      await task();
+      const result = await task();
+      setProblem(result && !result.ok ? result.problems.join("; ") : "");
       router.refresh();
     });
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        {status !== "approved" && (
+        {!staff && status !== "approved" && (
           <button
             type="button"
             disabled={pending}
@@ -45,7 +47,7 @@ export function CustomerControls({
             Подтвердить опт
           </button>
         )}
-        {status === "pending" && (
+        {!staff && status === "pending" && (
           <button
             type="button"
             disabled={pending}
@@ -55,7 +57,7 @@ export function CustomerControls({
             Отклонить
           </button>
         )}
-        {status === "approved" && (
+        {!staff && status === "approved" && (
           <button
             type="button"
             disabled={pending}
@@ -71,7 +73,11 @@ export function CustomerControls({
           onClick={() => run(() => setCustomerStaffAction(id, !staff))}
           className={`${staff ? "btn-secondary" : "btn-ghost"} px-3 py-1.5 text-xs`}
         >
-          {staff ? "Снять роль сотрудника" : "Сделать сотрудником"}
+          {staff
+            ? "Снять роль сотрудника"
+            : status === "approved" || status === "pending"
+              ? "Сделать сотрудником (опт снимется)"
+              : "Сделать сотрудником"}
         </button>
         {confirmDelete ? (
           <>
@@ -101,6 +107,11 @@ export function CustomerControls({
           </button>
         )}
       </div>
+      {problem && (
+        <p role="alert" className="text-xs text-red-700">
+          {problem}
+        </p>
+      )}
       <textarea
         value={note}
         onChange={(event) => setNote(event.target.value)}
