@@ -11,7 +11,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
 
 const FROM = { amount: 700, currency: "RUB" };
-const TO = { amount: 6, currency: "USD" };
+const RETAIL = { amount: 10, currency: "USD" };
+const WHOLESALE = { amount: 6, currency: "USD" };
 const apply = process.argv.includes("--apply");
 
 function isOldSource(source) {
@@ -42,13 +43,17 @@ function toByn(amount, rate) {
 }
 
 const usd = await usdRate();
-const newPrice = toByn(TO.amount, usd.rate);
-const newSource = JSON.stringify(TO);
+const retailPrice = toByn(RETAIL.amount, usd.rate);
+const wholesalePrice = toByn(WHOLESALE.amount, usd.rate);
 
 const db = openDatabase(Database, DB_PATH);
 
 const types = db
-  .prepare("SELECT category_id, type, price, price_source FROM frame_types WHERE price_source IS NOT NULL")
+  .prepare(
+    `SELECT category_id, type, price, wholesale_price, price_source
+       FROM frame_types
+      WHERE price_source IS NOT NULL`,
+  )
   .all()
   .filter((row) => isOldSource(parse(row.price_source)));
 
@@ -63,17 +68,22 @@ const products = db
   .filter((row) => isOldSource(parse(row.data)?.priceSource));
 
 console.log(`Курс НБРБ: 1 $ = ${usd.rate} BYN на ${usd.date}`);
-console.log(`${FROM.amount} ${FROM.currency} → ${TO.amount} ${TO.currency} = ${newPrice} BYN\n`);
+console.log(`Розница: ${FROM.amount} ${FROM.currency} → ${RETAIL.amount} ${RETAIL.currency} = ${retailPrice} BYN`);
+console.log(`Опт: ${WHOLESALE.amount} ${WHOLESALE.currency} = ${wholesalePrice} BYN`);
 
-console.log(`Типы рамок: ${types.length}`);
+console.log(`\nТипы рамок: ${types.length}`);
 for (const row of types) {
-  console.log(`  ${row.category_id} / ${row.type}: ${row.price} → ${newPrice} BYN`);
+  console.log(
+    `  ${row.category_id} / ${row.type}: розница ${row.price} → ${retailPrice}, опт ${row.wholesale_price ?? "—"} → ${wholesalePrice} BYN`,
+  );
 }
 
 console.log(`\nТовары в типах рамок: ${products.length}`);
 for (const row of products) {
   const product = JSON.parse(row.data);
-  console.log(`  ${row.type} · ${product.sku ?? row.id} · ${product.title}: ${row.price} → ${newPrice} BYN`);
+  console.log(
+    `  ${row.type} · ${product.sku ?? row.id} · ${product.title}: розница ${row.price} → ${retailPrice}, опт ${product.wholesalePrice ?? "—"} → ${wholesalePrice} BYN`,
+  );
 }
 
 if (!apply) {
@@ -84,7 +94,9 @@ if (!apply) {
 
 const now = Date.now();
 const writeType = db.prepare(
-  "UPDATE frame_types SET price = ?, price_source = ?, updated_at = ? WHERE category_id = ? AND type = ?",
+  `UPDATE frame_types
+      SET price = ?, price_source = ?, wholesale_price = ?, wholesale_source = ?, updated_at = ?
+    WHERE category_id = ? AND type = ?`,
 );
 const writeProduct = db.prepare("UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?");
 const bumpCatalog = db.prepare(
@@ -93,10 +105,26 @@ const bumpCatalog = db.prepare(
 );
 
 db.transaction(() => {
-  for (const row of types) writeType.run(newPrice, newSource, now, row.category_id, row.type);
+  for (const row of types) {
+    writeType.run(
+      retailPrice,
+      JSON.stringify(RETAIL),
+      wholesalePrice,
+      JSON.stringify(WHOLESALE),
+      now,
+      row.category_id,
+      row.type,
+    );
+  }
   for (const row of products) {
-    const product = { ...JSON.parse(row.data), price: newPrice, priceSource: TO };
-    writeProduct.run(newPrice, JSON.stringify(product), now, row.id);
+    const product = {
+      ...JSON.parse(row.data),
+      price: retailPrice,
+      priceSource: RETAIL,
+      wholesalePrice,
+      wholesaleSource: WHOLESALE,
+    };
+    writeProduct.run(retailPrice, JSON.stringify(product), now, row.id);
   }
   if (products.length) bumpCatalog.run();
 })();
