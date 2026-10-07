@@ -5,6 +5,7 @@ import {
   categorySchema,
   siteSchema,
   type Category,
+  type CategoryCollection,
   type Product,
   type Site,
 } from "./schema";
@@ -188,7 +189,53 @@ export function categoryUrl(category: Category): string {
  */
 export function categoryPaths(categoryId: string | undefined): string[] {
   const category = categoryId ? getCategoryById(categoryId) : undefined;
-  return category ? categoryTrail(category).map(categoryUrl) : [];
+  return category
+    ? categoryTrail(category).flatMap((entry) => [categoryUrl(entry), ...collectionUrls(entry)])
+    : [];
+}
+
+export function categoryCollections(category: Category): CategoryCollection[] {
+  return category.parentId ? [] : (category.collections ?? []);
+}
+
+export function collectionUrl(category: Category, collection: CategoryCollection): string {
+  return `${categoryUrl(category)}${collection.slug}/`;
+}
+
+function collectionUrls(category: Category): string[] {
+  return categoryCollections(category).map((collection) => collectionUrl(category, collection));
+}
+
+function matchText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[″"`'’]/g, "″")
+    .replace(/(\d),(\d)/g, "$1.$2")
+    .replace(/\s+/g, " ");
+}
+
+export function productMatchesCollection(product: Product, collection: CategoryCollection): boolean {
+  const text = matchText(
+    [product.title, product.brand, ...product.specs.map((spec) => `${spec.name}: ${spec.value}`)]
+      .filter(Boolean)
+      .join(" | "),
+  );
+  return collection.match.some((phrase) => text.includes(matchText(phrase)));
+}
+
+export function getProductsInCollection(category: Category, collection: CategoryCollection): Product[] {
+  return getProductsInCategory(category.id).filter((product) => productMatchesCollection(product, collection));
+}
+
+export function resolveCollection(
+  categorySlug: string,
+  slug: string,
+): { category: Category; collection: CategoryCollection } | undefined {
+  const category = getCategoryBySlug(categorySlug);
+  if (!category) return undefined;
+  const collection = categoryCollections(category).find((entry) => entry.slug === slug);
+  return collection ? { category, collection } : undefined;
 }
 
 /**

@@ -145,6 +145,80 @@ function RelatedNav({
   );
 }
 
+function GenerationTable({
+  category,
+  mark,
+  model,
+  title,
+  currencySymbol,
+}: ModelScope & { title: string; currencySymbol: string }) {
+  const base = carsRoot(category.slug);
+  const rows = model.generations
+    .map((generation) => ({ generation, products: getProductsForGeneration(generation.id, category.id) }))
+    .filter((row) => row.products.length > 0);
+  if (!rows.length) return null;
+
+  return (
+    <section className="mt-12">
+      <h2 className="mb-2 text-lg font-semibold text-brand-900">
+        {category.name} для {title} по поколениям
+      </h2>
+      <p className="mb-4 max-w-2xl text-sm text-brand-500">
+        Деталь подбирается под поколение и годы выпуска: у рестайлинга посадочные места часто другие. Если не уверены,
+        какое у вас поколение, — пришлите менеджеру VIN или фото фары.
+      </p>
+      <div className="overflow-x-auto rounded-card border border-brand-100">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-brand-100 bg-brand-50 text-left text-xs text-brand-500">
+              <th scope="col" className="px-4 py-2 font-medium">Поколение</th>
+              <th scope="col" className="px-4 py-2 font-medium">Годы</th>
+              <th scope="col" className="px-4 py-2 font-medium">Что подходит</th>
+              <th scope="col" className="px-4 py-2 text-right font-medium">Цена</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-50">
+            {rows.map(({ generation, products }) => {
+              const cheapest = cheapestPrice(products);
+              return (
+                <tr key={generation.id} className="align-top">
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={generationUrl(mark.slug, model.slug, generation.slug, base)}
+                      className="font-medium text-brand-900 hover:underline"
+                    >
+                      {generation.name}
+                    </Link>
+                  </td>
+                  <td className="tnum px-4 py-2.5 whitespace-nowrap text-brand-600">{years(generation, THIS_YEAR) || "—"}</td>
+                  <td className="px-4 py-2.5">
+                    <ul className="space-y-1">
+                      {products.slice(0, 6).map((product) => (
+                        <li key={product.id}>
+                          <Link href={`/product/${product.slug}/`} className="text-brand-700 hover:underline">
+                            {product.title}
+                          </Link>
+                          {!hasAnyInStock(product) && <span className="ml-1 text-xs text-brand-400">под заказ</span>}
+                        </li>
+                      ))}
+                      {products.length > 6 && (
+                        <li className="text-xs text-brand-400">и ещё {products.length - 6}</li>
+                      )}
+                    </ul>
+                  </td>
+                  <td className="tnum px-4 py-2.5 text-right whitespace-nowrap text-brand-900">
+                    {cheapest ? `от ${formatPrice(cheapest, currencySymbol)}` : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function crumbs(category: Category) {
   return [
     { label: "Каталог", href: "/catalog/" },
@@ -316,6 +390,14 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
           <Filtered products={products} currencySymbol={site.currencySymbol} />
         </section>
       )}
+
+      <GenerationTable
+        category={category}
+        mark={mark}
+        model={model}
+        title={title}
+        currencySymbol={site.currencySymbol}
+      />
 
       <RelatedNav
         title={`Что ещё подходит к ${title}`}

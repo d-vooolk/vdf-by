@@ -131,6 +131,17 @@ export const productSchema = z.strictObject({
   seoDescription: z.string().optional(),
 });
 
+export const categoryCollectionSchema = z.strictObject({
+  slug,
+  name: z.string().min(1),
+  label: z.string().optional(),
+  match: z.array(z.string().min(1)).min(1, "нужно хотя бы одно слово для отбора товаров"),
+  excerpt: z.string().optional(),
+  description: z.string().optional(),
+  seoTitle: z.string().optional(),
+  seoDescription: z.string().optional(),
+});
+
 export const categorySchema = z.strictObject({
   _comment: z.string().optional(),
   id,
@@ -155,6 +166,7 @@ export const categorySchema = z.strictObject({
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
   image: imagePath.optional(),
+  collections: z.array(categoryCollectionSchema).optional(),
 });
 
 const deliveryMethodSchema = z.strictObject({
@@ -231,6 +243,7 @@ export type OptionGroup = z.infer<typeof optionGroupSchema>;
 export type Product = z.infer<typeof productSchema>;
 export type ProductVideo = z.infer<typeof videoSchema>;
 export type Category = z.infer<typeof categorySchema>;
+export type CategoryCollection = z.infer<typeof categoryCollectionSchema>;
 export type Site = z.infer<typeof siteSchema>;
 export type DeliveryMethod = z.infer<typeof deliveryMethodSchema>;
 

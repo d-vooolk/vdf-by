@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
 import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
+import { cleanCollections, CollectionsEditor } from "@/components/admin/CollectionsEditor";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import {
@@ -419,6 +420,19 @@ export function CategoryForm({
         />
       </Section>
 
+      {!draft.parentId && (
+        <Section
+          title="Подборки"
+          note="Отдельные страницы раздела под частые запросы: «би-LED линзы 3.0″», «Aozoom». Ссылки на них стоят над товарами раздела."
+        >
+          <CollectionsEditor
+            value={draft.collections ?? []}
+            onChange={(collections) => patch({ collections })}
+            baseUrl={`/catalog/${draft.slug || "…"}/`}
+          />
+        </Section>
+      )}
+
       <Section title="Картинка категории">
         <ImagePicker
           value={draft.image ? [draft.image] : []}
@@ -569,5 +583,6 @@ function clean(category: Category): Category {
     seoDescription: trimmed(category.seoDescription),
     image: trimmed(category.image),
     faq: cleanFaq(category.faq),
+    collections: category.parentId ? undefined : cleanCollections(category.collections),
   };
 }

@@ -11,11 +11,16 @@ import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
 import { getCarTree } from "@/lib/cars";
+import Link from "next/link";
+
 import {
+  categoryCollections,
   categoryTrail,
   categoryUrl,
+  collectionUrl,
   getChildCategories,
   getProductsInCategory,
+  getProductsInCollection,
   getSite,
 } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
@@ -27,7 +32,7 @@ import {
   PER_PAGE,
   type ListingState,
 } from "@/lib/listing";
-import type { Category } from "@/lib/schema";
+import type { Category, CategoryCollection } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
 
@@ -93,22 +98,87 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
   });
 }
 
+export function collectionMetadata(
+  category: Category,
+  collection: CategoryCollection,
+  listing: ListingState,
+): Metadata {
+  const site = getSite();
+  const products = getProductsInCollection(category, collection);
+  const page = clampPage(products.length, listing.page);
+  const description =
+    collection.seoDescription ??
+    sentences(
+      collection.excerpt ?? collection.name,
+      products.length > 0 &&
+        stockLine(
+          products.length,
+          products.filter(hasAnyInStock).length,
+          cheapestPrice(products),
+          site.currencySymbol,
+        ),
+      "Доставка по Минску и Беларуси, оплата при получении",
+    );
+  return buildMetadata({
+    title: `${collection.seoTitle ?? `${collection.name} купить в Минске`}${pageSuffix(page)}`,
+    description: page > 1 ? sentences(`${collection.name}, страница ${page}`, description) : description,
+    path: listingHref(collectionUrl(category, collection), page, "default"),
+    image: products.find((product) => product.images[0])?.images[0],
+  });
+}
+
+function CollectionLinks({ category, current }: { category: Category; current?: CategoryCollection }) {
+  const collections = categoryCollections(category);
+  if (!collections.length) return null;
+  const chip = "rounded-full border px-3.5 py-1.5 text-sm font-medium";
+  return (
+    <nav className="mb-8 flex flex-wrap gap-2" aria-label={`Подборки раздела «${category.name}»`}>
+      <Link
+        href={categoryUrl(category)}
+        aria-current={current ? undefined : "page"}
+        className={`${chip} ${current ? "border-brand-200 text-brand-700 hover:border-brand-400" : "border-brand-800 bg-brand-800 text-white"}`}
+      >
+        Все
+      </Link>
+      {collections.map((collection) => (
+        <Link
+          key={collection.slug}
+          href={collectionUrl(category, collection)}
+          aria-current={current?.slug === collection.slug ? "page" : undefined}
+          className={`${chip} ${
+            current?.slug === collection.slug
+              ? "border-brand-800 bg-brand-800 text-white"
+              : "border-brand-200 text-brand-700 hover:border-brand-400"
+          }`}
+        >
+          {collection.label ?? collection.name}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function CategoryView({
   category,
   listing,
+  collection,
 }: {
   category: Category;
   listing: ListingState;
+  collection?: CategoryCollection;
 }) {
   const site = getSite();
-  const url = categoryUrl(category);
-  const children = getChildCategories(category.id);
+  const url = collection ? collectionUrl(category, collection) : categoryUrl(category);
+  const heading = collection?.name ?? category.name;
+  const children = collection ? [] : getChildCategories(category.id);
 
   // Товары подразделов входят в выдачу родителя: у самого родителя их нет,
   // и без них его страница была бы пустой в разметке ItemList.
-  const products = getProductsInCategory(category.id);
-  const marks = category.carFitment ? getCarTree(category.id) : [];
+  const products = collection ? getProductsInCollection(category, collection) : getProductsInCategory(category.id);
+  const marks = category.carFitment && !collection ? getCarTree(category.id) : [];
   const shown = listingPage(products, listing);
+  const excerpt = collection ? collection.excerpt : category.excerpt;
+  const description = collection ? collection.description : category.description;
 
   return (
     <div className="container-page">
@@ -119,8 +189,9 @@ export function CategoryView({
           // некуда вернуться на уровень выше.
           ...categoryTrail(category).map((entry, index, trail) => ({
             label: entry.name,
-            href: index < trail.length - 1 ? categoryUrl(entry) : undefined,
+            href: index < trail.length - 1 || collection ? categoryUrl(entry) : undefined,
           })),
+          ...(collection ? [{ label: collection.name }] : []),
         ]}
       />
       <JsonLd
@@ -133,10 +204,12 @@ export function CategoryView({
 
       <header className="mb-8">
         <h1 className="text-3xl font-semibold text-brand-900 sm:text-4xl">
-          {category.name}
+          {heading}
           {shown.page > 1 ? `: страница ${shown.page}` : ""}
         </h1>
       </header>
+
+      <CollectionLinks category={category} current={collection} />
 
       {children.length > 0 && (
         <nav
@@ -190,15 +263,15 @@ export function CategoryView({
           заголовком и отодвигало вниз плитку подразделов и сами товары.
           В описание страницы для поиска оно идёт из categoryMetadata, так что
           на выдачу перенос не влияет. */}
-      {shown.page === 1 && (category.excerpt || category.description) && (
+      {shown.page === 1 && (excerpt || description) && (
         <section className="prose-shop mt-14 max-w-3xl border-t border-brand-100 pt-10">
           <h2 className="mb-3 text-xl font-semibold text-brand-900">
-            О разделе «{category.name}»
+            {collection ? collection.name : `О разделе «${category.name}»`}
           </h2>
-          {category.excerpt && (
-            <p className="text-base text-brand-900">{category.excerpt}</p>
+          {excerpt && (
+            <p className="text-base text-brand-900">{excerpt}</p>
           )}
-          {category.description?.split("\n\n").map((paragraph, index) => (
+          {description?.split("\n\n").map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
         </section>
@@ -206,13 +279,13 @@ export function CategoryView({
 
       {shown.page === 1 && (
         <ListingFacts
-          title={`${category.name}: коротко о разделе`}
+          title={collection ? `${heading}: коротко` : `${category.name}: коротко о разделе`}
           products={products}
           currencySymbol={site.currencySymbol}
         />
       )}
 
-      {shown.page === 1 && <Faq items={category.faq ?? []} schema />}
+      {shown.page === 1 && !collection && <Faq items={category.faq ?? []} schema />}
 
       {shown.page === 1 && (
         <RelatedArticles

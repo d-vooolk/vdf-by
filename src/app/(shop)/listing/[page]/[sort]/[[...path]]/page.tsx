@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { permanentRedirect, redirect } from "next/navigation";
 
 import { CATALOG_PATH, CatalogView, catalogMetadata } from "@/components/CatalogView";
-import { CategoryView, categoryMetadata } from "@/components/CategoryView";
+import { CategoryView, categoryMetadata, collectionMetadata } from "@/components/CategoryView";
 import {
   categoryUrl,
+  collectionUrl,
   getCategoryBySlug,
   getProducts,
   getProductsInCategory,
+  getProductsInCollection,
+  resolveCollection,
   resolveSubcategory,
 } from "@/lib/catalog";
 import {
@@ -16,7 +19,7 @@ import {
   pageCount,
   type ListingState,
 } from "@/lib/listing";
-import type { Category } from "@/lib/schema";
+import type { Category, CategoryCollection } from "@/lib/schema";
 
 export function generateStaticParams() {
   return [];
@@ -28,6 +31,7 @@ interface PageProps {
 
 interface Scope {
   category: Category | null;
+  collection?: CategoryCollection;
   basePath: string;
   total: number;
 }
@@ -35,6 +39,16 @@ interface Scope {
 function resolveScope(path: string[]): Scope | null {
   if (path.length === 0) {
     return { category: null, basePath: CATALOG_PATH, total: getProducts().length };
+  }
+  const found =
+    path.length === 2 && !resolveSubcategory(path[0], path[1]) ? resolveCollection(path[0], path[1]) : undefined;
+  if (found) {
+    return {
+      category: found.category,
+      collection: found.collection,
+      basePath: collectionUrl(found.category, found.collection),
+      total: getProductsInCollection(found.category, found.collection).length,
+    };
   }
   const category =
     path.length === 1
@@ -68,13 +82,14 @@ async function resolve(props: PageProps): Promise<{ scope: Scope; listing: Listi
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { scope, listing } = await resolve(props);
+  if (scope.category && scope.collection) return collectionMetadata(scope.category, scope.collection, listing);
   return scope.category ? categoryMetadata(scope.category, listing) : catalogMetadata(listing);
 }
 
 export default async function ListingPage(props: PageProps) {
   const { scope, listing } = await resolve(props);
   return scope.category ? (
-    <CategoryView category={scope.category} listing={listing} />
+    <CategoryView category={scope.category} collection={scope.collection} listing={listing} />
   ) : (
     <CatalogView listing={listing} />
   );

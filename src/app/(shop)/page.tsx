@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CarPicker } from "@/components/CarPicker";
 import { CategoryGrid } from "@/components/CategoryTile";
+import { HomeQuickLinks } from "@/components/HomeQuickLinks";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import {
@@ -215,6 +216,8 @@ export default function HomePage() {
 
         <CategoryGrid categories={categories} />
       </section>
+
+      <HomeQuickLinks />
 
       {/* ---------------------------- Хиты ------------------------------ */}
       {featured.length > 0 && (

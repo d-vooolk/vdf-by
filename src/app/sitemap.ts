@@ -15,11 +15,14 @@ import {
   singleBranchOf,
 } from "@/lib/cars";
 import {
+  categoryCollections,
   categoryUrl,
+  collectionUrl,
   getCategories,
   getLastModified,
   getPageDates,
   getProducts,
+  getProductsInCollection,
   getSiteModified,
 } from "@/lib/catalog";
 import { articleImagePaths } from "@/lib/article-body";
@@ -113,6 +116,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     };
   };
 
+  const collectionEntries = (category: Category) =>
+    categoryCollections(category).flatMap((collection) => {
+      const products = getProductsInCollection(category, collection);
+      if (!products.length) return [];
+      const latest = Math.max(...products.map((product) => dateFor(`/product/${product.slug}/`).getTime()));
+      return [
+        {
+          url: absoluteUrl(collectionUrl(category, collection)),
+          lastModified: new Date(latest),
+          changeFrequency: "weekly" as const,
+          priority: 0.8,
+        },
+      ];
+    });
+
   const productEntry = (product: Product) => {
     const url = `/product/${product.slug}/`;
     const images = imagesFor(allProductImages(product));
@@ -201,6 +219,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     // Адрес подраздела вложенный, поэтому его собирает categoryUrl.
     ...getCategories().map(categoryEntry),
+    ...getCategories().flatMap(collectionEntries),
     ...getProducts().map(productEntry),
     // Корень подбора попадает в карту, только когда в нём есть хоть одна
     // марка: пустая страница в sitemap — это заявка на «страница-пустышка».

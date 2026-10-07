@@ -54,7 +54,7 @@ function refreshProducts(rates: CurrencyRates): number {
            OR data LIKE '%"costSource"%'`,
     )
     .all() as Array<{ id: string; data: string }>;
-  const write = db.prepare("UPDATE products SET price = ?, data = ?, updated_at = ? WHERE id = ?");
+  const write = db.prepare("UPDATE products SET price = ?, data = ? WHERE id = ?");
   let changed = 0;
 
   db.transaction(() => {
@@ -62,7 +62,7 @@ function refreshProducts(rates: CurrencyRates): number {
       const product = JSON.parse(row.data) as Product;
       const next = relinkValues(product, rates);
       if (JSON.stringify(next) === JSON.stringify(product)) continue;
-      write.run(next.price, JSON.stringify(next), Date.now(), row.id);
+      write.run(next.price, JSON.stringify(next), row.id);
       changed += 1;
     }
   })();
@@ -95,7 +95,7 @@ function refreshFrameTypes(rates: CurrencyRates): number {
     )
     .all() as TypeSourceRow[];
   const write = db.prepare(
-    `UPDATE frame_types SET price = ?, cost_price = ?, wholesale_price = ?, updated_at = ?
+    `UPDATE frame_types SET price = ?, cost_price = ?, wholesale_price = ?
       WHERE category_id = ? AND type = ?`,
   );
   let changed = 0;
@@ -118,7 +118,6 @@ function refreshFrameTypes(rates: CurrencyRates): number {
         next.price ?? null,
         next.costPrice ?? null,
         next.wholesalePrice ?? null,
-        Date.now(),
         row.category_id,
         row.type,
       );

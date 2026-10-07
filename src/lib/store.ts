@@ -565,6 +565,19 @@ function checkCarFitment(category: Category, previousId?: string): string[] {
  * ещё нет. Замкнутый круг, в который упирается любой, кто решил разбить
  * разросшийся раздел на части.
  */
+function checkCollections(category: Category, previousId?: string): string[] {
+  const slugs = (category.collections ?? []).map((collection) => collection.slug);
+  const problems: string[] = [];
+  if (new Set(slugs).size !== slugs.length) problems.push("Адреса подборок повторяются");
+  const children = getDb()
+    .prepare("SELECT slug FROM categories WHERE parent_id = ?")
+    .all(previousId ?? category.id) as Array<{ slug: string }>;
+  for (const child of children) {
+    if (slugs.includes(child.slug)) problems.push(`Адрес подборки «${child.slug}» занят подразделом`);
+  }
+  return problems;
+}
+
 export function saveCategory(
   input: unknown,
   previousId?: string,
@@ -594,6 +607,7 @@ export function saveCategory(
 
   problems.push(...checkParent(category, previousId, adoptProducts));
   problems.push(...checkCarFitment(category, previousId));
+  problems.push(...checkCollections(category, previousId));
 
   if (problems.length) return { ok: false, problems };
 
