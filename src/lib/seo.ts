@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { articleImagePaths, articlePlainText, articleProductSlugs } from "./article-body";
 import { coverOf } from "./article-photos";
 import type { Article } from "./articles";
-import { getProducts, getSite } from "./catalog";
+import { getProducts, getSite, productBrand } from "./catalog";
 import { schemaPrice } from "./format";
 import type { ImageEntry } from "./image-types";
 import { getImage } from "./images";
@@ -409,6 +409,7 @@ function ownVariantSku(product: Product, selection: Selection): string | null {
  */
 export function productJsonLd(product: Product, category?: Category) {
   const site = getSite();
+  const brand = productBrand(product);
   const range = priceRange(product);
   if (!hasPrice(range.min)) return null;
 
@@ -470,9 +471,7 @@ export function productJsonLd(product: Product, category?: Category) {
       300,
     ),
     ...(images.length ? { image: images } : {}),
-    ...(product.brand
-      ? { brand: { "@type": "Brand", name: product.brand } }
-      : {}),
+    ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),
     ...(product.sku ? { sku: product.sku } : {}),
     ...(category ? { category: category.name } : {}),
     ...(product.specs.length

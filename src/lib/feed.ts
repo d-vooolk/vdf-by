@@ -3,6 +3,7 @@ import {
   getCategories,
   getCategoryById,
   getProducts,
+  productBrand,
 } from "./catalog";
 import { frameTypesByProduct, specsWithFrameType } from "./frame-membership";
 import { getImage } from "./images";
@@ -109,7 +110,7 @@ export function feedOffers(): FeedOffer[] {
         price: variant.price,
         oldPrice: variant.oldPrice,
         available: variant.inStock,
-        brand: product.brand ?? null,
+        brand: productBrand(product) ?? null,
         sku: variant.sku,
         categoryId: product.categoryId,
         categoryPath,

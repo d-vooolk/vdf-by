@@ -346,6 +346,17 @@ export function getCategoryCounts(): Record<string, number> {
   return counts;
 }
 
+const MANUFACTURER_SPEC = "производитель";
+
+export function productBrand(product: Product): string | undefined {
+  const brand = product.brand?.trim();
+  if (brand) return brand;
+  const manufacturer = product.specs.find(
+    (spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC,
+  );
+  return manufacturer?.value.trim() || undefined;
+}
+
 /** Уникальные бренды произвольной выборки — для фильтра над ней. */
 export function brandsOf(products: Product[]): string[] {
   const brands = new Set<string>();
