@@ -21,29 +21,54 @@ export function generateMetadata(): Metadata {
   });
 }
 
+const REPAIR_PAGE = `${SERVICE_SITE}uslugi/remont-far`;
+const LIGHT_PAGE = `${SERVICE_SITE}uslugi/uluchshenie-kachestva-sveta`;
+const PRICE_PAGE = `${SERVICE_SITE}price`;
+
 const WORKS = [
   {
     title: "Замена стёкол фар",
     text: "Аккуратно вскрываем фару, снимаем старое стекло, чистим корпус от герметика и ставим новое на свежий бутил. После сборки проверяем фару на герметичность.",
+    href: REPAIR_PAGE,
   },
   {
     title: "Установка Bi-LED и би-ксеноновых линз",
     text: "Ставим линзы на переходные рамки под вашу фару, выставляем светотеневую границу и проверяем свет на стене, чтобы он не слепил встречных.",
+    href: LIGHT_PAGE,
   },
   {
     title: "Замена световодов и ремонт ходовых огней",
     text: "Меняем пожелтевшие и потрескавшиеся световоды, восстанавливаем равномерное свечение ДХО и габаритов.",
+    href: REPAIR_PAGE,
+  },
+  {
+    title: "Ремонт и замена корпусов фар",
+    text: "Восстанавливаем сломанные крепления и трещины пайкой пластика, переклеиваем негерметичные фары, меняем корпус целиком, если ремонт не имеет смысла.",
+    href: REPAIR_PAGE,
   },
   {
     title: "Установка ламп и блоков розжига",
     text: "Подбираем цоколь, ставим лампы и блоки розжига, при необходимости — обманки и CAN-декодеры, чтобы не горели ошибки на приборной панели.",
+    href: LIGHT_PAGE,
   },
+];
+
+const PRICES = [
+  { work: "Снятие и установка фары без снятия бампера", price: "от 10 р. за сторону" },
+  { work: "Снятие и установка бампера и фар", price: "100 р." },
+  { work: "Разборка и сборка стекла фары на бутиловом герметике", price: "150 р." },
+  { work: "Разборка и сборка стекла фары на полиуретановом герметике", price: "200 р." },
+  { work: "Разборка и сборка внутренних элементов фары", price: "от 50 р." },
+  { work: "Установка или замена модуля освещения, одна фара", price: "от 50 р." },
+  { work: "То же для фар с адаптивной системой", price: "от 100 р." },
+  { work: "Ремонт пластика сваркой", price: "4 р. за 1 см шва" },
+  { work: "Регулировка света фар", price: "50 р." },
 ];
 
 const FAQ = [
   {
     q: "Сколько стоит установка?",
-    a: "Цена зависит от модели автомобиля и объёма работы. Оставьте заявку или позвоните мастеру — он назовёт стоимость и срок до того, как вы приедете.",
+    a: "Основные работы — в таблице цен выше: например, разборка и сборка фары на бутиловом герметике стоит 150 р., установка модуля в одну фару — от 50 р. Детали оплачиваются отдельно. Точную смету мастер называет после осмотра, до начала работ.",
   },
   {
     q: "Можно ли установить деталь, купленную не у вас?",
@@ -104,8 +129,43 @@ export default function InstallationPage() {
           <div key={work.title} className="card p-5">
             <h2 className="text-base font-semibold text-brand-900">{work.title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-brand-500">{work.text}</p>
+            <a
+              href={work.href}
+              target="_blank"
+              rel="noopener"
+              className="mt-3 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+            >
+              Подробнее на сайте мастерской
+            </a>
           </div>
         ))}
+      </section>
+
+      <section className="mb-12 max-w-3xl">
+        <h2 className="mb-2 text-xl font-semibold text-brand-900">Цены на работы</h2>
+        <p className="mb-4 text-sm text-brand-500">
+          Стоимость работ мастерской без учёта деталей. Точную смету мастер называет после осмотра, до начала
+          работ.
+        </p>
+        <div className="overflow-hidden rounded-card border border-brand-100">
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-brand-100">
+              {PRICES.map((row) => (
+                <tr key={row.work}>
+                  <td className="px-4 py-2.5 text-brand-900">{row.work}</td>
+                  <td className="tnum px-4 py-2.5 text-right whitespace-nowrap font-medium text-brand-900">{row.price}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-sm text-brand-500">
+          Полный и актуальный прайс —{" "}
+          <a href={PRICE_PAGE} target="_blank" rel="noopener" className="font-medium text-brand-900 underline">
+            на сайте мастерской
+          </a>
+          .
+        </p>
       </section>
 
       <section className="mb-12 max-w-3xl">
