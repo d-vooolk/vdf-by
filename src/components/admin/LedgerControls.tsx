@@ -17,7 +17,29 @@ function todayInput(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function WriteoffForm({ defaultPerson }: { defaultPerson: string }) {
+const LEDGER_FORMS = {
+  out: {
+    open: "− Списать средства",
+    title: "Списать средства",
+    purpose: "Цель списания",
+    placeholder: "Например: закупка рамок у поставщика",
+    person: "Изыматель",
+    submit: "Списать",
+    button: "btn-primary bg-red-700 py-2 text-sm hover:bg-red-800",
+  },
+  in: {
+    open: "+ Внести средства",
+    title: "Внести средства",
+    purpose: "Откуда деньги",
+    placeholder: "Например: остаток кассы на начало учёта",
+    person: "Вноситель",
+    submit: "Внести",
+    button: "btn-primary bg-green-800 py-2 text-sm hover:bg-green-900",
+  },
+} as const;
+
+export function WriteoffForm({ defaultPerson, kind }: { defaultPerson: string; kind: "in" | "out" }) {
+  const labels = LEDGER_FORMS[kind];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -35,7 +57,7 @@ export function WriteoffForm({ defaultPerson }: { defaultPerson: string }) {
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     startTransition(async () => {
-      const result = await addWriteoffAction({ date, description, amount, person });
+      const result = await addWriteoffAction({ kind, date, description, amount, person });
       if (!result.ok) {
         setProblems(result.problems);
         return;
@@ -53,16 +75,16 @@ export function WriteoffForm({ defaultPerson }: { defaultPerson: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn-primary bg-red-700 py-2 text-sm hover:bg-red-800"
+        className={labels.button}
       >
-        − Списать средства
+        {labels.open}
       </button>
     );
   }
 
   return (
     <form onSubmit={submit} className="card w-full space-y-4 p-4 sm:p-5">
-      <h2 className="text-sm font-bold text-brand-900">Списать средства</h2>
+      <h2 className="text-sm font-bold text-brand-900">{labels.title}</h2>
       <Problems items={problems} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Дата" required>
@@ -77,17 +99,17 @@ export function WriteoffForm({ defaultPerson }: { defaultPerson: string }) {
         <Field label="Сумма, р." required>
           <NumberInput value={amount} onChange={setAmount} placeholder="0,00" />
         </Field>
-        <Field label="Цель списания" required>
+        <Field label={labels.purpose} required>
           <input
             type="text"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="Например: закупка рамок у поставщика"
+            placeholder={labels.placeholder}
             maxLength={300}
             className="field"
           />
         </Field>
-        <Field label="Изыматель" required>
+        <Field label={labels.person} required>
           <input
             type="text"
             value={person}
@@ -101,10 +123,10 @@ export function WriteoffForm({ defaultPerson }: { defaultPerson: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="btn-primary bg-red-700 py-2 text-sm hover:bg-red-800"
+          className={labels.button}
         >
           {pending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
-          Списать
+          {labels.submit}
         </button>
         <button type="button" onClick={close} className="btn-ghost py-2 text-sm">
           Отмена
@@ -125,7 +147,7 @@ export function DeleteWriteoffButton({ id }: { id: number }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        aria-label="Удалить списание"
+        aria-label="Удалить запись"
         className="btn-ghost px-2 py-1 text-red-700 hover:bg-red-50"
       >
         <TrashIcon className="h-3.5 w-3.5" />

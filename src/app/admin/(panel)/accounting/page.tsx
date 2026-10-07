@@ -64,7 +64,8 @@ export default async function AccountingPage({ searchParams }: PageProps) {
         <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
         <p className="mt-1 max-w-3xl text-sm text-brand-500">
           Заказы сотрудников, оплаченные в бухгалтерии CRM: как только заказ исполнен на вкладке
-          «VDF», его сумма приходит сюда. Удалённый в CRM расход снимает поступление.
+          «VDF», его сумма приходит сюда. Удалённый в CRM расход снимает поступление. Деньги не из CRM
+          вносятся вручную кнопкой «Внести средства».
         </p>
       </div>
 
@@ -85,6 +86,8 @@ export default async function AccountingPage({ searchParams }: PageProps) {
           <p className="tnum mt-1 text-2xl font-semibold text-brand-900">{price(ledger.incomeTotal)}</p>
           <p className="mt-1 text-xs text-brand-400">
             {pluralize(ledger.payments.length, "заказ", "заказа", "заказов")} из CRM
+            {ledger.deposits.length > 0 &&
+              `, ${pluralize(ledger.deposits.length, "внесение", "внесения", "внесений")} на ${price(ledger.depositTotal)}`}
           </p>
         </div>
         <div className="card p-4">
@@ -109,7 +112,8 @@ export default async function AccountingPage({ searchParams }: PageProps) {
         </nav>
         <div className="ml-auto flex flex-wrap items-start gap-2">
           <RefreshCrmPaymentsButton />
-          <WriteoffForm defaultPerson={admin.login} />
+          <WriteoffForm kind="in" defaultPerson={admin.login} />
+          <WriteoffForm kind="out" defaultPerson={admin.login} />
         </div>
       </div>
 
@@ -155,7 +159,46 @@ export default async function AccountingPage({ searchParams }: PageProps) {
             </div>
           )}
           <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">
-            Итого: {price(ledger.incomeTotal)}
+            Итого: {price(ledger.incomeTotal - ledger.depositTotal)}
+          </p>
+        </section>
+
+        <section className="card overflow-hidden">
+          <h2 className="border-b border-brand-100 px-4 py-3 text-sm font-bold text-brand-900">Внесения</h2>
+          {ledger.deposits.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-brand-400">За этот месяц внесений нет.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-brand-400">
+                  <tr className="border-b border-brand-100">
+                    <th className="px-4 py-2 font-medium">Дата</th>
+                    <th className="px-4 py-2 font-medium">Откуда</th>
+                    <th className="px-4 py-2 text-right font-medium">Сумма</th>
+                    <th className="px-4 py-2 font-medium">Вноситель</th>
+                    <th className="px-2 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-100">
+                  {ledger.deposits.map((deposit) => (
+                    <tr key={deposit.id}>
+                      <td className="tnum whitespace-nowrap px-4 py-2 text-brand-500">{formatDay(deposit.date)}</td>
+                      <td className="px-4 py-2 text-brand-900">{deposit.description}</td>
+                      <td className="tnum whitespace-nowrap px-4 py-2 text-right font-semibold text-green-800">
+                        {price(deposit.amount)}
+                      </td>
+                      <td className="px-4 py-2 text-brand-500">{deposit.person}</td>
+                      <td className="px-2 py-1 text-right">
+                        <DeleteWriteoffButton id={deposit.id} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">
+            Итого: {price(ledger.depositTotal)}
           </p>
         </section>
 

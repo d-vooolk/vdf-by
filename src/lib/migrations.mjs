@@ -670,6 +670,9 @@ export const MIGRATIONS = [
       PRIMARY KEY (category_id, model_id)
     );
   `,
+  `
+    ALTER TABLE ledger_writeoffs ADD COLUMN kind TEXT NOT NULL DEFAULT 'out';
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

@@ -34,8 +34,11 @@ export const MONEY_STATUSES: Array<{ id: MoneyStatus; name: string }> = [
   { id: "cancelled", name: "Отменён" },
 ];
 
+export type LedgerKind = "in" | "out";
+
 export interface Writeoff {
   id: number;
+  kind: LedgerKind;
   date: number;
   description: string;
   amount: number;
@@ -43,6 +46,7 @@ export interface Writeoff {
 }
 
 export interface WriteoffInput {
+  kind: LedgerKind;
   date: number;
   description: string;
   amount: number;
@@ -58,7 +62,9 @@ export interface CrmPullState {
 export interface LedgerMonth {
   payments: CrmPayment[];
   writeoffs: Writeoff[];
+  deposits: Writeoff[];
   incomeTotal: number;
+  depositTotal: number;
   writeoffTotal: number;
 }
 
@@ -189,17 +195,22 @@ export function ledgerMonth(year: number, month: number): LedgerMonth {
        FROM crm_payments WHERE paid_at >= ? AND paid_at < ? ORDER BY paid_at, order_id`,
     )
     .all(from, to) as CrmPayment[];
-  const writeoffs = db
+  const entries = db
     .prepare(
-      `SELECT id, date, description, amount, person
+      `SELECT id, kind, date, description, amount, person
        FROM ledger_writeoffs WHERE date >= ? AND date < ? ORDER BY date, id`,
     )
     .all(from, to) as Writeoff[];
+  const writeoffs = entries.filter((entry) => entry.kind === "out");
+  const deposits = entries.filter((entry) => entry.kind === "in");
+  const total = (rows: Array<{ amount: number }>) => roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
   return {
     payments,
     writeoffs,
-    incomeTotal: roundMoney(payments.reduce((sum, row) => sum + row.amount, 0)),
-    writeoffTotal: roundMoney(writeoffs.reduce((sum, row) => sum + row.amount, 0)),
+    deposits,
+    incomeTotal: roundMoney(total(payments) + total(deposits)),
+    depositTotal: total(deposits),
+    writeoffTotal: total(writeoffs),
   };
 }
 
@@ -207,8 +218,9 @@ export function ledgerBalance(): number {
   const row = getDb()
     .prepare(
       `SELECT
-         (SELECT COALESCE(SUM(amount), 0) FROM crm_payments) AS income,
-         (SELECT COALESCE(SUM(amount), 0) FROM ledger_writeoffs) AS spent`,
+         (SELECT COALESCE(SUM(amount), 0) FROM crm_payments)
+           + (SELECT COALESCE(SUM(amount), 0) FROM ledger_writeoffs WHERE kind = 'in') AS income,
+         (SELECT COALESCE(SUM(amount), 0) FROM ledger_writeoffs WHERE kind = 'out') AS spent`,
     )
     .get() as { income: number; spent: number };
   return roundMoney(row.income - row.spent);
@@ -217,9 +229,9 @@ export function ledgerBalance(): number {
 export function addWriteoff(input: WriteoffInput): void {
   getDb()
     .prepare(
-      "INSERT INTO ledger_writeoffs (date, description, amount, person, created_at) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO ledger_writeoffs (kind, date, description, amount, person, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
-    .run(input.date, input.description, roundMoney(input.amount), input.person, Date.now());
+    .run(input.kind, input.date, input.description, roundMoney(input.amount), input.person, Date.now());
 }
 
 export function deleteWriteoff(id: number): void {

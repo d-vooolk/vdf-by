@@ -14,14 +14,15 @@ const ok = (): FormState => ({ ok: true, problems: [], at: Date.now() });
 const fail = (problems: string[]): FormState => ({ ok: false, problems, at: Date.now() });
 
 const writeoffSchema = z.object({
+  kind: z.enum(["in", "out"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату"),
-  description: z.string().trim().min(1, "Укажите цель списания").max(300, "Цель — не длиннее 300 знаков"),
+  description: z.string().trim().min(1, "Укажите назначение").max(300, "Назначение — не длиннее 300 знаков"),
   amount: z
     .number({ error: "Укажите сумму" })
     .finite("Укажите сумму")
     .positive("Сумма должна быть больше нуля")
     .max(10_000_000, "Слишком большая сумма"),
-  person: z.string().trim().min(1, "Укажите, кто списывает").max(150, "Имя — не длиннее 150 знаков"),
+  person: z.string().trim().min(1, "Укажите, кто вносит или списывает").max(150, "Имя — не длиннее 150 знаков"),
 });
 
 function writeoffTimestamp(date: string): number {
