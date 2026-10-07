@@ -1,5 +1,6 @@
 import { cleanPlainText } from "./ai";
 import {
+  canonicalText,
   describeArticleRequest,
   markerPattern,
   parseGeneratedArticle,
@@ -20,6 +21,8 @@ import { getProductBySlug } from "./catalog";
 import type { Product } from "./schema";
 
 export type ArticleReview = NonNullable<ArticleData["seoReview"]>;
+
+const UPLOADED_PREFIX = "articles/";
 
 export function articleAiOptions() {
   const models = env("AI_ARTICLE_MODEL", "")
@@ -57,9 +60,9 @@ export function articleChecks(article: GeneratedArticle, keyword?: string, reque
   if (articlePlaceholders(article.body).length + articleImagePaths(article.body).length < 3) {
     problems.push("В тексте меньше трёх фото — добавить {{фото товара:адрес}} у упомянутых товаров");
   }
-  const phrase = keyword?.trim().toLowerCase();
+  const phrase = keyword?.trim() ? canonicalText(keyword.trim()) : "";
   if (phrase) {
-    const lead = `${article.title} ${article.excerpt ?? ""} ${plain.slice(0, 800)}`.toLowerCase();
+    const lead = canonicalText(`${article.title} ${article.excerpt ?? ""} ${plain.slice(0, 800)}`);
     if (!lead.includes(phrase)) {
       problems.push(`Главный запрос «${keyword}» не встречается в заголовке и начале текста`);
     }
@@ -133,7 +136,9 @@ export const ARTICLE_REVIEW_PROMPT = `Ты — строгий SEO-редакто
 - полноты и пользы: ответ на главный вопрос сразу, конкретика, сравнения, инструкции, типичные ошибки, всё, что человек захочет узнать по теме;
 - точности: ничего выдуманного, нет противоречий, цены только из списка товаров;
 - структуры: заголовки в форме поисковых вопросов, каждый раздел начинается с прямого ответа, есть таблица и списки, логичный порядок;
-- SEO: главный запрос и синонимы в заголовке, аннотации, первых абзацах и подзаголовках без переспама; SEO_ЗАГОЛОВОК до 60 знаков; SEO_ОПИСАНИЕ 140–160 знаков с выгодой для читателя;
+- SEO: главный запрос и синонимы в заголовке, аннотации, первых абзацах и подзаголовках без переспама; запрос пишется грамотно («би-LED модули», а не «би лед модули») — поисковики понимают обе формы; SEO_ЗАГОЛОВОК до 60 знаков; SEO_ОПИСАНИЕ 140–160 знаков с выгодой для читателя;
+- соответствия товаров теме: карточки и фото — тех товаров, о которых статья; если статья про один тип товара, а показаны в основном другие (например, статья про модули, а в карточках рамки), замени их подходящими из списка;
+- позиции магазина из задания: если текст ей противоречит — исправь; если пункт позиции вставлен не по теме или повторяет её формулировки дословно — убери; если в тексте пересказаны указания из задания («мы не называем…», «как сказано в задании») — перепиши как обычный текст для читателя;
 - подачи товаров: каждый товар в подходящем по смыслу разделе, перед каждой карточкой {{товар:…}} абзац-подводка со ссылкой на товар — зачем он и кому подходит; одна карточка на товар; никаких перечислений ассортимента; если заданы товары статьи — только они;
 - перелинковки: уместные ссылки на товары и разделы магазина из списков;
 - языка: живой экспертный русский, без воды, канцелярита, штампов и повторов;
@@ -204,7 +209,9 @@ export function parseReview(
   const revised = parseGeneratedArticle(revisedText, request);
   const draftLength = articlePlainText(draft.body).length;
   const revisedLength = articlePlainText(revised.body).length;
-  const keptImages = articleImagePaths(draft.body).every((path) => revised.body.includes(path));
+  const keptImages = articleImagePaths(draft.body)
+    .filter((path) => path.startsWith(UPLOADED_PREFIX))
+    .every((path) => revised.body.includes(path));
   const keptCards = articleProductSlugs(draft.body).every((slug) => revised.body.includes(slug));
 
   if (revisedLength < draftLength * 0.8 || !keptImages) {
@@ -213,7 +220,12 @@ export function parseReview(
       review: {
         ...base,
         revised: false,
-        notes: [...notes, "Исправленная версия потеряла часть текста или фото — оставлен исходный вариант"],
+        notes: [
+          ...notes,
+          keptImages
+            ? "Исправленная версия стала заметно короче — оставлен исходный вариант"
+            : "Исправленная версия потеряла загруженные фото — оставлен исходный вариант",
+        ],
       },
     };
   }

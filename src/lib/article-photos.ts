@@ -30,14 +30,23 @@ function orderedProductSlugs(body: string): string[] {
   return [...new Set([...carded, ...articleProductSlugs(body)])];
 }
 
+const CARD_LINE = /^\{\{\s*товар\s*:\s*([a-z0-9-]+)\s*\}\}$/i;
+
+function previousContentLine(lines: string[], index: number): string {
+  for (let i = index - 1; i >= 0; i -= 1) if (lines[i].trim()) return lines[i].trim();
+  return "";
+}
+
 export function expandProductPhotoLines(body: string): string {
-  const used = new Set<string>();
-  return body
-    .split("\n")
-    .map((line) => {
+  const used = new Set(articleImagePaths(body));
+  const lines = body.split("\n");
+  return lines
+    .map((line, index) => {
       const match = line.trim().match(PRODUCT_PHOTO_LINE);
       if (!match) return line;
-      const [photos] = productPhotos([match[1].toLowerCase()]);
+      const slug = match[1].toLowerCase();
+      if (previousContentLine(lines, index).match(CARD_LINE)?.[1]?.toLowerCase() === slug) return "";
+      const [photos] = productPhotos([slug]);
       const path = photos?.paths.find((candidate) => !used.has(candidate));
       if (!photos || !path) return "";
       used.add(path);
@@ -46,11 +55,27 @@ export function expandProductPhotoLines(body: string): string {
     .join("\n");
 }
 
+function dropRepeatedImages(body: string): string {
+  const seen = new Set<string>();
+  const lines = body.split("\n");
+  return lines
+    .filter((line, index) => {
+      const path = articleImagePaths(line)[0];
+      if (!path) return true;
+      if (seen.has(path)) return false;
+      seen.add(path);
+      const card = previousContentLine(lines, index).match(CARD_LINE)?.[1]?.toLowerCase();
+      return !card || !path.includes(`/${card}/`);
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function attachProductPhotos<
   T extends Pick<ArticleData, "body"> & Partial<Pick<ArticleData, "cover" | "images">>,
 >(article: T): T {
   const photos = productPhotos(orderedProductSlugs(article.body));
-  const filled = fillPlaceholders(expandProductPhotoLines(article.body), photos, "match");
+  const filled = fillPlaceholders(dropRepeatedImages(expandProductPhotoLines(article.body)), photos, "match");
   const inText = articleImagePaths(filled.body);
   const cover = article.cover ?? photos[0]?.paths[0];
   return {

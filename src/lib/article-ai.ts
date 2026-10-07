@@ -26,17 +26,27 @@ const STOP_WORDS = new Set([
   "the", "and",
 ]);
 
+export function canonicalText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/(?:би|bi)[\s-]*(?:лед|led)|билед/gi, "biled")
+    .replace(/(?:би|bi)[\s-]*(?:ксенон|xenon)|биксенон/gi, "bixenon");
+}
+
 function stems(text: string): string[] {
   return [
     ...new Set(
-      text
-        .toLowerCase()
-        .replace(/ё/g, "е")
+      canonicalText(text)
         .split(/[^a-zа-я0-9]+/i)
-        .filter((word) => word.length >= 2 && !STOP_WORDS.has(word))
+        .filter((word) => (/\d/.test(word) ? word.length >= 2 : word.length >= 3) && !STOP_WORDS.has(word))
         .map((word) => (/^[а-я]+$/.test(word) && word.length > 5 ? word.slice(0, word.length - 2) : word)),
     ),
   ];
+}
+
+function linkedCategorySlugs(text: string): Set<string> {
+  return new Set([...text.matchAll(/\/catalog\/(?:[a-z0-9-]+\/)*([a-z0-9-]+)\//g)].map((match) => match[1]));
 }
 
 function mentionedSlugs(text: string): string[] {
@@ -55,19 +65,23 @@ export function pickCandidates(request: ArticleRequest): Product[] {
   if (requested.length) return requested;
   const products = getProducts();
   const categories = new Map(getCategories().map((category) => [category.id, category]));
-  const query = stems([request.topic, request.notes, request.keyword].filter(Boolean).join(" "));
+  const primary = stems([request.topic, request.keyword].filter(Boolean).join(" "));
+  const secondary = stems(request.notes ?? "").filter((stem) => !primary.includes(stem));
+  const linked = linkedCategorySlugs(`${request.topic} ${request.notes ?? ""}`);
   const forced = new Set(mentionedSlugs(`${request.topic} ${request.notes ?? ""}`));
 
   const scored = products.map((product) => {
     const category = categories.get(product.categoryId);
     const parent = category?.parentId ? categories.get(category.parentId) : undefined;
-    const haystack = [product.title, product.brand, category?.name, parent?.name]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .replace(/ё/g, "е");
+    const haystack = canonicalText([product.title, product.brand, category?.name, parent?.name].filter(Boolean).join(" "));
+    const categoryText = canonicalText([category?.name, parent?.name].filter(Boolean).join(" "));
     let score = 0;
-    for (const stem of query) if (haystack.includes(stem)) score += stem.length > 3 ? 2 : 1;
+    for (const stem of primary) {
+      if (haystack.includes(stem)) score += stem.length > 3 ? 3 : 1.5;
+      if (categoryText.includes(stem)) score += 2;
+    }
+    for (const stem of secondary) if (haystack.includes(stem)) score += stem.length > 3 ? 1 : 0.5;
+    if ((category && linked.has(category.slug)) || (parent && linked.has(parent.slug))) score += 2;
     if (hasAnyInStock(product)) score += 0.5;
     if (!hasPrice(priceRange(product).min)) score -= 1;
     if (forced.has(product.slug)) score += 100;
@@ -112,6 +126,12 @@ function productDetails(product: Product, currencySymbol: string, categoryName: 
   ];
 }
 
+const SHOP_POSITION = `Позиция магазина. Статья не должна ей противоречить, но это не тезисы для вставки: пункт упоминай, только если он прямо относится к теме, и своими словами, не повторяя формулировки дословно:
+- Фары собирают только на бутиловый герметик. Силиконовые герметики, полиуретановые клеи, эпоксидка, суперклей и термоклей для этого не годятся: фару потом не разобрать, пары мутят поликарбонат и отражатель, шов трескается от перепадов температуры. Единственная допустимая альтернатива бутилу — составы Kafuter для фар.
+- Обычные светодиодные лампы в рефлекторные фары головного света не ставят: нет светотеневой границы, свет рассеивается и слепит встречных. Яркий свет в такой фаре даёт би-LED линза на переходной рамке с регулировкой.
+- Полировка стекла без нового защитного покрытия держится примерно сезон. Трещины и сколы стекла не ремонтируются — стекло меняют.
+- Сроки, цены и состав работ мастерской не называй, если их нет в данных выше, — предлагай уточнить у мастера.`;
+
 export function describeArticleRequest(request: ArticleRequest, candidates: Product[]): string {
   const site = getSite();
   const categories = getCategories();
@@ -153,7 +173,7 @@ export function describeArticleRequest(request: ArticleRequest, candidates: Prod
     );
   }
 
-  lines.push("", PRODUCT_RULES);
+  lines.push("", PRODUCT_RULES, "", SHOP_POSITION);
 
   const articles = getPublishedArticles().slice(0, 30);
   if (articles.length) {
@@ -210,6 +230,7 @@ function knownPaths(): Set<string> {
     "/about/",
     "/contacts/",
     "/stati/",
+    "/ustanovka/",
     ...getCategories().map(categoryUrl),
     ...getProducts().map((product) => `/product/${product.slug}/`),
     ...getPublishedArticles().map(articleUrl),
@@ -225,6 +246,7 @@ export function sanitizeArticleBody(body: string, title: string, allowed?: Set<s
   const known = knownPaths();
   const productSlugs = allowed?.size ? allowed : new Set(getProducts().map((product) => product.slug));
   const carded = new Set<string>();
+  const photographed = new Set<string>();
 
   const fixLinks = (line: string) =>
     parseInline(line)
@@ -258,7 +280,12 @@ export function sanitizeArticleBody(body: string, title: string, allowed?: Set<s
         return `{{товар:${slug}}}`;
       }
       const photo = line.trim().match(/^\{\{\s*фото\s+товара\s*:\s*([a-z0-9-]+)\s*\}\}$/i);
-      if (photo) return productSlugs.has(photo[1].toLowerCase()) ? `{{фото товара:${photo[1].toLowerCase()}}}` : "";
+      if (photo) {
+        const slug = photo[1].toLowerCase();
+        if (!productSlugs.has(slug) || photographed.has(slug)) return "";
+        photographed.add(slug);
+        return `{{фото товара:${slug}}}`;
+      }
       if (/^!\[|^\[\[/.test(line.trim())) return line;
       return fixLinks(line);
     })
@@ -289,9 +316,26 @@ export function parseGeneratedArticle(text: string, request: ArticleRequest): Ge
     seoTitle: field(header, ["SEO_ЗАГОЛОВОК", "SEO ЗАГОЛОВОК"]).slice(0, 120) || undefined,
     seoDescription: field(header, ["SEO_ОПИСАНИЕ", "SEO ОПИСАНИЕ"]).slice(0, 300) || undefined,
     excerpt: field(header, ["АННОТАЦИЯ"]).slice(0, 600) || undefined,
-    body: sanitizeArticleBody(rawBody, title, new Set(requestedProducts(request).map((product) => product.slug))),
+    body: tidyProductBlocks(
+      sanitizeArticleBody(rawBody, title, new Set(requestedProducts(request).map((product) => product.slug))),
+    ),
     faq,
   };
+}
+
+const CARD_BLOCK = /^\{\{товар:([a-z0-9-]+)\}\}$/;
+const LINK_ONLY_BLOCK = /^\[[^\]]+\]\(\/product\/([a-z0-9-]+)\/\)\.?$/;
+
+export function tidyProductBlocks(body: string): string {
+  const blocks = body.split(/\n{2,}/);
+  return blocks
+    .filter((block, index) => {
+      const link = block.trim().match(LINK_ONLY_BLOCK);
+      if (!link) return true;
+      const next = blocks[index + 1]?.trim().match(CARD_BLOCK);
+      return next?.[1] !== link[1];
+    })
+    .join("\n\n");
 }
 
 function stripHeader(text: string): string {
