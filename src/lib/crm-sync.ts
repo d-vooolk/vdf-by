@@ -58,6 +58,7 @@ const statesResponse = z.object({
         amount: z.number().finite(),
         paidAt: isoDate,
         person: z.string(),
+        remaining: z.number().finite().nonnegative().default(0),
       }),
     ),
     cancelled: z.array(

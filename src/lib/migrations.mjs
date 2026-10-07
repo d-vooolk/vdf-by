@@ -673,6 +673,23 @@ export const MIGRATIONS = [
   `
     ALTER TABLE ledger_writeoffs ADD COLUMN kind TEXT NOT NULL DEFAULT 'out';
   `,
+  `
+    CREATE TABLE crm_payments_split (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id      INTEGER NOT NULL,
+      employee_name TEXT NOT NULL,
+      amount        REAL NOT NULL,
+      paid_at       INTEGER NOT NULL,
+      person        TEXT NOT NULL DEFAULT '',
+      remaining     REAL NOT NULL DEFAULT 0
+    );
+    INSERT INTO crm_payments_split (order_id, employee_name, amount, paid_at, person)
+      SELECT order_id, employee_name, amount, paid_at, person FROM crm_payments;
+    DROP TABLE crm_payments;
+    ALTER TABLE crm_payments_split RENAME TO crm_payments;
+    CREATE INDEX crm_payments_by_date ON crm_payments(paid_at);
+    CREATE INDEX crm_payments_by_order ON crm_payments(order_id);
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

@@ -65,8 +65,15 @@ export default async function OrderPage({ params }: PageProps) {
       {money && (crm?.sentAt || money.status !== "awaiting") && (
         <p className="flex flex-wrap items-center gap-2 text-sm text-brand-700">
           <MoneyStatusBadge status={money.status} />
-          {money.payment &&
-            `${new Date(money.payment.paidAt).toLocaleDateString("ru-RU")}, ${price(money.payment.amount)}`}
+          {money.payments.length > 0 &&
+            money.payments
+              .map((payment) => `${new Date(payment.paidAt).toLocaleDateString("ru-RU")}, ${price(payment.amount)}`)
+              .join("; ")}
+          {money.status === "partial" && (
+            <span className="font-medium text-sky-900">
+              {money.payments.length > 1 && `оплачено ${price(money.paidTotal)}, `}остаток {price(money.remaining)}
+            </span>
+          )}
           {money.cancellation &&
             [
               new Date(money.cancellation.cancelledAt).toLocaleDateString("ru-RU"),

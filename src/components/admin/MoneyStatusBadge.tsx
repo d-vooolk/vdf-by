@@ -2,6 +2,7 @@ import { MONEY_STATUSES, type MoneyStatus } from "@/lib/accounting";
 
 const TONES: Record<MoneyStatus, string> = {
   awaiting: "bg-amber-100 text-amber-900",
+  partial: "bg-sky-100 text-sky-900",
   paid: "bg-green-100 text-green-900",
   cancelled: "bg-red-100 text-red-800",
 };

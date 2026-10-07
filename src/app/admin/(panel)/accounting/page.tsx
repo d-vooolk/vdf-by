@@ -85,7 +85,7 @@ export default async function AccountingPage({ searchParams }: PageProps) {
           <p className="text-xs text-brand-400">Поступило за месяц</p>
           <p className="tnum mt-1 text-2xl font-semibold text-brand-900">{price(ledger.incomeTotal)}</p>
           <p className="mt-1 text-xs text-brand-400">
-            {pluralize(ledger.payments.length, "заказ", "заказа", "заказов")} из CRM
+            {pluralize(new Set(ledger.payments.map((payment) => payment.orderId)).size, "заказ", "заказа", "заказов")} из CRM
             {ledger.deposits.length > 0 &&
               `, ${pluralize(ledger.deposits.length, "внесение", "внесения", "внесений")} на ${price(ledger.depositTotal)}`}
           </p>
@@ -139,13 +139,16 @@ export default async function AccountingPage({ searchParams }: PageProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-100">
-                  {ledger.payments.map((payment) => (
-                    <tr key={payment.orderId}>
+                  {ledger.payments.map((payment, index) => (
+                    <tr key={`${payment.orderId}-${index}`}>
                       <td className="tnum whitespace-nowrap px-4 py-2 text-brand-500">{formatDay(payment.paidAt)}</td>
                       <td className="tnum whitespace-nowrap px-4 py-2">
                         <Link href={`/admin/orders/${payment.orderId}/`} className="text-brand-700 underline">
                           №{payment.orderId}
                         </Link>
+                        {payment.remaining > 0 && (
+                          <span className="block text-xs text-sky-900">частично, остаток {price(payment.remaining)}</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-brand-900">{payment.employeeName}</td>
                       <td className="px-4 py-2 text-brand-500">{payment.person || "—"}</td>

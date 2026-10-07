@@ -6,6 +6,7 @@ export interface CrmPayment {
   amount: number;
   paidAt: number;
   person: string;
+  remaining: number;
 }
 
 export interface CrmCancellation {
@@ -20,16 +21,19 @@ export interface CrmStates {
   cancelled: CrmCancellation[];
 }
 
-export type MoneyStatus = "awaiting" | "paid" | "cancelled";
+export type MoneyStatus = "awaiting" | "partial" | "paid" | "cancelled";
 
 export interface OrderMoney {
   status: MoneyStatus;
-  payment: CrmPayment | null;
+  payments: CrmPayment[];
+  paidTotal: number;
+  remaining: number;
   cancellation: CrmCancellation | null;
 }
 
 export const MONEY_STATUSES: Array<{ id: MoneyStatus; name: string }> = [
   { id: "awaiting", name: "Ожидает оплаты" },
+  { id: "partial", name: "Исполнен частично" },
   { id: "paid", name: "Оплачен" },
   { id: "cancelled", name: "Отменён" },
 ];
@@ -73,7 +77,7 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100;
 export function replaceCrmStates(states: CrmStates): void {
   const db = getDb();
   const insertPayment = db.prepare(
-    "INSERT INTO crm_payments (order_id, employee_name, amount, paid_at, person) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO crm_payments (order_id, employee_name, amount, paid_at, person, remaining) VALUES (?, ?, ?, ?, ?, ?)",
   );
   const insertCancellation = db.prepare(
     "INSERT INTO crm_cancellations (order_id, cancelled_at, person, reason) VALUES (?, ?, ?, ?)",
@@ -82,7 +86,14 @@ export function replaceCrmStates(states: CrmStates): void {
     db.prepare("DELETE FROM crm_payments").run();
     db.prepare("DELETE FROM crm_cancellations").run();
     for (const payment of states.paid) {
-      insertPayment.run(payment.orderId, payment.employeeName, payment.amount, payment.paidAt, payment.person);
+      insertPayment.run(
+        payment.orderId,
+        payment.employeeName,
+        payment.amount,
+        payment.paidAt,
+        payment.person,
+        payment.remaining,
+      );
     }
     for (const cancellation of states.cancelled) {
       insertCancellation.run(
@@ -115,61 +126,47 @@ export function crmPullState(): CrmPullState | null {
   return row ? { at: row.at, okAt: row.ok_at, error: row.error } : null;
 }
 
-interface MoneyRow {
-  paidAmount: number | null;
-  paidAt: number | null;
-  paidPerson: string | null;
-  paidEmployee: string | null;
-  cancelledAt: number | null;
-  cancelledPerson: string | null;
-  cancelReason: string | null;
-}
-
-const MONEY_COLUMNS = `
-  p.amount AS paidAmount, p.paid_at AS paidAt, p.person AS paidPerson, p.employee_name AS paidEmployee,
-  c.cancelled_at AS cancelledAt, c.person AS cancelledPerson, c.reason AS cancelReason`;
+const PAYMENT_COLUMNS = `
+  order_id AS orderId, employee_name AS employeeName, amount, paid_at AS paidAt, person, remaining`;
 
 const MONEY_JOINS = `
-  LEFT JOIN crm_payments p ON p.order_id = o.id
+  LEFT JOIN (SELECT order_id, MAX(remaining) AS remaining FROM crm_payments GROUP BY order_id) p
+    ON p.order_id = o.id
   LEFT JOIN crm_cancellations c ON c.order_id = o.id`;
 
 const MONEY_STATUS_SQL = `CASE
+  WHEN p.order_id IS NOT NULL AND p.remaining > 0 THEN 'partial'
   WHEN p.order_id IS NOT NULL THEN 'paid'
   WHEN c.order_id IS NOT NULL THEN 'cancelled'
   ELSE 'awaiting' END`;
 
-function toMoney(orderId: number, row: MoneyRow): OrderMoney {
-  const payment =
-    row.paidAt === null
-      ? null
-      : {
-          orderId,
-          employeeName: row.paidEmployee ?? "",
-          amount: row.paidAmount ?? 0,
-          paidAt: row.paidAt,
-          person: row.paidPerson ?? "",
-        };
+export function orderMoney(orderId: number): OrderMoney {
+  const db = getDb();
+  const payments = db
+    .prepare(`SELECT ${PAYMENT_COLUMNS} FROM crm_payments WHERE order_id = ? ORDER BY paid_at, id`)
+    .all(orderId) as CrmPayment[];
   const cancellation =
-    row.cancelledAt === null
-      ? null
-      : {
-          orderId,
-          cancelledAt: row.cancelledAt,
-          person: row.cancelledPerson ?? "",
-          reason: row.cancelReason ?? "",
-        };
+    (db
+      .prepare(
+        `SELECT order_id AS orderId, cancelled_at AS cancelledAt, person, reason
+         FROM crm_cancellations WHERE order_id = ?`,
+      )
+      .get(orderId) as CrmCancellation | undefined) ?? null;
+  const remaining = roundMoney(Math.max(0, ...payments.map((payment) => payment.remaining)));
+  const status: MoneyStatus = payments.length
+    ? remaining > 0
+      ? "partial"
+      : "paid"
+    : cancellation
+      ? "cancelled"
+      : "awaiting";
   return {
-    status: payment ? "paid" : cancellation ? "cancelled" : "awaiting",
-    payment,
+    status,
+    payments,
+    paidTotal: roundMoney(payments.reduce((sum, payment) => sum + payment.amount, 0)),
+    remaining,
     cancellation,
   };
-}
-
-export function orderMoney(orderId: number): OrderMoney {
-  const row = getDb()
-    .prepare(`SELECT ${MONEY_COLUMNS} FROM orders o ${MONEY_JOINS} WHERE o.id = ?`)
-    .get(orderId) as MoneyRow | undefined;
-  return row ? toMoney(orderId, row) : { status: "awaiting", payment: null, cancellation: null };
 }
 
 export function moneyStatuses(orderIds: number[]): Map<number, MoneyStatus> {
@@ -191,8 +188,8 @@ export function ledgerMonth(year: number, month: number): LedgerMonth {
   const db = getDb();
   const payments = db
     .prepare(
-      `SELECT order_id AS orderId, employee_name AS employeeName, amount, paid_at AS paidAt, person
-       FROM crm_payments WHERE paid_at >= ? AND paid_at < ? ORDER BY paid_at, order_id`,
+      `SELECT ${PAYMENT_COLUMNS}
+       FROM crm_payments WHERE paid_at >= ? AND paid_at < ? ORDER BY paid_at, order_id, id`,
     )
     .all(from, to) as CrmPayment[];
   const entries = db
