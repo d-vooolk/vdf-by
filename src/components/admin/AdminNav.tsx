@@ -27,7 +27,13 @@ interface NavGroup {
 }
 
 const NAV: Array<NavLink | NavGroup> = [
-  { href: "/admin/", label: "Сводка", exact: true },
+  {
+    label: "Сводка",
+    links: [
+      { href: "/admin/", label: "Общая", exact: true },
+      { href: "/admin/seo/", label: "SEO" },
+    ],
+  },
   {
     label: "Товары",
     links: [

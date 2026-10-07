@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
@@ -17,7 +18,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-brand-900">Сводка</h1>
+      <div>
+        <DashboardTabs active="overview" />
+        <h1 className="text-xl font-semibold text-brand-900">Сводка</h1>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat

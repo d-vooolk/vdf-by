@@ -141,6 +141,14 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-crm
 
+echo "==> SEO-сводка: поиск каждое утро, конкуренты по понедельникам"
+cat > /etc/cron.d/vdf-seo <<CRON
+SHELL=/bin/bash
+20 6 * * * root curl -s -X POST --max-time 600 -H "x-cron-key: \$(cat $APP/var/cron-key)" "localhost:$PORT/api/cron/seo/?kind=search" -o $APP/var/seo-search.log
+0 5 * * 1 root curl -s -X POST --max-time 1800 -H "x-cron-key: \$(cat $APP/var/cron-key)" "localhost:$PORT/api/cron/seo/?kind=competitors" -o $APP/var/seo-competitors.log
+CRON
+chmod 644 /etc/cron.d/vdf-seo
+
 echo "==> Перезапускаю $PM2_APP"
 if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
   pm2 reload ecosystem.config.cjs --update-env

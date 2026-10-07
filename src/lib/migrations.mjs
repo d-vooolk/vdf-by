@@ -652,6 +652,15 @@ export const MIGRATIONS = [
     );
     CREATE INDEX product_views_by_day ON product_views(day);
   `,
+  `
+    CREATE TABLE seo_snapshots (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind       TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      data       TEXT NOT NULL
+    );
+    CREATE INDEX seo_snapshots_by_kind ON seo_snapshots(kind, created_at DESC);
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
