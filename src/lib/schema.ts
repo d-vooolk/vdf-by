@@ -85,6 +85,8 @@ export const optionValueSchema = z.strictObject({
   stockQty: z.number().int().nonnegative().optional(),
   images: z.array(imagePath).optional(),
   priceSource: moneySourceSchema.optional(),
+  wholesalePrice: money.optional(),
+  wholesaleSource: moneySourceSchema.optional(),
 });
 
 /** Набор опций: «Цоколь», «Сторона», «Цветовая температура». */

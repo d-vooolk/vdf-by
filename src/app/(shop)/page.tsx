@@ -14,7 +14,8 @@ import {
 } from "@/components/icons";
 import { pickerMarks } from "@/lib/car-picker";
 import {
-  getFeaturedProducts,
+  getNewestProducts,
+  getPopularProducts,
   getRootCategories,
   getSite,
 } from "@/lib/catalog";
@@ -29,12 +30,15 @@ export function generateMetadata(): Metadata {
   });
 }
 
+export const revalidate = 3600;
+
 const ICONS = [TruckIcon, ShieldIcon, CheckIcon, PhoneIcon];
 
 export default function HomePage() {
   const site = getSite();
   const categories = getRootCategories();
-  const featured = getFeaturedProducts(10);
+  const featured = getPopularProducts(10);
+  const newest = getNewestProducts(10);
   const marks = pickerMarks();
   return (
     <>
@@ -217,13 +221,35 @@ export default function HomePage() {
         <section className="border-y border-brand-100 bg-brand-50/50 py-20">
           <div className="container-page">
             <div className="reveal mb-10">
-              <p className="eyebrow">Хиты продаж</p>
+              <p className="eyebrow">Популярное</p>
               <h2 className="mt-3 text-3xl font-semibold text-brand-900 sm:text-4xl">
                 Выбирают чаще всего
               </h2>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
               {featured.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  currencySymbol={site.currencySymbol}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {newest.length > 0 && (
+        <section className="border-b border-brand-100 py-20">
+          <div className="container-page">
+            <div className="reveal mb-10">
+              <p className="eyebrow">Новинки</p>
+              <h2 className="mt-3 text-3xl font-semibold text-brand-900 sm:text-4xl">
+                Недавно в каталоге
+              </h2>
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+              {newest.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}

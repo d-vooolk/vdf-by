@@ -1,4 +1,5 @@
 import {
+  hasLinkedOptions,
   LINKED_FIELDS,
   relinkValues,
   type CurrencyRates,
@@ -28,10 +29,7 @@ export async function currentRates(): Promise<CurrencyRates> {
 export async function relinkInput(input: unknown): Promise<unknown> {
   if (!input || typeof input !== "object") return input;
   const values = input as LinkedValues;
-  const optionLinked = values.optionGroups?.some((group) =>
-    group.values.some((value) => value.priceSource),
-  );
-  if (!optionLinked && !LINKED_FIELDS.some((field) => values[field.source])) return input;
+  if (!hasLinkedOptions(values) && !LINKED_FIELDS.some((field) => values[field.source])) return input;
   return relinkValues(values, await currentRates());
 }
 

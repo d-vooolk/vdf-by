@@ -96,3 +96,13 @@ export function renameFrameMembers(categoryId: string, from: string, to: string)
     .prepare("UPDATE frame_type_products SET type = ? WHERE category_id = ? AND type = ?")
     .run(to, categoryId, from);
 }
+
+export function frameLockedIds(products: Array<{ id: string; categoryId: string }>): string[] {
+  const frameIds = new Set(frameCategories().map((category) => category.id));
+  return products
+    .filter((product) => {
+      const membership = frameMembershipOf(product.id);
+      return membership?.categoryId === product.categoryId && frameIds.has(membership.categoryId);
+    })
+    .map((product) => product.id);
+}

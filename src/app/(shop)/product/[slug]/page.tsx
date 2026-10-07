@@ -8,6 +8,7 @@ import { RelatedArticles } from "@/components/RelatedArticles";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductPurchase, type PurchaseProduct } from "@/components/ProductPurchase";
+import { ProductViewBeacon } from "@/components/ProductViewBeacon";
 import {
   categoryTrail,
   categoryUrl,
@@ -186,6 +187,7 @@ export default async function ProductPage({ params }: PageProps) {
         listingProduct={product.slug}
       />
       <JsonLd data={productJsonLd({ ...product, specs }, category)} />
+      <ProductViewBeacon productId={product.id} />
 
       <header className="mb-5">
         {product.brand && (

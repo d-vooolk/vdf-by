@@ -8,6 +8,7 @@ import {
   type Product,
   type Site,
 } from "./schema";
+import { newestProductIds, popularProductIds } from "./product-views";
 import { firstParagraph } from "./text";
 import { hasAnyInStock } from "./variant";
 
@@ -102,6 +103,12 @@ function load(): Catalog {
     delete product.costSource;
     delete product.wholesaleSource;
     delete product.storageCode;
+    for (const group of product.optionGroups) {
+      for (const value of group.values) {
+        delete value.wholesalePrice;
+        delete value.wholesaleSource;
+      }
+    }
     return product;
   });
 
@@ -237,11 +244,27 @@ export function getProductsInCategory(categoryId: string): Product[] {
   return load().products.filter((p) => ids.has(p.categoryId));
 }
 
-export function getFeaturedProducts(limit = 8): Product[] {
+const ID_POOL = 200;
+
+function availableByIds(ids: string[]): Product[] {
+  const byId = new Map(load().products.map((product) => [product.id, product]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((product): product is Product => product !== undefined && hasAnyInStock(product));
+}
+
+export function getNewestProducts(limit = 10): Product[] {
+  return availableByIds(newestProductIds(ID_POOL)).slice(0, limit);
+}
+
+export function getPopularProducts(limit = 10): Product[] {
   const products = load().products;
-  const featured = products.filter((p) => p.featured);
-  // Если хитов не отмечено — не показываем пустой блок, берём начало каталога.
-  return (featured.length ? featured : products).slice(0, limit);
+  const ranked = [
+    ...availableByIds(popularProductIds(ID_POOL)),
+    ...products.filter((product) => product.featured && hasAnyInStock(product)),
+    ...products,
+  ];
+  return [...new Map(ranked.map((product) => [product.id, product])).values()].slice(0, limit);
 }
 
 /** Товары той же категории, кроме текущего. Для блока «Похожие товары». */

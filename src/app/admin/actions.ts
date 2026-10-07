@@ -69,7 +69,7 @@ import {
   type AiProductInput,
   type AiTask,
 } from "@/lib/ai";
-import { LAST_CATEGORY_COOKIE } from "@/lib/admin-prefs";
+import { LAST_CATEGORY_COOKIE, parseProductsView, PRODUCTS_VIEW_COOKIE } from "@/lib/admin-prefs";
 import {
   escapeTelegram,
   getTelegramSettings,
@@ -405,6 +405,99 @@ export async function setProductStockQtyAction(
 
   invalidateCatalog();
   revalidateProductsById(productsSharingStock(id));
+  return ok();
+}
+
+export async function setProductsViewAction(view: string): Promise<void> {
+  await requireAdmin();
+  (await cookies()).set(PRODUCTS_VIEW_COOKIE, parseProductsView(view), {
+    path: "/admin",
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+}
+
+export interface ProductRowChanges {
+  costPrice?: number | null;
+  price?: number | null;
+  wholesalePrice?: number | null;
+  storageCode?: string | null;
+  stockQty?: number | null;
+}
+
+const ROW_MONEY_FIELDS = [
+  { field: "costPrice", source: "costSource", label: "Себестоимость" },
+  { field: "price", source: "priceSource", label: "Цена розницы" },
+  { field: "wholesalePrice", source: "wholesaleSource", label: "Оптовая цена" },
+] as const;
+
+function validMoney(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0);
+}
+
+export async function saveProductRowAction(
+  id: string,
+  changes: ProductRowChanges,
+): Promise<FormState> {
+  await requireAdmin();
+
+  const before = getProductRaw(id);
+  if (!before) return fail(["Товар не найден"]);
+
+  const membership = frameMembershipOf(id);
+  const frameLocked =
+    membership !== null &&
+    membership.categoryId === before.categoryId &&
+    isFrameCategory(membership.categoryId);
+  const touchesProduct =
+    ROW_MONEY_FIELDS.some(({ field }) => field in changes) || "storageCode" in changes;
+  if (frameLocked && touchesProduct) {
+    return fail(["Цены и складской номер этого товара задаются в его типе рамки"]);
+  }
+
+  const next: Product = { ...before };
+  for (const { field, source, label } of ROW_MONEY_FIELDS) {
+    if (!(field in changes)) continue;
+    const value = changes[field];
+    if (!validMoney(value)) return fail([`${label}: нужно число не меньше нуля`]);
+    delete next[source];
+    if (field === "price") next.price = value ?? 0;
+    else if (value === null) delete next[field];
+    else next[field] = value;
+  }
+
+  if ("storageCode" in changes) {
+    const storageCode = typeof changes.storageCode === "string" ? changes.storageCode.trim() : "";
+    const sku = buildProductSku(productSkuBase(before.sku, before.storageCode), storageCode);
+    if (storageCode) next.storageCode = storageCode;
+    else delete next.storageCode;
+    if (sku) next.sku = sku;
+    else delete next.sku;
+  }
+
+  if ("stockQty" in changes) {
+    const qty = changes.stockQty;
+    if (qty !== null && (typeof qty !== "number" || !Number.isInteger(qty) || qty < 0)) {
+      return fail(["Количество: нужно целое число не меньше нуля"]);
+    }
+  }
+
+  if (touchesProduct) {
+    const result = saveProduct(next, id);
+    if (!result.ok) return toState(result);
+    if (next.sku !== before.sku && before.sku && productSkuBase(next.sku, next.storageCode) === before.sku) {
+      rememberVdfArticle(id, before.sku);
+    }
+  }
+
+  if ("stockQty" in changes) {
+    const result = setProductStockQty(id, changes.stockQty ?? null);
+    if (!result.ok) return toState(result);
+  }
+
+  invalidateCatalog();
+  revalidateProductsById([id, ...productsSharingStock(id)]);
   return ok();
 }
 

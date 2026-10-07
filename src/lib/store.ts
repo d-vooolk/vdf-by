@@ -901,6 +901,11 @@ export interface ProductBrief {
   storageCode: string;
   updatedAt: number;
   image: string | null;
+  sku: string;
+  costPrice: number | null;
+  wholesalePrice: number | null;
+  costSource: MoneySource | null;
+  wholesaleSource: MoneySource | null;
 }
 
 /**
@@ -944,6 +949,11 @@ export function listProducts(filter: {
               json_extract(data, '$.stockQty') AS stock_qty,
               json_extract(data, '$.priceSource') AS price_source,
               json_extract(data, '$.storageCode') AS storage_code,
+              json_extract(data, '$.sku') AS sku,
+              json_extract(data, '$.costPrice') AS cost_price,
+              json_extract(data, '$.wholesalePrice') AS wholesale_price,
+              json_extract(data, '$.costSource') AS cost_source,
+              json_extract(data, '$.wholesaleSource') AS wholesale_source,
               EXISTS (
                 SELECT 1 FROM json_each(data, '$.optionGroups') AS g,
                               json_each(g.value, '$.values') AS v
@@ -971,8 +981,15 @@ export function listProducts(filter: {
     stock_qty: number | null;
     price_source: string | null;
     storage_code: string | null;
+    sku: string | null;
+    cost_price: number | null;
+    wholesale_price: number | null;
+    cost_source: string | null;
+    wholesale_source: string | null;
     option_stock: number;
   }>;
+
+  const source = (raw: string | null) => (raw ? (JSON.parse(raw) as MoneySource) : null);
 
   return {
     total,
@@ -987,10 +1004,15 @@ export function listProducts(filter: {
       featured: row.featured === 1,
       stockQty: row.stock_qty ?? null,
       optionStock: row.option_stock === 1,
-      priceSource: row.price_source ? (JSON.parse(row.price_source) as MoneySource) : null,
+      priceSource: source(row.price_source),
       storageCode: row.storage_code ?? "",
       updatedAt: row.updated_at,
       image: row.image,
+      sku: row.sku ?? "",
+      costPrice: row.cost_price ?? null,
+      wholesalePrice: row.wholesale_price ?? null,
+      costSource: source(row.cost_source),
+      wholesaleSource: source(row.wholesale_source),
     })),
   };
 }

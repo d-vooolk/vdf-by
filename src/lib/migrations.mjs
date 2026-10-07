@@ -631,6 +631,27 @@ export const MIGRATIONS = [
     UPDATE customers SET wholesale_status = 'none', kind = 'retail'
      WHERE staff = 1 AND (wholesale_status != 'none' OR kind != 'retail');
   `,
+  `
+    ALTER TABLE products ADD COLUMN created_at INTEGER;
+    UPDATE products SET created_at = rowid;
+    CREATE INDEX products_by_created ON products(created_at DESC);
+
+    CREATE TRIGGER products_created_at AFTER INSERT ON products
+      WHEN NEW.created_at IS NULL
+    BEGIN
+      UPDATE products
+         SET created_at = CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+       WHERE rowid = NEW.rowid;
+    END;
+
+    CREATE TABLE product_views (
+      product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      day        TEXT NOT NULL,
+      views      INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (product_id, day)
+    );
+    CREATE INDEX product_views_by_day ON product_views(day);
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

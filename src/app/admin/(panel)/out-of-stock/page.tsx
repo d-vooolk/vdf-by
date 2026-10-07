@@ -1,6 +1,11 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { ProductsTable } from "@/components/admin/ProductsTable";
+import { ProductsViewSwitch } from "@/components/admin/ProductsViewSwitch";
+import { parseProductsView, PRODUCTS_VIEW_COOKIE } from "@/lib/admin-prefs";
+import { getSite } from "@/lib/catalog";
+import { frameLockedIds } from "@/lib/frame-membership";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { listCategoriesBrief, listProducts } from "@/lib/store";
@@ -15,6 +20,7 @@ interface PageProps {
 
 export default async function OutOfStockPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const view = parseProductsView((await cookies()).get(PRODUCTS_VIEW_COOKIE)?.value);
   const page = Math.max(1, Number(params.page) || 1);
   const categoryId = params.category ?? "";
   const query = params.q ?? "";
@@ -49,10 +55,13 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-brand-900">
-          Нет в наличии{" "}
-          <span className="tnum text-base font-medium text-brand-400">{total}</span>
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold text-brand-900">
+            Нет в наличии{" "}
+            <span className="tnum text-base font-medium text-brand-400">{total}</span>
+          </h1>
+          <ProductsViewSwitch view={view} />
+        </div>
         <p className="mt-1 text-sm text-brand-500">
           Товары с пустым или нулевым остатком. Впишите остаток прямо в строке — товар сразу
           появится в наличии на сайте и уйдёт из этого списка после обновления страницы.
@@ -112,6 +121,9 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
           rows={rows}
           categoryNames={categoryNames}
           thumbs={thumbs}
+          view={view}
+          currencySymbol={getSite().currencySymbol}
+          frameLocked={frameLockedIds(rows)}
         />
       )}
 

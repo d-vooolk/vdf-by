@@ -25,6 +25,29 @@ export const LINKED_FIELDS = [
 interface LinkedOption {
   price?: number;
   priceSource?: MoneySource;
+  wholesalePrice?: number;
+  wholesaleSource?: MoneySource;
+}
+
+export function hasLinkedOptions(values: LinkedValues): boolean {
+  return Boolean(
+    values.optionGroups?.some((group) =>
+      group.values.some((value) => value.priceSource || value.wholesaleSource),
+    ),
+  );
+}
+
+function relinkOption<T extends LinkedOption>(value: T, rates: CurrencyRates): T {
+  const next = { ...value };
+  const priceRate = next.priceSource ? rates[next.priceSource.currency] : null;
+  if (next.priceSource && priceRate) {
+    next.price = convertToByn(next.priceSource.amount, priceRate.rate, "ruble");
+  }
+  const wholesaleRate = next.wholesaleSource ? rates[next.wholesaleSource.currency] : null;
+  if (next.wholesaleSource && wholesaleRate) {
+    next.wholesalePrice = convertToByn(next.wholesaleSource.amount, wholesaleRate.rate, "ruble");
+  }
+  return next;
 }
 
 export type LinkedValues = {
@@ -53,15 +76,10 @@ export function relinkValues<T extends LinkedValues>(values: T, rates: CurrencyR
     const rate = source ? rates[source.currency] : null;
     if (source && rate) next[field.value] = convertToByn(source.amount, rate.rate, field.rounding);
   }
-  if (next.optionGroups?.some((group) => group.values.some((value) => value.priceSource))) {
+  if (next.optionGroups && hasLinkedOptions(next)) {
     next.optionGroups = next.optionGroups.map((group) => ({
       ...group,
-      values: group.values.map((value) => {
-        const rate = value.priceSource ? rates[value.priceSource.currency] : null;
-        return value.priceSource && rate
-          ? { ...value, price: convertToByn(value.priceSource.amount, rate.rate, "ruble") }
-          : value;
-      }),
+      values: group.values.map((value) => relinkOption(value, rates)),
     }));
   }
   return next;

@@ -5,7 +5,7 @@ import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { thumbsFor, withCategoryThumbs } from "@/lib/admin-thumbs";
 import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
-import { relinkValues } from "@/lib/currency";
+import { hasLinkedOptions, relinkValues } from "@/lib/currency";
 import { isFrameCategory } from "@/lib/frame-category";
 import { frameMembershipOf } from "@/lib/frame-membership";
 import { currentRates } from "@/lib/linked-prices";
@@ -28,7 +28,8 @@ export default async function EditProductPage({ params }: PageProps) {
   if (!product) notFound();
 
   const site = getSite();
-  const linked = product.priceSource || product.wholesaleSource || product.costSource;
+  const linked =
+    product.priceSource || product.wholesaleSource || product.costSource || hasLinkedOptions(product);
   const current = linked ? relinkValues(product, await currentRates()) : product;
   const membership = frameMembershipOf(product.id);
   const frameType =

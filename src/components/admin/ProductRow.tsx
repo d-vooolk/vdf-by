@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { setProductStockQtyAction } from "@/app/admin/actions";
+import { saveProductRowAction, type ProductRowChanges } from "@/app/admin/actions";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
-import { CheckIcon, CopyIcon } from "@/components/icons";
-import { FOREIGN_CURRENCIES } from "@/lib/currency";
+import { CheckIcon } from "@/components/icons";
+import type { ProductsView } from "@/lib/admin-prefs";
+import { FOREIGN_CURRENCIES, type MoneySource } from "@/lib/currency";
 import type { ProductBrief } from "@/lib/store";
 
 /**
@@ -19,12 +20,53 @@ import type { ProductBrief } from "@/lib/store";
  * позиций за раз правят десяток.
  */
 
+type RowField = keyof ProductRowChanges;
+
+const VIEW_FIELDS: Record<ProductsView, RowField[]> = {
+  standard: ["stockQty"],
+  wholesale: ["costPrice", "price", "wholesalePrice", "stockQty"],
+  warehouse: ["storageCode", "stockQty"],
+};
+
+const FIELD_LABELS: Record<RowField, string> = {
+  costPrice: "себест.",
+  price: "розница",
+  wholesalePrice: "опт",
+  storageCode: "склад. №",
+  stockQty: "кол-во",
+};
+
 interface ProductRowProps {
   product: ProductBrief;
   categoryName: string;
   thumb: string | null;
   selected: boolean;
   onSelect: (id: string, selected: boolean) => void;
+  view: ProductsView;
+  currencySymbol: string;
+  frameLocked: boolean;
+}
+
+function storedValue(product: ProductBrief, field: RowField): string {
+  if (field === "storageCode") return product.storageCode;
+  const value = field === "price" ? (product.price > 0 ? product.price : null) : product[field];
+  return value === null ? "" : String(value);
+}
+
+function parseField(field: RowField, text: string): number | string | null | undefined {
+  const trimmed = text.trim();
+  if (field === "storageCode") return trimmed || null;
+  if (trimmed === "") return null;
+  const value = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  if (field === "stockQty" && !Number.isInteger(value)) return undefined;
+  return value;
+}
+
+function linkedNote(source: MoneySource | null): string {
+  return source
+    ? ` Сейчас по курсу из ${source.amount} ${FOREIGN_CURRENCIES[source.currency]} — правка здесь отвяжет от курса.`
+    : "";
 }
 
 export function ProductRow({
@@ -33,9 +75,85 @@ export function ProductRow({
   thumb,
   selected,
   onSelect,
+  view,
+  currencySymbol,
+  frameLocked,
 }: ProductRowProps) {
+  const fields = VIEW_FIELDS[view];
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  /**
+   * Значение держится строкой. Числом его хранить нельзя: поле с number 0
+   * показывает «0», и набранная поверх сотня превращается в «0100».
+   */
+  const [texts, setTexts] = useState<Partial<Record<RowField, string>>>({});
+
+  // Значение могло приехать новым с сервера — например, страница
+  // перерисовалась после удаления соседних позиций. Правим состояние прямо
+  // в рендере, а не в эффекте: эффект сделал бы это вторым проходом, и
+  // между ними поле успело бы моргнуть старым числом.
+  const [known, setKnown] = useState(product);
+  if (product !== known) {
+    setKnown(product);
+    setTexts({});
+  }
+
+  const textOf = (field: RowField) => texts[field] ?? storedValue(product, field);
+
+  const disabledReason = (field: RowField): string => {
+    if (field === "stockQty") {
+      return product.optionStock ? "Количество считается по опциям — правится в карточке товара" : "";
+    }
+    return frameLocked ? "Задаётся в типе рамки" : "";
+  };
+
+  const titleOf = (field: RowField): string => {
+    const disabled = disabledReason(field);
+    if (disabled) return disabled;
+    switch (field) {
+      case "costPrice":
+        return `Себестоимость — только для вас.${linkedNote(product.costSource)}`;
+      case "price":
+        return `Цена розницы. Пусто — «Цену уточняйте».${linkedNote(product.priceSource)}`;
+      case "wholesalePrice":
+        return `Оптовая цена — видят подтверждённые оптовики.${linkedNote(product.wholesaleSource)}`;
+      case "storageCode":
+        return "Складской номер — где товар лежит. Входит в артикул";
+      case "stockQty":
+        return "Остаток на складе — виден на сайте, 0 или пусто — нет в наличии";
+    }
+  };
+
+  const editable = fields.filter((field) => !disabledReason(field));
+  const parsed = editable.map((field) => ({ field, value: parseField(field, textOf(field)) }));
+  const invalid = parsed.filter(({ value }) => value === undefined).map(({ field }) => field);
+  const changes: ProductRowChanges = {};
+  for (const { field, value } of parsed) {
+    if (value === undefined) continue;
+    if (parseField(field, storedValue(product, field)) === value) continue;
+    Object.assign(changes, { [field]: value });
+  }
+  const changed = Object.keys(changes).length > 0;
+
+  const commit = () => {
+    if (invalid.length) {
+      setError(`Проверьте поля: ${invalid.map((field) => FIELD_LABELS[field]).join(", ")}`);
+      return;
+    }
+    if (!changed) return;
+    startTransition(async () => {
+      setError("");
+      const result = await saveProductRowAction(product.id, changes);
+      if (!result.ok) setError(result.problems.join(" "));
+    });
+  };
+
+  const reset = (field: RowField) =>
+    setTexts((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
 
   return (
     // flex-wrap: на телефоне поля цены и остатка не влезают в строку рядом с
@@ -81,158 +199,76 @@ export function ProductRow({
         </Link>
         <p className="truncate text-xs text-brand-400">
           {categoryName}
-          {product.brand ? ` · ${product.brand}` : ""} · /{product.slug}/
           {product.inStock ? "" : " · нет в наличии"}
-          {product.priceSource
-            ? ` · цена по курсу из ${product.priceSource.amount} ${FOREIGN_CURRENCIES[product.priceSource.currency]}`
-            : ""}
         </p>
         {error && <p className="mt-0.5 text-xs text-red-600">{error}</p>}
       </div>
 
-      {product.storageCode && (
+      {view === "warehouse" && (
         <span
-          title="Складской номер — виден только в админке"
+          title="Артикул"
           className="tnum shrink-0 rounded-md bg-brand-100 px-2 py-1 text-xs font-medium text-brand-600"
         >
-          {product.storageCode}
+          {product.sku || "без артикула"}
         </span>
       )}
 
-      <InlineNumber
-        value={product.stockQty}
-        suffix="шт."
-        title={
-          product.optionStock
-            ? "Количество считается по опциям — правится в карточке товара"
-            : "Остаток на складе — виден на сайте, 0 или пусто — нет в наличии"
-        }
-        placeholder="—"
-        className="w-20"
-        disabled={product.optionStock}
-        onSave={(next) =>
-          startTransition(async () => {
-            setError("");
-            const result = await setProductStockQtyAction(product.id, next);
-            if (!result.ok) setError(result.problems.join(" "));
-          })
-        }
-      />
-
-      <PrintLabelButton target={{ productId: product.id }} className="px-2 py-1.5" />
-
-      <Link
-        href={`/admin/products/new/?copy=${encodeURIComponent(product.id)}`}
-        title="Копировать — откроется новый товар с данными этого"
-        aria-label="Копировать товар"
-        className="btn-ghost hidden shrink-0 px-2 py-1.5 sm:inline-flex"
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          commit();
+        }}
+        className="flex shrink-0 flex-wrap items-end gap-2"
       >
-        <CopyIcon className="h-4 w-4" />
-      </Link>
-
-      <Link
-        href={`/product/${product.slug}/`}
-        target="_blank"
-        rel="noopener"
-        title="Посмотреть на сайте"
-        className="btn-ghost shrink-0 px-2 py-1 text-xs"
-      >
-        ↗
-      </Link>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-interface InlineNumberProps {
-  value: number | null;
-  suffix: string;
-  title: string;
-  placeholder?: string;
-  className?: string;
-  disabled?: boolean;
-  /** null — поле очистили: значит «не задано». */
-  onSave: (value: number | null) => void;
-}
-
-/**
- * Число, которое правится на месте.
- *
- *
- * Значение держится строкой. Числом его хранить нельзя: поле с number 0
- * показывает «0», и набранная поверх сотня превращается в «0100».
- */
-function InlineNumber({
-  value,
-  suffix,
-  title,
-  placeholder,
-  className = "",
-  disabled = false,
-  onSave,
-}: InlineNumberProps) {
-  const asText = (input: number | null) => (input === null ? "" : String(input));
-  const [text, setText] = useState(() => asText(value));
-
-  // Значение могло приехать новым с сервера — например, страница
-  // перерисовалась после удаления соседних позиций. Правим состояние прямо
-  // в рендере, а не в эффекте: эффект сделал бы это вторым проходом, и
-  // между ними поле успело бы моргнуть старым числом.
-  const [known, setKnown] = useState(value);
-  if (value !== known) {
-    setKnown(value);
-    setText(asText(value));
-  }
-
-  const parsed = (() => {
-    const trimmed = text.trim();
-    return trimmed === "" ? null : Number(trimmed.replace(",", "."));
-  })();
-  const valid = parsed === null || Number.isFinite(parsed);
-  const changed = valid && parsed !== value;
-
-  const commit = () => {
-    if (!valid) {
-      setText(asText(value));
-      return;
-    }
-    if (changed) onSave(parsed);
-  };
-
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      <label className={`relative block ${className}`} title={title}>
-        <span className="sr-only">{title}</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={text}
-          placeholder={placeholder}
-          disabled={disabled}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") commit();
-            if (event.key === "Escape") setText(asText(value));
-          }}
-          className="field tnum w-full py-1.5 pr-9 text-right text-sm disabled:bg-brand-50 disabled:text-brand-400"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
-          {suffix}
-        </span>
-      </label>
-      {!disabled && (
+        {fields.map((field) => {
+          const disabled = Boolean(disabledReason(field));
+          const text = disabled ? storedValue(product, field) : textOf(field);
+          const suffix =
+            field === "stockQty" ? "шт." : field === "storageCode" ? "" : currencySymbol;
+          return (
+            <label key={field} className="block" title={titleOf(field)}>
+              <span className="block text-[10px] leading-tight text-brand-400">
+                {FIELD_LABELS[field]}
+              </span>
+              <span className="relative block">
+                <input
+                  type="text"
+                  inputMode={field === "storageCode" ? "text" : "decimal"}
+                  value={text}
+                  placeholder="—"
+                  disabled={disabled}
+                  onChange={(event) =>
+                    setTexts((current) => ({ ...current, [field]: event.target.value }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") reset(field);
+                  }}
+                  aria-invalid={invalid.includes(field) || undefined}
+                  className={`field tnum py-1.5 text-sm disabled:bg-brand-50 disabled:text-brand-400 aria-invalid:border-red-400 ${
+                    field === "storageCode" ? "w-24" : "w-24 pr-9 text-right"
+                  }`}
+                />
+                {suffix && (
+                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
+                    {suffix}
+                  </span>
+                )}
+              </span>
+            </label>
+          );
+        })}
         <button
-          type="button"
-          onClick={commit}
-          disabled={!changed}
+          type="submit"
+          disabled={(!changed && !invalid.length) || pending}
           title="Сохранить"
-          aria-label="Сохранить количество"
+          aria-label="Сохранить изменения строки"
           className="btn-primary px-2 py-1.5 disabled:opacity-30"
         >
           <CheckIcon className="h-4 w-4" />
         </button>
-      )}
+      </form>
+
+      <PrintLabelButton target={{ productId: product.id }} className="self-end px-2 py-1.5" />
     </div>
   );
 }

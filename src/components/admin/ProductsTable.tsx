@@ -7,6 +7,7 @@ import { deleteProductsAction } from "@/app/admin/actions";
 import { ProductRow } from "@/components/admin/ProductRow";
 import { Problems } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import type { ProductsView } from "@/lib/admin-prefs";
 import { pluralize } from "@/lib/format";
 import type { ProductBrief } from "@/lib/store";
 
@@ -25,12 +26,18 @@ interface ProductsTableProps {
   rows: ProductBrief[];
   categoryNames: Record<string, string>;
   thumbs: Record<string, string | null>;
+  view: ProductsView;
+  currencySymbol: string;
+  frameLocked: string[];
 }
 
 export function ProductsTable({
   rows,
   categoryNames,
   thumbs,
+  view,
+  currencySymbol,
+  frameLocked,
 }: ProductsTableProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -164,6 +171,9 @@ export function ProductsTable({
             thumb={thumbs[product.id] ?? null}
             selected={selected.has(product.id)}
             onSelect={toggle}
+            view={view}
+            currencySymbol={currencySymbol}
+            frameLocked={frameLocked.includes(product.id)}
           />
         ))}
       </div>

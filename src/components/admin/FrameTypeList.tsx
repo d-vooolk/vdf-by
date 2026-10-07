@@ -25,7 +25,9 @@ interface FrameTypeListProps {
   categories: Array<{ id: string; name: string }>;
   categoryId: string;
   initialQuery: string;
-  initialStockOnly: boolean;
+  stockOnly: boolean;
+  stockCount: number;
+  totalCount: number;
 }
 
 const QUERY_LENGTH = 10;
@@ -42,19 +44,19 @@ function normalizeQuery(value: string): string {
   return value.trim().toUpperCase().slice(0, QUERY_LENGTH);
 }
 
-const inStock = (row: FrameTypeListRow) => (row.stockQty ?? 0) > 0;
-
 export function FrameTypeList({
   rows,
   categories,
   categoryId,
   initialQuery,
-  initialStockOnly,
+  stockOnly,
+  stockCount,
+  totalCount,
 }: FrameTypeListProps) {
   const router = useRouter();
   const [input, setInput] = useState(initialQuery);
-  const [stockOnly, setStockOnly] = useState(initialStockOnly);
   const [switching, startSwitching] = useTransition();
+  const [filtering, startFiltering] = useTransition();
   const query = useDeferredValue(normalizeQuery(input));
   const stale = query !== normalizeQuery(input);
   const urlTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -66,20 +68,17 @@ export function FrameTypeList({
         : rows,
     [rows, query],
   );
-  const stockCount = useMemo(() => rows.filter(inStock).length, [rows]);
-  const shownStockCount = useMemo(() => shown.filter(inStock).length, [shown]);
-  const visibleCount = stockOnly ? shownStockCount : shown.length;
 
   useEffect(() => () => clearTimeout(urlTimer.current), []);
 
-  const remember = (nextInput: string, nextStockOnly: boolean) => {
+  const remember = (nextInput: string) => {
     clearTimeout(urlTimer.current);
     urlTimer.current = setTimeout(
       () =>
         window.history.replaceState(
           null,
           "",
-          listHref(categoryId, normalizeQuery(nextInput), nextStockOnly),
+          listHref(categoryId, normalizeQuery(nextInput), stockOnly),
         ),
       URL_SYNC_DELAY,
     );
@@ -87,12 +86,12 @@ export function FrameTypeList({
 
   const changeQuery = (value: string) => {
     setInput(value);
-    remember(value, stockOnly);
+    remember(value);
   };
 
   const toggleStockOnly = () => {
-    setStockOnly(!stockOnly);
-    remember(input, !stockOnly);
+    clearTimeout(urlTimer.current);
+    startFiltering(() => router.push(listHref(categoryId, normalizeQuery(input), !stockOnly)));
   };
 
   const changeCategory = (nextCategoryId: string) =>
@@ -128,7 +127,7 @@ export function FrameTypeList({
               id="category"
               value={categoryId}
               onChange={(event) => changeCategory(event.target.value)}
-              disabled={switching}
+              disabled={switching || filtering}
               className="field py-2 text-sm"
             >
               {categories.map((category) => (
@@ -144,28 +143,41 @@ export function FrameTypeList({
           type="button"
           onClick={toggleStockOnly}
           aria-pressed={stockOnly}
+          disabled={filtering || switching}
           className={`${stockOnly ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
         >
-          В наличии <span className="tnum opacity-70">{stockCount}</span>
+          В наличии
+          {filtering ? (
+            <SpinnerIcon className="h-4 w-4 animate-spin" />
+          ) : (
+            <span className="tnum opacity-70">{stockCount}</span>
+          )}
         </button>
       </form>
 
-      {visibleCount === 0 && (
+      {filtering ? (
+        <div
+          role="status"
+          className="card flex items-center justify-center gap-3 py-24 text-sm text-brand-500"
+        >
+          <SpinnerIcon className="h-5 w-5 animate-spin" />
+          {stockOnly ? "Загружаем все типы…" : "Загружаем типы в наличии…"}
+        </div>
+      ) : shown.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
-          {!rows.length
+          {!totalCount
             ? "Типов пока нет — создайте первый."
-            : shown.length
-              ? "Таких типов в наличии нет."
-              : "Такого типа нет."}
+            : stockOnly && !rows.length
+              ? "Типов в наличии нет."
+              : stockOnly
+                ? "Такого типа в наличии нет."
+                : "Такого типа нет."}
         </p>
+      ) : (
+        <div className={`transition-opacity ${stale || switching ? "opacity-60" : ""}`}>
+          <FrameTypeRows rows={shown} categoryId={categoryId} />
+        </div>
       )}
-      <div
-        data-stock-only={stockOnly || undefined}
-        hidden={visibleCount === 0}
-        className={`group/list transition-opacity ${stale || switching ? "opacity-60" : ""}`}
-      >
-        <FrameTypeRows rows={shown} categoryId={categoryId} />
-      </div>
     </>
   );
 }
@@ -184,8 +196,7 @@ const FrameTypeRows = memo(function FrameTypeRows({
         {rows.map((row) => (
           <li
             key={row.type}
-            data-in-stock={inStock(row) || undefined}
-            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 [contain-intrinsic-size:auto_4.5rem] [content-visibility:auto] group-data-stock-only/list:not-data-in-stock:hidden sm:gap-x-4"
+            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 [contain-intrinsic-size:auto_4.5rem] [content-visibility:auto] sm:gap-x-4"
           >
             <Link
               href={`/admin/frame-types/${row.type}/${categoryQuery}`}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ImagePicker } from "@/components/admin/ImagePicker";
 import { NumberInput } from "@/components/admin/form-parts";
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
+import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { OptionGroup, OptionValue } from "@/lib/schema";
 import { toSlug } from "@/lib/slug.mjs";
 
@@ -28,6 +29,7 @@ interface OptionGroupsEditorProps {
   thumbs: Record<string, string>;
   currencySymbol: string;
   basePrice: number;
+  baseWholesale: number | null;
 }
 
 export function OptionGroupsEditor({
@@ -37,6 +39,7 @@ export function OptionGroupsEditor({
   thumbs,
   currencySymbol,
   basePrice,
+  baseWholesale,
 }: OptionGroupsEditorProps) {
   const updateGroup = (index: number, patch: Partial<OptionGroup>) =>
     onChange(
@@ -170,6 +173,7 @@ export function OptionGroupsEditor({
             thumbs={thumbs}
             currencySymbol={currencySymbol}
             basePrice={basePrice}
+            baseWholesale={baseWholesale}
             isFirstGroup={groupIndex === 0}
             counted={counted}
           />
@@ -208,8 +212,19 @@ interface ValuesEditorProps {
   thumbs: Record<string, string>;
   currencySymbol: string;
   basePrice: number;
+  baseWholesale: number | null;
   isFirstGroup: boolean;
   counted: boolean;
+}
+
+function derivedWholesale(
+  baseWholesale: number | null,
+  basePrice: number,
+  price: number | undefined,
+): string {
+  if (baseWholesale === null || baseWholesale <= 0) return "нет";
+  const difference = basePrice > 0 && price !== undefined ? price - basePrice : 0;
+  return String(Math.max(0, Math.round((baseWholesale + difference) * 100) / 100));
 }
 
 function ValuesEditor({
@@ -219,6 +234,7 @@ function ValuesEditor({
   thumbs,
   currencySymbol,
   basePrice,
+  baseWholesale,
   isFirstGroup,
   counted,
 }: ValuesEditorProps) {
@@ -303,6 +319,31 @@ function ValuesEditor({
                 )}
                 <span className="text-xs text-brand-300">{currencySymbol}</span>
               </label>
+
+              {isFirstGroup && (
+                <label
+                  className="flex items-center gap-1.5"
+                  title={
+                    item.wholesaleSource
+                      ? `Оптовая цена по курсу из ${item.wholesaleSource.amount} ${FOREIGN_CURRENCIES[item.wholesaleSource.currency]}`
+                      : "Оптовая цена варианта. Пусто — опт товара с той же разницей, что в рознице"
+                  }
+                >
+                  <span className="text-xs text-brand-400">опт</span>
+                  <NumberInput
+                    value={item.wholesalePrice ?? null}
+                    onChange={(wholesalePrice) =>
+                      update(index, {
+                        wholesalePrice: wholesalePrice ?? undefined,
+                        wholesaleSource: undefined,
+                      })
+                    }
+                    placeholder={derivedWholesale(baseWholesale, basePrice, item.price)}
+                    className="field tnum w-24 py-1.5 text-sm"
+                  />
+                  <span className="text-xs text-brand-300">{currencySymbol}</span>
+                </label>
+              )}
 
               {counted ? (
                 <label

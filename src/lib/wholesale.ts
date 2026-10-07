@@ -1,29 +1,46 @@
 import { getDb } from "./db";
 import { productSchema, type Product } from "./schema";
-import { allSelections, resolveVariant, type Selection } from "./variant";
+import { allSelections, resolveVariant, type ResolvedVariant, type Selection } from "./variant";
 
 export type WholesaleList = Record<string, number>;
 
-export function wholesaleFor(
+function roundMoney(value: number): number {
+  return Math.max(0, Math.round(value * 100) / 100);
+}
+
+function derivedFrom(
   product: Product,
-  wholesalePrice: number | null | undefined,
-  selection: Selection,
+  base: number | null | undefined,
+  variant: ResolvedVariant,
 ): number | null {
-  if (!wholesalePrice || wholesalePrice <= 0) return null;
-  const variant = resolveVariant(product, selection);
+  if (!base || base <= 0) return null;
   const difference =
     product.price > 0
       ? variant.price - product.price
       : variant.selected.reduce((sum, entry) => sum + (entry.value.priceDelta ?? 0), 0);
-  return Math.max(0, Math.round((wholesalePrice + difference) * 100) / 100);
+  return roundMoney(base + difference);
 }
 
-type SpecialPriceField = "wholesalePrice" | "costPrice";
+export function wholesaleFor(product: Product, selection: Selection): number | null {
+  const variant = resolveVariant(product, selection);
+  const own = variant.selected.find((entry) => (entry.value.wholesalePrice ?? 0) > 0)?.value
+    .wholesalePrice;
+  if (own === undefined) return derivedFrom(product, product.wholesalePrice, variant);
+  const delta = variant.selected.reduce((sum, entry) => sum + (entry.value.priceDelta ?? 0), 0);
+  return roundMoney(own + delta);
+}
 
-function buildSpecialList(field: SpecialPriceField): WholesaleList {
-  const rows = getDb()
-    .prepare(`SELECT data FROM products WHERE COALESCE(json_extract(data, '$.${field}'), 0) > 0`)
-    .all() as Array<{ data: string }>;
+export function costFor(product: Product, selection: Selection): number | null {
+  return derivedFrom(product, product.costPrice, resolveVariant(product, selection));
+}
+
+function buildSpecialList(
+  filter: string,
+  priceFor: (product: Product, selection: Selection) => number | null,
+): WholesaleList {
+  const rows = getDb().prepare(`SELECT data FROM products WHERE ${filter}`).all() as Array<{
+    data: string;
+  }>;
   const list: WholesaleList = {};
   for (const row of rows) {
     const parsed = productSchema.safeParse(JSON.parse(row.data));
@@ -31,7 +48,7 @@ function buildSpecialList(field: SpecialPriceField): WholesaleList {
     const product = parsed.data;
     const selections = product.optionGroups.length ? allSelections(product) : [{}];
     for (const selection of selections) {
-      const price = wholesaleFor(product, product[field], selection);
+      const price = priceFor(product, selection);
       if (price !== null) list[resolveVariant(product, selection).key] = price;
     }
   }
@@ -39,11 +56,14 @@ function buildSpecialList(field: SpecialPriceField): WholesaleList {
 }
 
 export function buildWholesaleList(): WholesaleList {
-  return buildSpecialList("wholesalePrice");
+  return buildSpecialList(
+    `COALESCE(json_extract(data, '$.wholesalePrice'), 0) > 0 OR data LIKE '%"wholesalePrice"%'`,
+    wholesaleFor,
+  );
 }
 
 export function buildCostList(): WholesaleList {
-  return buildSpecialList("costPrice");
+  return buildSpecialList(`COALESCE(json_extract(data, '$.costPrice'), 0) > 0`, costFor);
 }
 
 export function buildStaffList(): WholesaleList {

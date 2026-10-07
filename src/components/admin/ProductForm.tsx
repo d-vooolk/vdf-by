@@ -28,7 +28,7 @@ import {
   SlugField,
   Suggest,
 } from "@/components/admin/form-parts";
-import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import { CopyIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Product, Spec } from "@/lib/schema";
@@ -297,11 +297,17 @@ export function ProductForm({
           </Link>
         )}
         {!creating && (
-          <PrintLabelButton
-            target={{ productId: initial.id }}
-            withText
-            className="ml-auto py-2 text-sm"
-          />
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/admin/products/new/?copy=${encodeURIComponent(initial.id)}`}
+              title="Откроется новый товар с данными этого"
+              className="btn-secondary py-2 text-sm"
+            >
+              <CopyIcon className="h-4 w-4" />
+              Копировать
+            </Link>
+            <PrintLabelButton target={{ productId: initial.id }} withText className="py-2 text-sm" />
+          </div>
         )}
       </div>
 
@@ -391,51 +397,6 @@ export function ProductForm({
             />
           )}
 
-          <div className="sm:col-span-2">
-            <Margin
-              price={draft.price}
-              cost={draft.costPrice ?? null}
-              currencySymbol={currencySymbol}
-              hasOptions={draft.optionGroups.length > 0}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          {frameType ? (
-            <>
-              <LockedField label="Цена розницы" value={money(draft.price > 0 ? draft.price : null)} />
-              <LockedField label="Оптовая цена" value={money(draft.wholesalePrice)} />
-            </>
-          ) : (
-            <>
-              <MoneyField
-                label="Цена розницы"
-                hint="Пусто — на сайте «Цену уточняйте». Если есть опции со своими ценами — запасная"
-                value={draft.price > 0 ? draft.price : null}
-                source={draft.priceSource ?? null}
-                rounding="ruble"
-                currencySymbol={currencySymbol}
-                onChange={(price, priceSource) =>
-                  patch({ price: price ?? 0, priceSource: priceSource ?? undefined })
-                }
-              />
-
-              <MoneyField
-                label="Оптовая цена"
-                hint="Видят только подтверждённые оптовики. У вариантов опций разница с этой ценой — как в рознице"
-                value={draft.wholesalePrice ?? null}
-                source={draft.wholesaleSource ?? null}
-                rounding="ruble"
-                currencySymbol={currencySymbol}
-                placeholder="нет"
-                onChange={(wholesalePrice, wholesaleSource) =>
-                  patch({ wholesalePrice, wholesaleSource: wholesaleSource ?? undefined })
-                }
-              />
-            </>
-          )}
-
           <Field label={`Старая цена, ${currencySymbol}`} hint="Покажется зачёркнутой">
             <NumberInput
               value={draft.oldPrice ?? null}
@@ -461,6 +422,63 @@ export function ProductForm({
               )}
             </select>
           </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {frameType ? (
+            <LockedField label="Цена розницы" value={money(draft.price > 0 ? draft.price : null)} />
+          ) : (
+            <MoneyField
+              label="Цена розницы"
+              hint="Пусто — на сайте «Цену уточняйте». Если есть опции со своими ценами — запасная"
+              value={draft.price > 0 ? draft.price : null}
+              source={draft.priceSource ?? null}
+              rounding="ruble"
+              currencySymbol={currencySymbol}
+              onChange={(price, priceSource) =>
+                patch({ price: price ?? 0, priceSource: priceSource ?? undefined })
+              }
+            />
+          )}
+
+          <div className="sm:col-span-2">
+            <Margin
+              kind="retail"
+              price={draft.price}
+              cost={draft.costPrice ?? null}
+              currencySymbol={currencySymbol}
+              hasOptions={draft.optionGroups.length > 0}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {frameType ? (
+            <LockedField label="Оптовая цена" value={money(draft.wholesalePrice)} />
+          ) : (
+            <MoneyField
+              label="Оптовая цена"
+              hint="Видят только подтверждённые оптовики. У опций без своего опта разница с этой ценой — как в рознице"
+              value={draft.wholesalePrice ?? null}
+              source={draft.wholesaleSource ?? null}
+              rounding="ruble"
+              currencySymbol={currencySymbol}
+              placeholder="нет"
+              onChange={(wholesalePrice, wholesaleSource) =>
+                patch({ wholesalePrice, wholesaleSource: wholesaleSource ?? undefined })
+              }
+            />
+          )}
+
+          <div className="sm:col-span-2">
+            <Margin
+              kind="wholesale"
+              price={draft.wholesalePrice ?? 0}
+              cost={draft.costPrice ?? null}
+              currencySymbol={currencySymbol}
+              hasOptions={draft.optionGroups.length > 0}
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -554,7 +572,7 @@ export function ProductForm({
             checked={Boolean(draft.featured)}
             onChange={(value) => patch({ featured: value })}
             label="Показывать на главной"
-            hint="Блок «Выбирают чаще всего»"
+            hint="Блок «Выбирают чаще всего» строится по просмотрам; пока их мало — добирается отмеченными"
           />
         </div>
       </Section>
@@ -690,6 +708,7 @@ export function ProductForm({
           thumbs={thumbs}
           currencySymbol={currencySymbol}
           basePrice={draft.price}
+          baseWholesale={draft.wholesalePrice ?? null}
         />
       </Section>
 
@@ -953,22 +972,38 @@ function formatPercent(value: number): string {
   return `${value.toFixed(1).replace(".", ",")}%`;
 }
 
+const MARGIN_TEXT = {
+  retail: {
+    empty: "Заполните себестоимость и цену розницы — рядом посчитается прибыль и маржа.",
+    title: "с розницы",
+    note: "Разница между ценой розницы и себестоимостью.",
+    optionsNote: "Считается от базовой цены розницы. У опций свои цены — там маржа другая.",
+  },
+  wholesale: {
+    empty: "Заполните себестоимость и оптовую цену — рядом посчитается прибыль с опта.",
+    title: "с опта",
+    note: "Разница между оптовой ценой и себестоимостью.",
+    optionsNote: "Считается от базовой оптовой цены. У опций свой опт — там маржа другая.",
+  },
+} as const;
+
 function Margin({
+  kind,
   price,
   cost,
   currencySymbol,
   hasOptions,
 }: {
+  kind: keyof typeof MARGIN_TEXT;
   price: number;
   cost: number | null;
   currencySymbol: string;
   hasOptions: boolean;
 }) {
+  const text = MARGIN_TEXT[kind];
   if (cost === null || price <= 0) {
     return (
-      <p className="flex h-full items-center text-xs text-brand-400">
-        Заполните себестоимость и цену — рядом посчитается прибыль и маржа.
-      </p>
+      <p className="flex h-full items-center text-xs text-brand-400">{text.empty}</p>
     );
   }
 
@@ -986,17 +1021,13 @@ function Margin({
       }`}
     >
       <p className="text-sm font-semibold">
-        {good ? "Прибыль" : "Убыток"} {formatPrice(Math.abs(profit), currencySymbol)}
+        {good ? "Прибыль" : "Убыток"} {text.title} {formatPrice(Math.abs(profit), currencySymbol)}
         <span className="ml-2 font-normal opacity-80">
           маржа {formatPercent(margin)}
           {markup !== null && ` · наценка ${formatPercent(markup)}`}
         </span>
       </p>
-      <p className="mt-1 text-xs opacity-70">
-        {hasOptions
-          ? "Считается от базовой цены. У опций свои цены — там маржа другая."
-          : "Разница между ценой продажи и себестоимостью."}
-      </p>
+      <p className="mt-1 text-xs opacity-70">{hasOptions ? text.optionsNote : text.note}</p>
     </div>
   );
 }

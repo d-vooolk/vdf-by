@@ -38,7 +38,8 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
     ].join(" · ");
 
   const groups = categoryId ? listFrameTypes(categoryId) : [];
-  const rows: FrameTypeListRow[] = groups.map((group) => ({
+  const stockOnly = params.stock === "1";
+  const allRows: FrameTypeListRow[] = groups.map((group) => ({
     type: group.type,
     name: group.name,
     sku: buildFrameSku({ number: "номер", storage: group.storageCode, type: group.type }),
@@ -49,6 +50,8 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
     uniform: group.uniform,
     stockQty: initialFrameValues(group).stockQty,
   }));
+  const stockRows = allRows.filter((row) => (row.stockQty ?? 0) > 0);
+  const rows = stockOnly ? stockRows : allRows;
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
 
   return (
@@ -84,7 +87,9 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           categories={categories}
           categoryId={categoryId}
           initialQuery={query}
-          initialStockOnly={params.stock === "1"}
+          stockOnly={stockOnly}
+          stockCount={stockRows.length}
+          totalCount={allRows.length}
         />
       )}
     </div>

@@ -1,6 +1,11 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { ProductsTable } from "@/components/admin/ProductsTable";
+import { ProductsViewSwitch } from "@/components/admin/ProductsViewSwitch";
+import { parseProductsView, PRODUCTS_VIEW_COOKIE } from "@/lib/admin-prefs";
+import { getSite } from "@/lib/catalog";
+import { frameLockedIds } from "@/lib/frame-membership";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { listCategoriesBrief, listProducts } from "@/lib/store";
@@ -17,6 +22,7 @@ interface PageProps {
 
 export default async function ProductsPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const view = parseProductsView((await cookies()).get(PRODUCTS_VIEW_COOKIE)?.value);
   const page = Math.max(1, Number(params.page) || 1);
   const categoryId = params.category ?? "";
   const query = params.q ?? "";
@@ -65,9 +71,12 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             {total}
           </span>
         </h1>
-        <Link href="/admin/products/new/" className="btn-primary py-2 text-sm">
-          Добавить товар
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <ProductsViewSwitch view={view} />
+          <Link href="/admin/products/new/" className="btn-primary py-2 text-sm">
+            Добавить товар
+          </Link>
+        </div>
       </div>
 
       {/* --------------------------- Фильтры --------------------------- */}
@@ -127,6 +136,9 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           rows={rows}
           categoryNames={categoryNames}
           thumbs={thumbs}
+          view={view}
+          currencySymbol={getSite().currencySymbol}
+          frameLocked={frameLockedIds(rows)}
         />
       )}
 
