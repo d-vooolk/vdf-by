@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import { requireAdmin } from "@/lib/auth";
 import { parseCompetitors, runSeoCollection, saveCompetitors, type SeoKind } from "@/lib/seo-data";
+import { saveKeywords, type SaveKeywordsResult } from "@/lib/seo-keywords";
 
 export async function refreshSeoAction(kind: SeoKind): Promise<void> {
   await requireAdmin();
@@ -20,4 +21,11 @@ export async function saveCompetitorsAction(text: string): Promise<{ ok: true; c
   saveCompetitors(domains);
   revalidatePath("/admin/seo");
   return { ok: true, count: domains.length };
+}
+
+export async function saveSeoKeywordsAction(input: unknown): Promise<SaveKeywordsResult> {
+  await requireAdmin();
+  const result = saveKeywords(input);
+  if (result.ok) revalidatePath("/admin/seo/keywords");
+  return result;
 }

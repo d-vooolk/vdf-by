@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { SeoTabs } from "@/components/admin/SeoTabs";
 import { CompetitorsEditor, SeoRefreshButton } from "@/components/admin/SeoControls";
 import {
   BucketTable,
@@ -528,7 +529,8 @@ export default function SeoPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-brand-900">SEO</h1>
-            <p className="mt-1 text-sm text-brand-500">
+            <SeoTabs active="overview" />
+            <p className="mt-3 text-sm text-brand-500">
               Search Console, Яндекс.Вебмастер и Метрика обновляются каждое утро, конкуренты — раз в неделю.
               Последний сбор: {formatDate(search?.collectedAt)}.
             </p>
