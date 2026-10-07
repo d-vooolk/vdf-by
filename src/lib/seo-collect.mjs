@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import path from "node:path";
 import zlib from "node:zlib";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -244,15 +243,15 @@ async function collectMetrika(token, counter) {
   return { dates: month, goals, sources, previousSources, engines, previousEngines, landings, devices, goalsBySource, daily };
 }
 
-export async function collectSearch({ secretsDir, gscSite, yandexHost, metrikaCounter } = {}) {
+export async function collectSearch({ gscKeyFile, yandexTokenFile, gscSite, yandexHost, metrikaCounter } = {}) {
   const sources = {
     gscSite: gscSite || DEFAULT_SEO_SOURCES.gscSite,
     yandexHost: yandexHost || DEFAULT_SEO_SOURCES.yandexHost,
     metrikaCounter: metrikaCounter || DEFAULT_SEO_SOURCES.metrikaCounter,
   };
-  const yandexToken = () => fs.readFileSync(path.join(secretsDir, "yandex-token.txt"), "utf8").trim();
+  const yandexToken = () => fs.readFileSync(yandexTokenFile, "utf8").trim();
   const [google, webmaster, metrika] = await Promise.all([
-    section(() => collectGoogle(path.join(secretsDir, "gsc-key.json"), sources.gscSite)),
+    section(() => collectGoogle(gscKeyFile, sources.gscSite)),
     section(() => collectWebmaster(yandexToken(), sources.yandexHost)),
     section(() => collectMetrika(yandexToken(), sources.metrikaCounter)),
   ]);

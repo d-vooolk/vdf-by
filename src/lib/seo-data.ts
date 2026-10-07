@@ -180,6 +180,8 @@ const KEEP: Record<SeoKind, number> = { search: 120, competitors: 60 };
 const COMPETITORS_KEY = "seo:competitors";
 const STATUS_KEY = (kind: SeoKind) => `seo:status:${kind}`;
 const STALE_RUN_MS = 30 * 60 * 1000;
+const GSC_KEY_FILE = env("SEO_GSC_KEY_FILE", path.join(process.cwd(), "var", "gsc-key.json"));
+const YANDEX_TOKEN_FILE = env("SEO_YANDEX_TOKEN_FILE", path.join(process.cwd(), "var", "yandex-token.txt"));
 
 export const OWN_DOMAIN = "vdf.by";
 
@@ -297,7 +299,8 @@ export async function runSeoCollection(kind: SeoKind): Promise<SeoStatus> {
   try {
     if (kind === "search") {
       const snapshot = (await collectSearch({
-        secretsDir: env("SEO_SECRETS_DIR", path.join(process.cwd(), "var")),
+        gscKeyFile: GSC_KEY_FILE,
+        yandexTokenFile: YANDEX_TOKEN_FILE,
       })) as SearchSnapshot;
       errors = searchErrors(snapshot);
       if (snapshot.google.ok || snapshot.webmaster.ok || snapshot.metrika.ok) saveSnapshot(kind, snapshot);

@@ -324,7 +324,10 @@ function metrikaSection(result) {
   return lines.join("\n");
 }
 
-const { google, webmaster, metrika } = await collectSearch({ secretsDir: SECRETS_DIR });
+const { google, webmaster, metrika } = await collectSearch({
+  gscKeyFile: path.join(SECRETS_DIR, "gsc-key.json"),
+  yandexTokenFile: path.join(SECRETS_DIR, "yandex-token.txt"),
+});
 for (const [name, result] of [["Search Console", google], ["Вебмастер", webmaster], ["Метрика", metrika]]) {
   if (!result.ok) console.error(`[${name}] ${result.error}`);
 }
