@@ -30,7 +30,8 @@ import {
   getProductsForMark,
   getProductsForModel,
 } from "@/lib/cars";
-import { carFaq } from "@/lib/car-content";
+import { carFaq, oemNumbers } from "@/lib/car-content";
+import { carTextParagraphs, getCarText } from "@/lib/car-texts";
 import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
@@ -193,14 +194,22 @@ function GenerationTable({
                   <td className="tnum px-4 py-2.5 whitespace-nowrap text-brand-600">{years(generation, THIS_YEAR) || "—"}</td>
                   <td className="px-4 py-2.5">
                     <ul className="space-y-1">
-                      {products.slice(0, 6).map((product) => (
-                        <li key={product.id}>
-                          <Link href={`/product/${product.slug}/`} className="text-brand-700 hover:underline">
-                            {product.title}
-                          </Link>
-                          {!hasAnyInStock(product) && <span className="ml-1 text-xs text-brand-400">под заказ</span>}
-                        </li>
-                      ))}
+                      {products.slice(0, 6).map((product) => {
+                        const oem = oemNumbers(product);
+                        return (
+                          <li key={product.id}>
+                            <Link href={`/product/${product.slug}/`} className="text-brand-700 hover:underline">
+                              {product.title}
+                            </Link>
+                            {!hasAnyInStock(product) && <span className="ml-1 text-xs text-brand-400">под заказ</span>}
+                            {oem.length > 0 && (
+                              <span className="block text-xs text-brand-400">
+                                OEM: <span className="font-mono">{oem.join(", ")}</span>
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                       {products.length > 6 && (
                         <li className="text-xs text-brand-400">и ещё {products.length - 6}</li>
                       )}
@@ -344,6 +353,7 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
   const products = getProductsForModel(model.id, category.id);
   const related = categoriesForModel(category, mark, model);
   const title = carName(mark, model);
+  const carText = getCarText(category.id, model.id);
 
   return (
     <div className="container-page pb-16">
@@ -398,6 +408,17 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
         title={title}
         currencySymbol={site.currencySymbol}
       />
+
+      {carText && (
+        <section className="prose-shop mt-14 max-w-3xl border-t border-brand-100 pt-10">
+          <h2 className="mb-3 text-xl font-semibold text-brand-900">
+            {category.name} для {title}
+          </h2>
+          {carTextParagraphs(carText.text).map((paragraph, index) => (
+            <p key={index}>{paragraph}</p>
+          ))}
+        </section>
+      )}
 
       <RelatedNav
         title={`Что ещё подходит к ${title}`}

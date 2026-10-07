@@ -2,6 +2,7 @@ import path from "node:path";
 
 import sharp from "./sharp";
 
+import { listCarTexts, type CarText } from "./car-texts";
 import { getCategories, getProducts } from "./catalog";
 import { bumpCatalogVersion, catalogVersion, getDb } from "./db";
 import { processImage } from "./image-pipeline.mjs";
@@ -372,11 +373,12 @@ function collectCarDates(
   dates: Map<string, Date>,
   tree: FitMark[],
   base: string,
+  texts?: Map<string, CarText>,
 ): void {
   for (const mark of tree) {
     let markAt = 0;
     for (const model of mark.models) {
-      let modelAt = 0;
+      let modelAt = texts?.get(model.id)?.updatedAt ?? 0;
       for (const generation of model.generations) {
         dates.set(
           generationUrl(mark.slug, model.slug, generation.slug, base),
@@ -402,6 +404,7 @@ export function getCarPageDates(): Map<string, Date> {
       dates,
       getCarTree(category.id),
       carsRoot(category.slug),
+      listCarTexts(category.id),
     );
   }
 

@@ -12,15 +12,18 @@ import {
   deleteCarEntry,
   downloadCarImage,
   fetchCarImages,
+  getCarTree,
   isCarFitmentCategory,
   isCarLevel,
   saveCarEntry,
   setProductCars,
 } from "@/lib/cars";
-import type { CarEntryInput } from "@/lib/car-types";
+import { saveCarText } from "@/lib/car-texts";
+import { carsRoot, modelUrl, type CarEntryInput } from "@/lib/car-types";
 import {
   categoryPaths,
   categorySubtreePaths,
+  getCategoryById,
   getChildCategories,
   invalidateCatalog,
 } from "@/lib/catalog";
@@ -31,6 +34,7 @@ import { syncCrm } from "@/lib/crm-sync";
 import { deleteOrder, setOrderNote, setOrderStatus } from "@/lib/orders";
 import { setServiceRequestDone } from "@/lib/service";
 import {
+  revalidateCarText,
   revalidateCategory,
   revalidateImages,
   revalidateProduct,
@@ -1220,4 +1224,17 @@ export async function refreshRatesAction(): Promise<FormState> {
     revalidateSite();
   }
   return report.ok ? ok() : fail([report.error]);
+}
+
+export async function saveCarTextAction(categoryId: string, modelId: string, text: string): Promise<FormState> {
+  await requireAdmin();
+  const category = getCategoryById(categoryId);
+  if (!category || !isCarFitmentCategory(categoryId)) return fail(["Раздел не подбирается по автомобилю"]);
+  const mark = getCarTree(categoryId).find((entry) => entry.models.some((model) => model.id === modelId));
+  const model = mark?.models.find((entry) => entry.id === modelId);
+  if (!mark || !model) return fail(["К этой модели в разделе не привязано ни одного товара"]);
+
+  saveCarText(categoryId, modelId, text);
+  revalidateCarText(modelUrl(mark.slug, model.slug, carsRoot(category.slug)));
+  return ok();
 }

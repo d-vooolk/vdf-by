@@ -661,6 +661,15 @@ export const MIGRATIONS = [
     );
     CREATE INDEX seo_snapshots_by_kind ON seo_snapshots(kind, created_at DESC);
   `,
+  `
+    CREATE TABLE car_texts (
+      category_id TEXT NOT NULL,
+      model_id    TEXT NOT NULL REFERENCES car_models(id) ON DELETE CASCADE,
+      text        TEXT NOT NULL,
+      updated_at  INTEGER NOT NULL,
+      PRIMARY KEY (category_id, model_id)
+    );
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

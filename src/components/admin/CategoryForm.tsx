@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
 import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
@@ -41,6 +41,7 @@ interface CategoryFormProps {
   }>;
   ai: AiSettings;
   productTitles: string[];
+  carTexts?: ReactNode;
 }
 
 export function CategoryForm({
@@ -51,6 +52,7 @@ export function CategoryForm({
   categories,
   ai,
   productTitles,
+  carTexts,
 }: CategoryFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -430,6 +432,15 @@ export function CategoryForm({
             onChange={(collections) => patch({ collections })}
             baseUrl={`/catalog/${draft.slug || "…"}/`}
           />
+        </Section>
+      )}
+
+      {carTexts && (
+        <Section
+          title="Тексты на страницах моделей"
+          note="Текст про конкретную машину под таблицей поколений на странице модели. Каждый сохраняется своей кнопкой, отдельно от раздела. Пустой текст — блок не показывается."
+        >
+          {carTexts}
         </Section>
       )}
 

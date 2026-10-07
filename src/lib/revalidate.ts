@@ -143,6 +143,11 @@ export function revalidateImages(): void {
   revalidatePath("/", "layout");
 }
 
+export function revalidateCarText(path: string): void {
+  revalidateAll([trim(path), "/sitemap.xml"]);
+  announce([path]);
+}
+
 export function revalidateArticle(
   paths: { article: string; previous?: string; products: string[]; categories: string[] },
   announceChange: boolean,

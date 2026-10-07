@@ -12,6 +12,15 @@ function joinWords(words: string[]): string {
   return `${words.slice(0, -1).join(", ")} и ${words[words.length - 1]}`;
 }
 
+export function oemNumbers(product: Product): string[] {
+  const values = product.specs
+    .filter((spec) => /oem/i.test(spec.name))
+    .flatMap((spec) => spec.value.split(/[,;]/))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return [...new Set(values)];
+}
+
 export function categoryPhrase(groups: CarCategoryGroup[]): string {
   const names = groups.map((group) => group.category.name);
   if (!names.length || names.length > 3) return "Автосвет";
