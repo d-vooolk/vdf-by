@@ -7,6 +7,7 @@ import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
 import { ListingFacts } from "@/components/ListingFacts";
 import { RelatedArticles } from "@/components/RelatedArticles";
+import { WorkshopNote } from "@/components/WorkshopNote";
 import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
@@ -35,6 +36,7 @@ import {
 import type { Category, CategoryCollection } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
+import { workshopLinkFor } from "@/lib/workshop-links";
 
 /**
  * Страница раздела — одна на оба адреса.
@@ -179,6 +181,7 @@ export function CategoryView({
   const shown = listingPage(products, listing);
   const excerpt = collection ? collection.excerpt : category.excerpt;
   const description = collection ? collection.description : category.description;
+  const workshop = workshopLinkFor(category);
 
   return (
     <div className="container-page">
@@ -276,6 +279,8 @@ export function CategoryView({
           ))}
         </section>
       )}
+
+      {shown.page === 1 && workshop && <WorkshopNote link={workshop} className="mt-10 max-w-3xl" />}
 
       {shown.page === 1 && (
         <ListingFacts

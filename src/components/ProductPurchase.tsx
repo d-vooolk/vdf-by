@@ -69,6 +69,7 @@ interface ProductPurchaseProps {
   phoneHref: string;
   /** Telegram, Viber, WhatsApp — уже с готовым текстом вопроса по товару. */
   messengers: Channel[];
+  workshop: { href: string; anchor: string } | null;
 }
 
 /**
@@ -136,6 +137,7 @@ export function ProductPurchase({
   phone,
   phoneHref,
   messengers,
+  workshop,
 }: ProductPurchaseProps) {
   /*
    * Выбранный вариант. Пока по опциям не щёлкали — он берётся из адреса
@@ -586,7 +588,7 @@ export function ProductPurchase({
           </>
         )}
 
-        <ServiceOffer productId={product.id} productTitle={product.title} />
+        <ServiceOffer productId={product.id} productTitle={product.title} workshop={workshop} />
 
         {messengers.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-card border border-brand-100 p-4">

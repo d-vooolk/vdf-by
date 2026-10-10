@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { WorkshopNote } from "@/components/WorkshopNote";
 import { SERVICE_PHONE, SERVICE_PHONE_HREF } from "@/lib/service-contacts";
 import { useAccount } from "@/store/account";
 
@@ -13,14 +14,27 @@ interface ServiceOfferProps {
   productId?: string;
   productTitle?: string;
   variant?: "card" | "page";
+  workshop?: { href: string; anchor: string } | null;
 }
 
-export function ServiceOffer({ productId, productTitle, variant = "card" }: ServiceOfferProps) {
+export function ServiceOffer({ productId, productTitle, variant = "card", workshop }: ServiceOfferProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      {variant === "card" ? (
+      {variant === "card" && workshop ? (
+        <WorkshopNote link={workshop} className="mb-6">
+          <p className="mt-1 text-sm text-brand-600">
+            Мастерская:{" "}
+            <a href={`tel:${SERVICE_PHONE_HREF}`} className="tnum font-medium text-brand-900 underline">
+              {SERVICE_PHONE}
+            </a>
+          </p>
+          <button type="button" onClick={() => setOpen(true)} className="btn-secondary mt-3 py-2 text-sm">
+            Рассчитать установку
+          </button>
+        </WorkshopNote>
+      ) : variant === "card" ? (
         <div className="mb-6 rounded-card border border-brand-100 p-4">
           <p className="text-sm font-semibold text-brand-900">Установим в нашем сервисе</p>
           <p className="mt-1 text-sm text-brand-600">

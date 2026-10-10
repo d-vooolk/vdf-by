@@ -29,6 +29,7 @@ import { pickImages } from "@/lib/images";
 import { articlesForProduct } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd } from "@/lib/seo";
+import { workshopLinkFor } from "@/lib/workshop-links";
 import { productSnippet } from "@/lib/snippet";
 import type { Product } from "@/lib/schema";
 import { allProductImages, hasPrice, priceRange } from "@/lib/variant";
@@ -214,6 +215,7 @@ export default async function ProductPage({ params }: PageProps) {
         phone={site.phone}
         phoneHref={site.phoneHref}
         messengers={messengers}
+        workshop={workshopLinkFor(category, product.title)}
       />
 
       {/* -------------------- Описание и характеристики ------------------ */}
