@@ -120,14 +120,6 @@ function googleSection(result) {
     ),
   );
 
-  lines.push(`### Страны\n`);
-  lines.push(
-    table(
-      ["Страна", "Показы", "Клики", "Позиция"],
-      data.countries.map((row) => [row.keys[0], number(row.impressions), number(row.clicks), number(row.position, 1)]),
-    ),
-  );
-
   lines.push(`### Sitemap в Google\n`);
   lines.push(
     table(

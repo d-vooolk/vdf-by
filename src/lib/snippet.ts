@@ -9,24 +9,30 @@ export const TITLE_SEPARATOR = " — ";
 
 const MIN_LEAD = 80;
 
-export function leadSentences(text: string, limit: number): string {
+function wholeSentences(text: string, limit: number): string {
   const clean = text.replace(/\s+/g, " ").trim();
   if (clean.length <= limit) return clean;
 
-  const parts = clean.match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) ?? [clean];
+  const parts = clean.split(/(?<=[.!?])\s+/);
   let lead = "";
   for (const part of parts) {
     const next = `${lead} ${part.trim()}`.trim();
     if (next.length > limit) break;
     lead = next;
   }
-  if (lead) return lead;
+  return lead;
+}
 
-  const cut = clean.slice(0, limit);
+function cutAtWord(text: string, limit: number): string {
+  const cut = text.replace(/\s+/g, " ").trim().slice(0, limit);
   const space = cut.lastIndexOf(" ");
   return cut
     .slice(0, space > limit / 2 ? space : limit)
     .replace(/[\s,;:—–-]+$/, "");
+}
+
+export function leadSentences(text: string, limit: number): string {
+  return wholeSentences(text, limit) || cutAtWord(text, limit);
 }
 
 function joinSentences(parts: string[]): string {
@@ -102,13 +108,16 @@ export function productSnippet({
     [...priceTail, "Доставка по Минску и Беларуси"],
     priceTail,
   ];
-  const tail =
-    tails.find(
-      (candidate) =>
-        DESCRIPTION_LIMIT - joinSentences(candidate).length - 2 >= MIN_LEAD,
-    ) ?? [];
-  const room = DESCRIPTION_LIMIT - (tail.length ? joinSentences(tail).length + 2 : 0);
-  const generatedDescription = joinSentences([leadSentences(lead, room), ...tail]);
+  const roomBeside = (tail: string[]) =>
+    DESCRIPTION_LIMIT - (tail.length ? joinSentences(tail).length + 2 : 0);
+  const fittingTails = tails.filter((candidate) => roomBeside(candidate) >= MIN_LEAD);
+  const sentenceFit = [...fittingTails, []]
+    .map((tail) => ({ tail, lead: wholeSentences(lead, roomBeside(tail)) }))
+    .find((candidate) => candidate.lead);
+  const cutTail = fittingTails.at(-1) ?? [];
+  const generatedDescription = sentenceFit
+    ? joinSentences([sentenceFit.lead, ...sentenceFit.tail])
+    : [`${cutAtWord(lead, roomBeside(cutTail) - 1)}…`, ...(cutTail.length ? [joinSentences(cutTail)] : [])].join(" ");
 
   const title = product.seoTitle?.trim() || generatedTitle;
   const absoluteTitle = title.length + suffix.length > TITLE_LIMIT;
