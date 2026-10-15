@@ -47,6 +47,16 @@ function cleanDeep(value, key, where) {
   return value;
 }
 
+const takenSlugs = new Set(db.prepare("SELECT slug FROM products").all().map((row) => row.slug));
+const slugMoves = new Map();
+for (const { slug } of db.prepare("SELECT slug FROM products WHERE slug LIKE '%vdf%'").all()) {
+  const next = slug.replace(/(^|-)vdf(?:-light|-electronics)?(?=-|$)/g, "").replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+  if (next && next !== slug && !takenSlugs.has(next)) {
+    slugMoves.set(slug, next);
+    takenSlugs.add(next);
+  }
+}
+
 const productUpdates = [];
 let brandCleared = 0;
 let specsDropped = 0;
@@ -67,8 +77,10 @@ for (const row of db.prepare("SELECT id, slug, title, brand, data FROM products"
   const cleaned = cleanDeep(data, "data", where);
   const title = cleanDeep(row.title, "title", where);
   if ("title" in cleaned) cleaned.title = title;
-  if (title !== row.title || brand !== row.brand || JSON.stringify(cleaned) !== row.data) {
-    productUpdates.push({ id: row.id, title, brand, data: JSON.stringify(cleaned) });
+  const slug = slugMoves.get(row.slug) ?? row.slug;
+  if ("slug" in cleaned) cleaned.slug = slug;
+  if (slug !== row.slug || title !== row.title || brand !== row.brand || JSON.stringify(cleaned) !== row.data) {
+    productUpdates.push({ id: row.id, slug, title, brand, data: JSON.stringify(cleaned) });
   }
 }
 
@@ -87,13 +99,16 @@ for (const row of db.prepare("SELECT category_id, model_id, text FROM car_texts"
 
 const articleUpdates = [];
 for (const row of db.prepare("SELECT id, slug, title, data FROM articles").all()) {
-  const data = cleanDeep(JSON.parse(row.data), "data", `статья ${row.slug}`);
+  let source = row.data;
+  for (const [from, to] of slugMoves) source = source.split(from).join(to);
+  const data = cleanDeep(JSON.parse(source), "data", `статья ${row.slug}`);
   const title = cleanDeep(row.title, "title", `статья ${row.slug}`);
   const json = JSON.stringify(data);
   if (json !== row.data || title !== row.title) articleUpdates.push({ id: row.id, title, data: json });
 }
 
 console.log(`Товаров к изменению: ${productUpdates.length} (бренд убран у ${brandCleared}, строк «Производитель» в характеристиках убрано: ${specsDropped})`);
+for (const [from, to] of slugMoves) console.log(`Адрес товара: /product/${from}/ → /product/${to}/ (с переадресацией 308)`);
 console.log(`Разделов: ${categoryUpdates.length}, текстов машин: ${carTextUpdates.length}, статей: ${articleUpdates.length}`);
 console.log(`Изменённых фрагментов текста: ${changes.length}, осталось упоминаний: ${leftovers.length}\n`);
 
@@ -124,8 +139,17 @@ const bump = db.prepare(
    ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)`,
 );
 db.transaction(() => {
-  const writeProduct = db.prepare("UPDATE products SET title = ?, brand = ?, data = ?, updated_at = ? WHERE id = ?");
-  for (const update of productUpdates) writeProduct.run(update.title, update.brand, update.data, now, update.id);
+  const writeProduct = db.prepare(
+    "UPDATE products SET slug = ?, title = ?, brand = ?, data = ?, updated_at = ? WHERE id = ?",
+  );
+  for (const update of productUpdates) {
+    writeProduct.run(update.slug, update.title, update.brand, update.data, now, update.id);
+  }
+  const writeRedirect = db.prepare(
+    `INSERT INTO redirects (from_path, to_path, created_at) VALUES (?, ?, ?)
+     ON CONFLICT(from_path) DO UPDATE SET to_path = excluded.to_path, created_at = excluded.created_at`,
+  );
+  for (const [from, to] of slugMoves) writeRedirect.run(`/product/${from}/`, `/product/${to}/`, now);
   const writeCategory = db.prepare("UPDATE categories SET data = ?, updated_at = ? WHERE id = ?");
   for (const update of categoryUpdates) writeCategory.run(update.data, now, update.id);
   const writeCarText = db.prepare("UPDATE car_texts SET text = ?, updated_at = ? WHERE category_id = ? AND model_id = ?");

@@ -1,4 +1,5 @@
-const BRAND = String.raw`(?<![\w.\/-])(?:VDF|Vdf|vdf|ВДФ)(?:[\s-]?(?:light|Light|LIGHT|лайт|Лайт))?(?![\w-]|\.(?:by|BY|ru|RU)\b)`;
+const BRAND = String.raw`(?<![\w.\/-])(?:VDF|Vdf|vdf|ВДФ)(?:[\s-]?(?:light|Light|LIGHT|лайт|Лайт|Electronics|electronics))?(?![\w-]|\.(?:by|BY|ru|RU)\b)`;
+const SUPPLIER_CODE = String.raw`(?<![\w\/-])VDF[A-Z]*-?\d[\w-]*`;
 const LENS_BRANDS = String.raw`(?:Cerida|Aozoom|iphcar|MTF|Optima|Dixel|Sunrise|Sanvi)\b`;
 const COUNTRY = String.raw`(Россия|Китай|КНР|РФ)`;
 const LABEL = String.raw`(?:[Пп]роизводитель|[Ии]зготовитель|[Бб]ренд)(?:\s+(?:стекла|рамок|рамки|изделия))?`;
@@ -7,13 +8,15 @@ const AFTER = String.raw`(?=[\s,.;:!?)\]»"]|$)`;
 const SENTENCE_START = String.raw`(^|[.!?]\s+|\n)`;
 
 const SUPPLIER_BRAND = new RegExp(String.raw`^\s*${BRAND}\s*$`, "i");
-const ANY_MENTION = new RegExp(BRAND);
+const ANY_MENTION = new RegExp(`${BRAND}|${SUPPLIER_CODE}`);
 const MANUFACTURER_SPECS = new Set(["производитель", "изготовитель", "бренд", "марка производителя", "торговая марка"]);
 
 const isUpper = (text) => /^[А-ЯЁA-Z]/.test(text);
 const sameCase = (sample, word) => (isUpper(sample) ? word.charAt(0).toUpperCase() : word.charAt(0).toLowerCase()) + word.slice(1);
 
 const RULES = [
+  [new RegExp(String.raw`,?\s*(?:с\s+)?артикул(?:ом)?\s+${SUPPLIER_CODE}`, "g"), ""],
+  [new RegExp(String.raw`\s*\(\s*${SUPPLIER_CODE}\s*\)|\s+${SUPPLIER_CODE}`, "g"), ""],
   [new RegExp(String.raw`${BRAND},\s*(?=${LENS_BRANDS})`, "g"), ""],
   [new RegExp(String.raw`,\s*${BRAND}(?=\s*(?:,|и\s|или\s|\.|$))`, "gm"), ""],
   [new RegExp(String.raw`\(\s*${BRAND},\s*`, "g"), "("],
