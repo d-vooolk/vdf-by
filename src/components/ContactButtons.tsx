@@ -14,12 +14,14 @@ interface ContactButtonsProps {
   /** Размер иконки в пикселях. */
   size?: number;
   className?: string;
+  onSelect?: (channel: Channel) => void;
 }
 
 export function ContactButtons({
   channels,
   size = 28,
   className = "",
+  onSelect,
 }: ContactButtonsProps) {
   if (!channels.length) return null;
 
@@ -33,6 +35,7 @@ export function ContactButtons({
           rel={channel.external ? "noopener noreferrer nofollow" : undefined}
           title={channel.label}
           aria-label={channel.label}
+          onClick={onSelect ? () => onSelect(channel) : undefined}
           className="inline-flex shrink-0 rounded-full transition-transform duration-150 hover:scale-110 active:scale-95"
         >
           {/* Обычный img, а не next/image: оптимизатор картинок в проекте

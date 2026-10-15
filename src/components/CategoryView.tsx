@@ -8,6 +8,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { ListingFacts } from "@/components/ListingFacts";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { WorkshopNote } from "@/components/WorkshopNote";
+import { WorkshopPhotos } from "@/components/WorkshopPhotos";
 import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot } from "@/lib/car-types";
@@ -28,8 +29,8 @@ import { formatPrice, pluralize } from "@/lib/format";
 import {
   clampPage,
   listingHref,
+  laterPageMeta,
   listingPage,
-  pageSuffix,
   PER_PAGE,
   type ListingState,
 } from "@/lib/listing";
@@ -37,6 +38,7 @@ import type { Category, CategoryCollection } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock } from "@/lib/variant";
 import { workshopLinkFor } from "@/lib/workshop-links";
+import { workshopPhotosFor } from "@/lib/workshop-photos";
 
 /**
  * Страница раздела — одна на оба адреса.
@@ -92,9 +94,11 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
       "Доставка по Минску и Беларуси, оплата при получении",
     );
 
+  const later = page > 1 ? laterPageMeta(category.name, page, products.length) : null;
+
   return buildMetadata({
-    title: `${category.seoTitle ?? `${category.name} купить в Минске`}${pageSuffix(page)}`,
-    description: page > 1 ? sentences(`${category.name}, страница ${page}`, description) : description,
+    title: later?.title ?? category.seoTitle ?? `${category.name} купить в Минске`,
+    description: later?.description ?? description,
     path: listingHref(categoryUrl(category), page, "default"),
     image: category.image ?? products.find((product) => product.images[0])?.images[0],
   });
@@ -121,9 +125,10 @@ export function collectionMetadata(
         ),
       "Доставка по Минску и Беларуси, оплата при получении",
     );
+  const later = page > 1 ? laterPageMeta(collection.name, page, products.length) : null;
   return buildMetadata({
-    title: `${collection.seoTitle ?? `${collection.name} купить в Минске`}${pageSuffix(page)}`,
-    description: page > 1 ? sentences(`${collection.name}, страница ${page}`, description) : description,
+    title: later?.title ?? collection.seoTitle ?? `${collection.name} купить в Минске`,
+    description: later?.description ?? description,
     path: listingHref(collectionUrl(category, collection), page, "default"),
     image: products.find((product) => product.images[0])?.images[0],
   });
@@ -171,7 +176,7 @@ export function CategoryView({
 }) {
   const site = getSite();
   const url = collection ? collectionUrl(category, collection) : categoryUrl(category);
-  const heading = collection?.name ?? category.name;
+  const heading = collection?.name ?? category.heading ?? category.name;
   const children = collection ? [] : getChildCategories(category.id);
 
   // Товары подразделов входят в выдачу родителя: у самого родителя их нет,
@@ -281,6 +286,10 @@ export function CategoryView({
       )}
 
       {shown.page === 1 && workshop && <WorkshopNote link={workshop} className="mt-10 max-w-3xl" />}
+
+      {shown.page === 1 && !collection && (
+        <WorkshopPhotos set={workshopPhotosFor(workshop)} className="mt-14 border-t border-brand-100 pt-10" />
+      )}
 
       {shown.page === 1 && (
         <ListingFacts

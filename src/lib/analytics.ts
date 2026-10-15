@@ -53,3 +53,9 @@ export function trackOrder(order: OrderEvent): void {
     source: order.source,
   });
 }
+
+export function trackGoal(name: string, params: Record<string, string> = {}): void {
+  if (typeof window === "undefined") return;
+  window.ym?.(METRIKA_ID, "reachGoal", name, params);
+  window.gtag?.("event", name, params);
+}

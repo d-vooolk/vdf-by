@@ -457,6 +457,17 @@ export function CategoryForm({
       </Section>
 
       <Section title="Поиск и SEO">
+        <Field
+          label="Заголовок H1 на странице раздела"
+          hint="Пусто — название раздела. На страницах марок и моделей остаётся название"
+        >
+          <input
+            value={draft.heading ?? ""}
+            onChange={(event) => patch({ heading: event.target.value })}
+            className="field"
+          />
+        </Field>
+
         <Field label="Заголовок для поиска" hint="До 60 символов">
           <input
             value={draft.seoTitle ?? ""}
@@ -588,6 +599,7 @@ function clean(category: Category): Category {
     ...category,
     name: category.name.trim(),
     menuName: trimmed(category.menuName),
+    heading: trimmed(category.heading),
     excerpt: trimmed(category.excerpt),
     description: trimmed(category.description),
     seoTitle: trimmed(category.seoTitle),

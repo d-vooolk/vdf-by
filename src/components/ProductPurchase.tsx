@@ -21,6 +21,7 @@ import {
 import { ImagePlaceholder, Picture } from "@/components/Picture";
 import { QuickOrder, type QuickShippingMethod } from "@/components/QuickOrder";
 import { ServiceOffer } from "@/components/ServiceOffer";
+import { trackGoal } from "@/lib/analytics";
 import type { Channel } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { pickUrl, type ImageMap } from "@/lib/image-types";
@@ -69,6 +70,7 @@ interface ProductPurchaseProps {
   phoneHref: string;
   /** Telegram, Viber, WhatsApp — уже с готовым текстом вопроса по товару. */
   messengers: Channel[];
+  fitCheck: Channel[] | null;
   workshop: { href: string; anchor: string } | null;
 }
 
@@ -137,6 +139,7 @@ export function ProductPurchase({
   phone,
   phoneHref,
   messengers,
+  fitCheck,
   workshop,
 }: ProductPurchaseProps) {
   /*
@@ -590,13 +593,31 @@ export function ProductPurchase({
 
         <ServiceOffer productId={product.id} productTitle={product.title} workshop={workshop} />
 
-        {messengers.length > 0 && (
-          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-card border border-brand-100 p-4">
-            <span className="text-sm text-brand-600">
-              Спросить о товаре в мессенджере:
-            </span>
-            <ContactButtons channels={messengers} size={34} />
+        {fitCheck?.length ? (
+          <div className="mb-6 rounded-card border border-brand-200 p-4">
+            <p className="text-sm font-semibold text-brand-900">Подойдёт ли на вашу машину?</p>
+            <p className="mt-1 mb-3 text-sm text-brand-600">
+              Пришлите VIN или фото фары с наклейкой на корпусе — проверим совместимость до заказа.
+            </p>
+            <ContactButtons
+              channels={fitCheck}
+              size={34}
+              onSelect={(channel) => trackGoal("fit_check", { channel: channel.id, product: product.slug })}
+            />
           </div>
+        ) : (
+          messengers.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-card border border-brand-100 p-4">
+              <span className="text-sm text-brand-600">
+                Спросить о товаре в мессенджере:
+              </span>
+              <ContactButtons
+                channels={messengers}
+                size={34}
+                onSelect={(channel) => trackGoal("product_messenger", { channel: channel.id, product: product.slug })}
+              />
+            </div>
+          )
         )}
 
         <ul className="space-y-3 rounded-card bg-brand-50 p-4 text-sm text-brand-600">

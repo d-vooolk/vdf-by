@@ -22,7 +22,7 @@ import {
 } from "@/lib/catalog";
 import { carsRoot } from "@/lib/car-types";
 import { getProductCars, getProductsForSameCars } from "@/lib/cars";
-import { getMessengers, productMessage } from "@/lib/contacts";
+import { fitCheckMessage, getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { frameMembershipOf, specsWithFrameType } from "@/lib/frame-membership";
 import { pickImages } from "@/lib/images";
@@ -30,6 +30,8 @@ import { articlesForProduct } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
 import { buildMetadata, productJsonLd } from "@/lib/seo";
 import { workshopLinkFor } from "@/lib/workshop-links";
+import { workshopPhotosFor } from "@/lib/workshop-photos";
+import { WorkshopPhotos } from "@/components/WorkshopPhotos";
 import { productSnippet } from "@/lib/snippet";
 import type { Product } from "@/lib/schema";
 import { allProductImages, hasPrice, priceRange } from "@/lib/variant";
@@ -140,6 +142,7 @@ export default async function ProductPage({ params }: PageProps) {
     .filter((item) => !sameCarIds.has(item.id))
     .slice(0, 5);
   const cars = category?.carFitment ? getProductCars(product.id) : [];
+  const workshop = workshopLinkFor(category, product.title);
 
   // В клиентский компонент уходят записи манифеста только для фото этого
   // товара — включая галереи всех опций, чтобы переключение цоколя работало
@@ -215,7 +218,8 @@ export default async function ProductPage({ params }: PageProps) {
         phone={site.phone}
         phoneHref={site.phoneHref}
         messengers={messengers}
-        workshop={workshopLinkFor(category, product.title)}
+        fitCheck={category?.carFitment ? getMessengers(site, fitCheckMessage(site, product)) : null}
+        workshop={workshop}
       />
 
       {/* -------------------- Описание и характеристики ------------------ */}
@@ -274,6 +278,8 @@ export default async function ProductPage({ params }: PageProps) {
           </div>
         </section>
       )}
+
+      <WorkshopPhotos set={workshopPhotosFor(workshop)} className="mt-14 border-t border-brand-100 pt-10" />
 
       <Faq items={product.faq ?? []} schema />
 

@@ -97,6 +97,15 @@ export function pageSuffix(page: number): string {
   return page > 1 ? ` — страница ${page}` : "";
 }
 
+export function laterPageMeta(name: string, page: number, total: number) {
+  const from = (page - 1) * PER_PAGE + 1;
+  const to = Math.min(page * PER_PAGE, total);
+  return {
+    title: `${name}${pageSuffix(page)}`,
+    description: `${name}: страница ${page} из ${pageCount(total)}, позиции с ${from} по ${to} из ${total}.`,
+  };
+}
+
 export function pageCount(total: number): number {
   return Math.max(1, Math.ceil(total / PER_PAGE));
 }

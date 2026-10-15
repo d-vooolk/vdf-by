@@ -182,3 +182,8 @@ export function productMessage(
     .filter(Boolean)
     .join("\n");
 }
+
+export function fitCheckMessage(site: Site, product: { title: string; slug: string }): string {
+  const url = `${site.url.replace(/\/+$/, "")}/product/${product.slug}/`;
+  return [`Здравствуйте! Подойдёт ли «${product.title}» на мою машину?`, "VIN: ", url].join("\n");
+}

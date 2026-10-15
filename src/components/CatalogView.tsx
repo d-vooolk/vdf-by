@@ -13,8 +13,8 @@ import { formatPrice, pluralize } from "@/lib/format";
 import {
   clampPage,
   listingHref,
+  laterPageMeta,
   listingPage,
-  pageSuffix,
   PER_PAGE,
   type ListingState,
 } from "@/lib/listing";
@@ -30,15 +30,16 @@ export function catalogMetadata(listing: ListingState): Metadata {
   const available = products.filter(hasAnyInStock).length;
   const cheapest = cheapestPrice(products);
 
+  const later = page > 1 ? laterPageMeta("Каталог автосвета", page, products.length) : null;
+
   return buildMetadata({
-    title: `Каталог автосвета в Минске: линзы, стёкла фар, лампы${pageSuffix(page)}`,
-    description: sentences(
+    title: later?.title ?? "Каталог автосвета в Минске: линзы, стёкла фар, лампы",
+    description: later?.description ?? sentences(
       `Каталог ${site.name}: линзы, стёкла фар, лампы, блоки розжига и аксессуары`,
       available > 0 &&
         `${pluralize(available, "позиция", "позиции", "позиций")} в наличии${
           cheapest ? `, цены от ${formatPrice(cheapest, site.currencySymbol)}` : ""
         }`,
-      page > 1 && `Страница ${page}`,
       "Доставка по Минску и Беларуси, оплата при получении",
     ),
     path: listingHref(CATALOG_PATH, page, "default"),

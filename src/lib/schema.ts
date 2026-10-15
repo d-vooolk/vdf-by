@@ -157,6 +157,7 @@ export const categorySchema = z.strictObject({
   parentId: id.optional(),
   name: z.string().min(1),
   menuName: z.string().optional(),
+  heading: z.string().optional(),
   order: z.number().int().optional(),
   carFitment: z.boolean().optional(),
   frameTypes: z.boolean().optional(),
