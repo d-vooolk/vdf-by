@@ -17,9 +17,9 @@ import { relinkInput } from "./linked-prices";
 import { freeIdentity } from "./product-identity";
 import type { FaqItem, Product } from "./schema";
 import { saveProduct } from "./store";
+import { isSupplierBrand, stripSupplierBrand, stripSupplierSpecs } from "./supplier-brand.mjs";
 
 const UNIT = "комплект";
-const DEFAULT_BRAND = "VDF";
 
 export interface FrameProductResult {
   status: "created" | "skipped";
@@ -91,9 +91,9 @@ function existingForGeneration(group: FrameTypeGroup, generationId: string): str
   return row?.id ?? null;
 }
 
-function typeBrand(group: FrameTypeGroup): string {
+function typeBrand(group: FrameTypeGroup): string | undefined {
   const ids = group.products.map((product) => product.id);
-  if (!ids.length) return DEFAULT_BRAND;
+  if (!ids.length) return undefined;
   const rows = getDb()
     .prepare(
       `SELECT json_extract(data, '$.brand') AS brand, COUNT(*) AS n FROM products
@@ -101,7 +101,7 @@ function typeBrand(group: FrameTypeGroup): string {
         GROUP BY brand ORDER BY n DESC LIMIT 1`,
     )
     .get(...ids) as { brand: string } | undefined;
-  return rows?.brand || DEFAULT_BRAND;
+  return rows?.brand && !isSupplierBrand(rows.brand) ? rows.brand : undefined;
 }
 
 function aiMessage(error: unknown): string {
@@ -144,7 +144,7 @@ export function createFrameProduct(
       unit: UNIT,
       sku: newFrameSku(group.storageCode, type),
       images: [],
-      specs: group.specs,
+      specs: stripSupplierSpecs(group.specs),
       optionGroups: [],
       ...(group.storageCode ? { storageCode: group.storageCode } : {}),
     });
@@ -193,9 +193,11 @@ export function fillFrameProduct(productId: string, part: FramePart): Promise<Fr
     const car = [...getProductCars(productId)].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
     const info = car ? getGenerationInfo(car.generationId) : null;
 
-    const source = [group.name && `Тип рамки: ${group.name}`, info && `Автомобиль: ${carText(info)}`, group.brief]
-      .filter(Boolean)
-      .join("\n\n");
+    const source = stripSupplierBrand(
+      [group.name && `Тип рамки: ${group.name}`, info && `Автомобиль: ${carText(info)}`, group.brief]
+        .filter(Boolean)
+        .join("\n\n"),
+    );
     const base = {
       title: product.title,
       description: source,
@@ -207,11 +209,13 @@ export function fillFrameProduct(productId: string, part: FramePart): Promise<Fr
 
     try {
       if (part === "description") {
-        const description = finishRewrite(
-          await complete(
-            promptFor("rewrite", undefined) + (group.brief.trim() ? "" : WRITE_FROM_TITLE),
-            describeProduct(base, false),
-            "rewrite",
+        const description = stripSupplierBrand(
+          finishRewrite(
+            await complete(
+              promptFor("rewrite", undefined) + (group.brief.trim() ? "" : WRITE_FROM_TITLE),
+              describeProduct(base, false),
+              "rewrite",
+            ),
           ),
         );
         if (!description.trim()) throw new Error("нейросеть вернула пустой текст");
@@ -223,7 +227,7 @@ export function fillFrameProduct(productId: string, part: FramePart): Promise<Fr
             describeProduct({ ...base, description: product.description?.trim() || source }, true),
             "faq",
           ),
-        );
+        ).map((item) => ({ q: stripSupplierBrand(item.q), a: stripSupplierBrand(item.a) }));
         if (!faq.length) throw new Error("нейросеть не вернула ни одного вопроса");
         writeProduct({ ...readProduct(productId), faq });
       }

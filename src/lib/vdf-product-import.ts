@@ -14,6 +14,7 @@ import { revalidateProduct } from "./revalidate";
 import type { FaqItem, OptionGroup, Spec } from "./schema";
 import { freeIdentity } from "./product-identity";
 import { saveProduct } from "./store";
+import { isSupplierBrand, stripSupplierBrand, stripSupplierSpecs } from "./supplier-brand.mjs";
 import { SHEET_COLUMNS, type SheetRow } from "./vdf-catalog";
 import { readXlsx } from "./xlsx";
 
@@ -339,7 +340,7 @@ export async function importNext(id: number): Promise<ImportLogEntry | null> {
 
   const group = JSON.parse(claimed.rows) as SheetRow[];
   const [main] = group;
-  const title = mergedTitle(group);
+  const title = stripSupplierBrand(mergedTitle(group));
   const warnings: string[] = [];
   const finish = (status: ImportStatus, productId: string | null, message: string): ImportLogEntry => {
     getDb()
@@ -362,22 +363,24 @@ export async function importNext(id: number): Promise<ImportLogEntry | null> {
     if (!category) throw new Error("Раздел магазина удалён");
     const productId = freeIdentity(title, main.article);
     const folder = `${job.category_id}/${productId}`;
-    const specs = specsOf(main, group);
-    const brand = main.brand || "VDF";
+    const specs = stripSupplierSpecs(specsOf(main, group));
+    const brand = main.brand && !isSupplierBrand(main.brand) ? main.brand : undefined;
 
     const base = {
       title,
-      description: main.description,
+      description: stripSupplierBrand(main.description),
       categoryName: category.name,
       brand,
       specs,
       options: group.length > 1 ? ["Сторона: правое, левое или пара"] : [],
     };
-    const description = finishRewrite(
-      await complete(
-        promptFor("rewrite", undefined) + (main.description.trim() ? "" : WRITE_FROM_TITLE),
-        describeProduct(base, false),
-        "rewrite",
+    const description = stripSupplierBrand(
+      finishRewrite(
+        await complete(
+          promptFor("rewrite", undefined) + (main.description.trim() ? "" : WRITE_FROM_TITLE),
+          describeProduct(base, false),
+          "rewrite",
+        ),
       ),
     );
 
@@ -386,7 +389,7 @@ export async function importNext(id: number): Promise<ImportLogEntry | null> {
       try {
         faq = parseFaq(
           await complete(promptFor("faq", undefined), describeProduct({ ...base, description }, true), "faq"),
-        );
+        ).map((item) => ({ q: stripSupplierBrand(item.q), a: stripSupplierBrand(item.a) }));
       } catch (error) {
         warnings.push(`вопросы-ответы не получились: ${(error as Error).message}`);
       }
