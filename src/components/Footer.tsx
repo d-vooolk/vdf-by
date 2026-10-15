@@ -124,6 +124,9 @@ export function Footer() {
           </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
+        <p className="container-page pb-6 text-xs text-brand-400">
+          Независимый магазин ООО «Первый Автосвет», не является официальным сайтом производителя VDF.
+        </p>
       </div>
     </footer>
   );
