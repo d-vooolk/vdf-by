@@ -142,8 +142,8 @@ export function OrderItems({
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-brand-100 px-4 py-3">
           <h2 className="text-sm font-bold text-brand-900">Состав заказа</h2>
-          <button type="button" onClick={startEditing} className="btn-ghost py-1 text-sm">
-            Изменить
+          <button type="button" onClick={startEditing} className="btn-secondary py-1.5 text-sm">
+            Изменить состав
           </button>
         </div>
 
