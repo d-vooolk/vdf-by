@@ -45,6 +45,7 @@ export default function SmsSettingsPage() {
             alphaname: settings.alphaname,
             codeTemplate: settings.codeTemplate,
             approvedTemplate: settings.approvedTemplate,
+            reviewTemplate: settings.reviewTemplate,
           }}
           tokenMask={maskToken(settings.token)}
           defaults={DEFAULT_TEMPLATES}

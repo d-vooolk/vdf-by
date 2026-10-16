@@ -4,7 +4,7 @@ import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getCustomer } from "@/lib/customer-auth";
 import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
-import { buildPriceList } from "@/lib/prices";
+import { buildPriceList, describeShortage, stockShortages } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildCostList, buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
@@ -202,6 +202,11 @@ function validate(
       url: clean(line.url, 300),
     };
   });
+
+  const shortages = stockShortages(items);
+  if (shortages.length) {
+    return { error: `Столько нет в наличии: ${shortages.map(describeShortage).join("; ")}` };
+  }
 
   const delivery = (body.delivery ?? {}) as Record<string, unknown>;
   const deliveryId = clean(delivery.id, 40);

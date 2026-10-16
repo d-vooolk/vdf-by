@@ -59,4 +59,7 @@ export interface Order {
   telegramSent: boolean;
   adminNote: string;
   staff: boolean;
+  wholesale: boolean;
+  editedAt: number | null;
+  reviewSmsAt: number | null;
 }

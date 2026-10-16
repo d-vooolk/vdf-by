@@ -10,6 +10,7 @@ import type { SmsConnection } from "@/lib/sms";
 interface Templates {
   codeTemplate: string;
   approvedTemplate: string;
+  reviewTemplate: string;
 }
 
 export function SmsSettingsForm({
@@ -30,6 +31,7 @@ export function SmsSettingsForm({
   const [templates, setTemplates] = useState<Templates>({
     codeTemplate: initial.codeTemplate,
     approvedTemplate: initial.approvedTemplate,
+    reviewTemplate: initial.reviewTemplate,
   });
   const [info, setInfo] = useState<SmsConnection | null>(
     initial.alphanameId
@@ -218,6 +220,7 @@ export function SmsSettingsForm({
 
       {templateField("codeTemplate", "Шаблон SMS с кодом входа")}
       {templateField("approvedTemplate", "Шаблон «Оптовые цены открыты»")}
+      {templateField("reviewTemplate", "Шаблон «Просьба об отзыве» — кнопка в выполненном заказе")}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={pending} className="btn-primary py-2 text-sm">

@@ -33,11 +33,12 @@ import {
   resolveVariant,
   selectionFromQuery,
   variantQuery,
+  variantStockQty,
   type Selection,
   type VariantProduct,
 } from "@/lib/variant";
 import { useStaffPrices, useWholesalePrice } from "@/store/account";
-import { useCart, useHydrated } from "@/store/cart";
+import { lineLimit, useCart, useHydrated } from "@/store/cart";
 
 /**
  * Галерея, выбор опций и кнопка заказа.
@@ -172,9 +173,7 @@ export function ProductPurchase({
   };
 
   const variant = resolveVariant(product, selection);
-  const shownStockQty =
-    variant.selected.find((entry) => entry.value.stockQty !== undefined)?.value.stockQty ??
-    product.stockQty;
+  const shownStockQty = variantStockQty(product, variant);
   const priced = hasPrice(variant.price);
   const wholesale = useWholesalePrice(variant.key);
   const staffPrices = useStaffPrices();
@@ -192,6 +191,8 @@ export function ProductPurchase({
     (state) => state.items.find((line) => line.key === variant.key)?.qty ?? 0,
   );
   const hydrated = useHydrated();
+  const maxQty = Math.max(1, lineLimit({ stock: shownStockQty }));
+  const orderQty = Math.min(qty, maxQty);
   const choosingQty = !hydrated || inCart === 0;
   const gallery = variant.images;
 
@@ -517,8 +518,8 @@ export function ProductPurchase({
                 <div className="flex items-center rounded-xl border border-brand-200">
                   <button
                     type="button"
-                    onClick={() => setQty((current) => Math.max(1, current - 1))}
-                    disabled={qty <= 1}
+                    onClick={() => setQty(Math.max(1, orderQty - 1))}
+                    disabled={orderQty <= 1}
                     className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
                     aria-label="Уменьшить количество"
                   >
@@ -527,14 +528,14 @@ export function ProductPurchase({
                   <span
                     className="tnum w-10 text-center text-sm font-semibold"
                     aria-live="polite"
-                    aria-label={`Количество: ${qty}`}
+                    aria-label={`Количество: ${orderQty}`}
                   >
-                    {qty}
+                    {orderQty}
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQty((current) => Math.min(99, current + 1))}
-                    disabled={qty >= 99}
+                    onClick={() => setQty(Math.min(maxQty, orderQty + 1))}
+                    disabled={orderQty >= maxQty}
                     className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
                     aria-label="Увеличить количество"
                   >
@@ -546,7 +547,7 @@ export function ProductPurchase({
               <AddToCartButton
                 className="btn-primary flex-1"
                 disabled={!variant.inStock}
-                qty={qty}
+                qty={orderQty}
                 item={{
                   key: variant.key,
                   productId: product.id,
@@ -561,6 +562,7 @@ export function ProductPurchase({
                   unit: product.unit,
                   sku: variant.sku,
                   imageUrl: pickUrl(mainEntry, 200),
+                  stock: shownStockQty,
                 }}
               />
             </div>
@@ -573,7 +575,7 @@ export function ProductPurchase({
                 shipping={quickShipping}
                 currencySymbol={currencySymbol}
                 disabled={!variant.inStock}
-                qty={qty}
+                qty={orderQty}
                 currency={currency}
                 phone={phone}
                 phoneHref={phoneHref}

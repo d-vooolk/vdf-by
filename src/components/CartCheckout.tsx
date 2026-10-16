@@ -17,7 +17,7 @@ import { trackOrder } from "@/lib/analytics";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { DeliveryMethod } from "@/lib/schema";
 import { useAccount } from "@/store/account";
-import { cartTotal, useCart, useHydrated } from "@/store/cart";
+import { cartTotal, useCart, useHydrated, type StockCut } from "@/store/cart";
 
 /**
  * Корзина и оформление заказа на одной странице.
@@ -107,6 +107,7 @@ export function CartCheckout({
   const [priceChanges, setPriceChanges] = useState<
     Array<{ title: string; from: number; to: number }>
   >([]);
+  const [stockCuts, setStockCuts] = useState<StockCut[]>([]);
 
   const subtotal = cartTotal(items);
   const method = deliveryMethods.find((entry) => entry.id === methodId);
@@ -133,14 +134,15 @@ export function CartCheckout({
     let cancelled = false;
     fetch("/variants.json")
       .then((response) => (response.ok ? response.json() : null))
-      .then((retail: Record<string, { price: number; inStock: boolean }> | null) => {
+      .then((retail: Record<string, { price: number; inStock: boolean; stock?: number }> | null) => {
         if (cancelled || !retail) return;
         const prices = { ...retail };
         for (const [key, price] of Object.entries(wholesale ?? {})) {
           if (prices[key]) prices[key] = { ...prices[key], price };
         }
         const changes = reprice(prices);
-        if (changes.length) setPriceChanges(changes);
+        if (changes.priceChanges.length) setPriceChanges(changes.priceChanges);
+        if (changes.stockCuts.length) setStockCuts(changes.stockCuts);
       })
       // Файл не загрузился — работаем по сохранённым ценам. Менеджер всё
       // равно подтверждает заказ звонком.
@@ -344,6 +346,30 @@ export function CartCheckout({
                   <li key={change.title} className="tnum">
                     {change.title}: {formatPrice(change.from, currencySymbol)} →{" "}
                     {formatPrice(change.to, currencySymbol)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {stockCuts.length > 0 && (
+          <div
+            className="mb-5 flex gap-3 rounded-card border border-amber-300 bg-amber-50 p-4"
+            role="status"
+          >
+            <AlertIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-900">
+                Часть товара разобрали, пока корзина ждала
+              </p>
+              <ul className="mt-1.5 space-y-0.5 text-amber-800">
+                {stockCuts.map((cut) => (
+                  <li key={cut.title} className="tnum">
+                    {cut.title}:{" "}
+                    {cut.stock > 0
+                      ? `осталось ${cut.stock} шт., количество уменьшили`
+                      : "закончился, убрали из корзины"}
                   </li>
                 ))}
               </ul>

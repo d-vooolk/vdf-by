@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MinusIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import { ImagePlaceholder } from "@/components/Picture";
 import { formatPrice } from "@/lib/format";
-import { useCart, type CartItem } from "@/store/cart";
+import { lineLimit, useCart, type CartItem } from "@/store/cart";
 
 /** Список позиций корзины с изменением количества и удалением. */
 export function CartLines({
@@ -75,12 +75,18 @@ export function CartLines({
                 <button
                   type="button"
                   onClick={() => setQty(line.key, line.qty + 1)}
-                  className="p-2.5 text-brand-500 hover:text-brand-900"
+                  disabled={line.qty >= lineLimit(line)}
+                  className="p-2.5 text-brand-500 hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500"
                   aria-label={`Увеличить количество: ${line.title}`}
                 >
                   <PlusIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
+              {line.stock !== undefined && line.qty >= line.stock && (
+                <span className="text-xs text-brand-400">
+                  В наличии {line.stock} шт. — это всё
+                </span>
+              )}
 
               <div className="flex items-center gap-3">
                 <span className="text-right">

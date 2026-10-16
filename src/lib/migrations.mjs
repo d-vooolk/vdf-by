@@ -690,6 +690,10 @@ export const MIGRATIONS = [
     CREATE INDEX crm_payments_by_date ON crm_payments(paid_at);
     CREATE INDEX crm_payments_by_order ON crm_payments(order_id);
   `,
+  `
+    ALTER TABLE orders ADD COLUMN edited_at INTEGER;
+    ALTER TABLE orders ADD COLUMN review_sms_at INTEGER;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

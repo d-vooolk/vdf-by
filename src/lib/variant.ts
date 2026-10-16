@@ -206,6 +206,17 @@ export function priceRange(product: VariantProduct): PriceRange {
 
 export const PRICE_ON_REQUEST = "Цену уточняйте";
 
+export function variantStockQty(
+  product: Pick<Product, "stockQty">,
+  variant: Pick<ResolvedVariant, "selected">,
+): number | undefined {
+  return (
+    variant.selected.find((entry) => entry.value.stockQty !== undefined)?.value.stockQty ??
+    product.stockQty ??
+    undefined
+  );
+}
+
 export function stockedByQty(qty: number | null | undefined): boolean {
   return (qty ?? 0) > 0;
 }

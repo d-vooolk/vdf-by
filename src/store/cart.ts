@@ -31,7 +31,13 @@ export interface CartItem {
   unit?: string;
   sku?: string | null;
   imageUrl?: string | null;
+  stock?: number;
   qty: number;
+}
+
+export interface StockCut {
+  title: string;
+  stock: number;
 }
 
 interface CartState {
@@ -40,13 +46,22 @@ interface CartState {
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
   /** Подтянуть актуальные цены и наличие. Возвращает список изменений. */
-  reprice: (
-    prices: Record<string, { price: number; inStock: boolean }>,
-  ) => Array<{ title: string; from: number; to: number }>;
+  reprice: (prices: Record<string, { price: number; inStock: boolean; stock?: number }>) => {
+    priceChanges: Array<{ title: string; from: number; to: number }>;
+    stockCuts: StockCut[];
+  };
   clear: () => void;
 }
 
 const MAX_QTY = 99;
+
+export function lineLimit(line: Pick<CartItem, "stock">): number {
+  return Math.min(MAX_QTY, line.stock ?? MAX_QTY);
+}
+
+function lineTitle(line: CartItem): string {
+  return `${line.title}${line.optionLabel ? ` (${line.optionLabel})` : ""}`;
+}
 
 export const useCart = create<CartState>()(
   persist(
@@ -58,14 +73,15 @@ export const useCart = create<CartState>()(
           const existing = state.items.find((line) => line.key === item.key);
           if (existing) {
             return {
-              items: state.items.map((line) =>
-                line.key === item.key
-                  ? { ...line, qty: Math.min(MAX_QTY, line.qty + qty) }
-                  : line,
-              ),
+              items: state.items.map((line) => {
+                if (line.key !== item.key) return line;
+                const next = { ...line, ...item };
+                return { ...next, qty: Math.min(lineLimit(next), line.qty + qty) };
+              }),
             };
           }
-          return { items: [...state.items, { ...item, qty }] };
+          const added = Math.min(lineLimit(item), qty);
+          return added < 1 ? state : { items: [...state.items, { ...item, qty: added }] };
         }),
 
       remove: (key) =>
@@ -77,27 +93,30 @@ export const useCart = create<CartState>()(
         set((state) => ({
           items: state.items.flatMap((line) => {
             if (line.key !== key) return [line];
-            const next = Math.min(MAX_QTY, Math.floor(qty));
+            const next = Math.min(lineLimit(line), Math.floor(qty));
             // Количество 0 — это удаление позиции, а не строка с нулём.
             return next < 1 ? [] : [{ ...line, qty: next }];
           }),
         })),
 
       reprice: (prices) => {
-        const changes: Array<{ title: string; from: number; to: number }> = [];
+        const priceChanges: Array<{ title: string; from: number; to: number }> = [];
+        const stockCuts: StockCut[] = [];
         set((state) => ({
-          items: state.items.map((line) => {
+          items: state.items.flatMap((line) => {
             const actual = prices[line.key];
-            if (!actual || actual.price === line.price) return line;
-            changes.push({
-              title: `${line.title}${line.optionLabel ? ` (${line.optionLabel})` : ""}`,
-              from: line.price,
-              to: actual.price,
-            });
-            return { ...line, price: actual.price };
+            if (!actual) return [line];
+            if (actual.price !== line.price) {
+              priceChanges.push({ title: lineTitle(line), from: line.price, to: actual.price });
+            }
+            const next: CartItem = { ...line, price: actual.price, stock: actual.stock };
+            if (actual.stock === undefined) delete next.stock;
+            const qty = Math.min(line.qty, lineLimit(next));
+            if (qty < line.qty) stockCuts.push({ title: lineTitle(line), stock: Math.max(0, qty) });
+            return qty < 1 ? [] : [{ ...next, qty }];
           }),
         }));
-        return changes;
+        return { priceChanges, stockCuts };
       },
 
       clear: () => set({ items: [] }),

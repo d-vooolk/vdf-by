@@ -6,7 +6,10 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "./order-types";
+import { orderLineFromCatalog } from "./order-catalog";
+import { describeShortage, stockShortages } from "./prices";
 import { returnToStock, takeFromStock, type StockMove } from "./store";
+import { variantKey } from "./variant";
 
 /**
  * Заказы: приём с витрины и работа с ними в админке.
@@ -45,6 +48,9 @@ interface OrderRow {
   telegram_sent: number;
   admin_note: string;
   staff: number;
+  wholesale: number;
+  edited_at: number | null;
+  review_sms_at: number | null;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -72,12 +78,16 @@ function toOrder(row: OrderRow): Order {
     telegramSent: row.telegram_sent === 1,
     adminNote: row.admin_note,
     staff: row.staff === 1,
+    wholesale: row.wholesale === 1,
+    editedAt: row.edited_at,
+    reviewSmsAt: row.review_sms_at,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total,
-  currency, items, notes, ip, referer, telegram_sent, admin_note, staff`;
+  currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
+  wholesale, edited_at, review_sms_at`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -268,6 +278,99 @@ function orderedQuantities(items: OrderItem[]): StockMove[] {
     );
     return { productId, qty, selection };
   });
+}
+
+export interface OrderLineInput {
+  key: string;
+  qty: number;
+}
+
+export type OrderEditResult =
+  | { ok: true; changed: StockMove[] }
+  | { ok: false; problems: string[] };
+
+export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEditResult {
+  const db = getDb();
+  return db.transaction((): OrderEditResult => {
+    const row = db
+      .prepare(
+        "SELECT status, staff, wholesale, items, delivery_cost, stock_moves FROM orders WHERE id = ?",
+      )
+      .get(id) as
+      | {
+          status: string;
+          staff: number;
+          wholesale: number;
+          items: string;
+          delivery_cost: number;
+          stock_moves: string | null;
+        }
+      | undefined;
+    if (!row) return { ok: false, problems: ["Заказ не найден"] };
+
+    const current = new Map((JSON.parse(row.items) as OrderItem[]).map((item) => [item.key, item]));
+    const buyer = { staff: row.staff === 1, wholesale: row.wholesale === 1 };
+    const wanted = new Map<string, number>();
+    for (const line of lines) {
+      const qty = Math.floor(Number(line.qty) || 0);
+      if (line.key && qty > 0) wanted.set(line.key, Math.min(999, (wanted.get(line.key) ?? 0) + qty));
+    }
+
+    const problems: string[] = [];
+    const items: OrderItem[] = [];
+    for (const [key, qty] of wanted) {
+      const existing = current.get(key);
+      const item = existing
+        ? { ...existing, qty, sum: Math.round(existing.price * qty * 100) / 100 }
+        : orderLineFromCatalog(key, qty, buyer);
+      if (item) items.push(item);
+      else problems.push(`Товара ${key} больше нет в каталоге`);
+    }
+    if (!items.length) problems.push("В заказе должна остаться хотя бы одна позиция");
+    if (problems.length) return { ok: false, problems };
+
+    const taken = row.stock_moves ? (JSON.parse(row.stock_moves) as StockMove[]) : null;
+    const released = (taken ?? []).map((move) => ({
+      key: variantKey(move.productId, move.selection ?? {}),
+      title: "",
+      qty: move.qty,
+    }));
+    const shortages = stockShortages(items, released);
+    if (shortages.length) {
+      return {
+        ok: false,
+        problems: shortages.map((shortage) => `Не хватает на складе: ${describeShortage(shortage)}`),
+      };
+    }
+
+    let moves = taken;
+    const changed: StockMove[] = [];
+    if (taken) {
+      changed.push(...returnToStock(taken));
+      moves = takeFromStock(orderedQuantities(items));
+      changed.push(...moves);
+    }
+
+    const subtotal = Math.round(items.reduce((sum, item) => sum + item.sum, 0) * 100) / 100;
+    db.prepare(
+      `UPDATE orders
+          SET items = ?, subtotal = ?, total = ?, stock_moves = ?, edited_at = ?
+        WHERE id = ?`,
+    ).run(
+      JSON.stringify(items),
+      subtotal,
+      Math.round((subtotal + row.delivery_cost) * 100) / 100,
+      moves === null ? null : JSON.stringify(moves),
+      Date.now(),
+      id,
+    );
+    if (row.staff === 1 && row.status === "done") queueCrmSync(id, true);
+    return { ok: true, changed };
+  })();
+}
+
+export function markReviewRequested(id: number): void {
+  getDb().prepare("UPDATE orders SET review_sms_at = ? WHERE id = ?").run(Date.now(), id);
 }
 
 export function setOrderNote(id: number, note: string): void {

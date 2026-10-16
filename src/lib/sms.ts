@@ -14,12 +14,14 @@ export interface SmsSettings {
   alphaname: string;
   codeTemplate: string;
   approvedTemplate: string;
+  reviewTemplate: string;
 }
 
 export const DEFAULT_TEMPLATES = {
   codeTemplate: "Код для входа на {{siteName}}: {{code}}",
   approvedTemplate:
     "{{name}}, оптовые цены на {{siteName}} открыты. Войдите в личный кабинет по номеру телефона.",
+  reviewTemplate: "{{name}}, спасибо за покупку в {{siteName}}! Будем рады вашему отзыву: {{link}}",
 };
 
 export const TEMPLATE_VARIABLES: Record<keyof typeof DEFAULT_TEMPLATES, Array<[string, string]>> = {
@@ -30,6 +32,11 @@ export const TEMPLATE_VARIABLES: Record<keyof typeof DEFAULT_TEMPLATES, Array<[s
   approvedTemplate: [
     ["{{name}}", "ФИО или компания покупателя"],
     ["{{siteName}}", "название магазина"],
+  ],
+  reviewTemplate: [
+    ["{{name}}", "имя покупателя из заказа"],
+    ["{{siteName}}", "название магазина"],
+    ["{{link}}", "ссылка на страницу с отзывами на Яндекс и Google"],
   ],
 };
 
@@ -46,6 +53,7 @@ export function getSmsSettings(): SmsSettings {
     alphaname: saved?.alphaname ?? "",
     codeTemplate: saved?.codeTemplate?.trim() || DEFAULT_TEMPLATES.codeTemplate,
     approvedTemplate: saved?.approvedTemplate?.trim() || DEFAULT_TEMPLATES.approvedTemplate,
+    reviewTemplate: saved?.reviewTemplate?.trim() || DEFAULT_TEMPLATES.reviewTemplate,
   };
 }
 
@@ -58,6 +66,7 @@ export function saveSmsSettings(input: Partial<SmsSettings>): SmsSettings {
     alphaname: input.alphaname?.trim() ?? current.alphaname,
     codeTemplate: input.codeTemplate?.trim() || DEFAULT_TEMPLATES.codeTemplate,
     approvedTemplate: input.approvedTemplate?.trim() || DEFAULT_TEMPLATES.approvedTemplate,
+    reviewTemplate: input.reviewTemplate?.trim() || DEFAULT_TEMPLATES.reviewTemplate,
   };
   getDb()
     .prepare(

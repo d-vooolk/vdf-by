@@ -168,6 +168,7 @@ export function ProductCard({
                 unit: product.unit,
                 sku: variant.sku,
                 imageUrl: pickUrl(entry, 200),
+                stock: product.stockQty ?? undefined,
               }}
             />
           )}

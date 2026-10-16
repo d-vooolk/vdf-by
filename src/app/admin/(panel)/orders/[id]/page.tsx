@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OrderControls } from "@/components/admin/OrderControls";
+import { OrderItems } from "@/components/admin/OrderItems";
 import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
 import { orderMoney } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
 import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
 import { getOrder } from "@/lib/orders";
+import { smsConfigured } from "@/lib/sms";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -42,6 +44,11 @@ export default async function OrderPage({ params }: PageProps) {
         </span>
         {order.staff && (
           <span className="badge bg-sky-100 text-sky-800">внутренняя покупка сотрудника</span>
+        )}
+        {order.editedAt && (
+          <span className="text-sm text-brand-400">
+            · состав изменён {new Date(order.editedAt).toLocaleString("ru-RU")}
+          </span>
         )}
       </div>
 
@@ -115,65 +122,16 @@ export default async function OrderPage({ params }: PageProps) {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* ---------------------------- Состав --------------------------- */}
-        <section className="card overflow-hidden">
-          <h2 className="border-b border-brand-100 px-4 py-3 text-sm font-bold text-brand-900">
-            Состав заказа
-          </h2>
-
-          <ul className="divide-y divide-brand-100">
-            {order.items.map((item) => (
-              <li key={item.key} className="flex gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  {item.url ? (
-                    <Link
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener"
-                      className="block text-sm font-medium text-brand-900 hover:text-brand-700"
-                    >
-                      {item.title}
-                    </Link>
-                  ) : (
-                    <p className="text-sm font-medium text-brand-900">
-                      {item.title}
-                    </p>
-                  )}
-                  <p className="text-xs text-brand-400">
-                    {item.options && <span>{item.options} · </span>}
-                    {item.sku && <span>арт. {item.sku} · </span>}
-                    <span className="tnum">
-                      {item.qty} × {price(item.price)}
-                    </span>
-                  </p>
-                </div>
-                <p className="tnum shrink-0 text-sm font-semibold text-brand-900">
-                  {price(item.sum)}
-                </p>
-              </li>
-            ))}
-          </ul>
-
-          <dl className="space-y-2 border-t border-brand-100 px-4 py-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-brand-500">Товары</dt>
-              <dd className="tnum font-medium">{price(order.subtotal)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-brand-500">
-                {order.deliveryName || "Доставка"}
-              </dt>
-              <dd className="tnum font-medium">
-                {order.deliveryCost === 0 ? "бесплатно" : price(order.deliveryCost)}
-              </dd>
-            </div>
-            <div className="flex justify-between border-t border-brand-100 pt-2">
-              <dt className="font-bold text-brand-900">Итого</dt>
-              <dd className="tnum text-lg font-semibold text-brand-900">
-                {price(order.total)}
-              </dd>
-            </div>
-          </dl>
-        </section>
+        <OrderItems
+          orderId={order.id}
+          items={order.items}
+          subtotal={order.subtotal}
+          deliveryName={order.deliveryName}
+          deliveryCost={order.deliveryCost}
+          total={order.total}
+          currencySymbol={site.currencySymbol}
+          stockTaken={order.status === "done"}
+        />
 
         {/* ---------------------------- Клиент --------------------------- */}
         <div className="space-y-5">
@@ -220,6 +178,8 @@ export default async function OrderPage({ params }: PageProps) {
             id={order.id}
             status={order.status}
             note={order.adminNote}
+            reviewSmsAt={order.reviewSmsAt}
+            smsReady={smsConfigured()}
           />
         </div>
       </div>

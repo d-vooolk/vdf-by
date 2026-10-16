@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { CartIcon, MinusIcon, PlusIcon } from "@/components/icons";
 import { useWholesalePrice } from "@/store/account";
-import { useCart, useHydrated, type CartItem } from "@/store/cart";
+import { lineLimit, useCart, useHydrated, type CartItem } from "@/store/cart";
 
 /**
  * Кнопка «В корзину», а после добавления — счётчик и ссылка в корзину.
@@ -105,7 +105,9 @@ export function AddToCartButton({
         <button
           type="button"
           onClick={() => add(item, 1)}
-          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 ${
+          disabled={inCart >= lineLimit(item)}
+          title={inCart >= lineLimit(item) && item.stock !== undefined ? `В наличии ${item.stock} шт.` : undefined}
+          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500 ${
             compact ? "px-1.5 sm:px-2.5" : "px-2.5"
           }`}
           aria-label="Увеличить количество"

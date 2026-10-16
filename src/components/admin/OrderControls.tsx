@@ -5,11 +5,12 @@ import { useState, useTransition } from "react";
 
 import {
   deleteOrderAction,
+  requestReviewAction,
   setOrderNoteAction,
   setOrderStatusAction,
 } from "@/app/admin/actions";
 import { Problems } from "@/components/admin/form-parts";
-import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import { CheckIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-types";
 
 /**
@@ -23,9 +24,17 @@ interface OrderControlsProps {
   id: number;
   status: OrderStatus;
   note: string;
+  reviewSmsAt: number | null;
+  smsReady: boolean;
 }
 
-export function OrderControls({ id, status: initial, note: initialNote }: OrderControlsProps) {
+export function OrderControls({
+  id,
+  status: initial,
+  note: initialNote,
+  reviewSmsAt: initialReviewSmsAt,
+  smsReady,
+}: OrderControlsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<OrderStatus>(initial);
@@ -33,6 +42,20 @@ export function OrderControls({ id, status: initial, note: initialNote }: OrderC
   const [noteSaved, setNoteSaved] = useState(true);
   const [problems, setProblems] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reviewSmsAt, setReviewSmsAt] = useState(initialReviewSmsAt);
+  const [requestingReview, setRequestingReview] = useState(false);
+
+  const requestReview = async () => {
+    setProblems([]);
+    setRequestingReview(true);
+    try {
+      const result = await requestReviewAction(id);
+      if (result.ok) setReviewSmsAt(Date.now());
+      else setProblems(result.problems);
+    } finally {
+      setRequestingReview(false);
+    }
+  };
 
   const changeStatus = (next: OrderStatus) => {
     const previous = status;
@@ -88,6 +111,40 @@ export function OrderControls({ id, status: initial, note: initialNote }: OrderC
           </button>
         ))}
       </div>
+
+      {status === "done" && (
+        <div className="mb-4 rounded-xl bg-accent-100/60 p-3">
+          {reviewSmsAt ? (
+            <p className="flex items-center gap-1.5 text-sm text-green-800">
+              <CheckIcon className="h-4 w-4" />
+              Просьба об отзыве ушла {new Date(reviewSmsAt).toLocaleString("ru-RU")}
+            </p>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={requestReview}
+                disabled={requestingReview || !smsReady}
+                className="btn-primary w-full py-2 text-sm"
+              >
+                {requestingReview ? (
+                  <>
+                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                    Отправляем…
+                  </>
+                ) : (
+                  "Попросить отзыв по SMS"
+                )}
+              </button>
+              <p className="mt-1.5 text-xs text-brand-500">
+                {smsReady
+                  ? "Клиенту придёт SMS со ссылкой на страницу отзывов в Яндексе и Google. Отправляется один раз."
+                  : "SMS не настроены — подключите sms.by в разделе Настройки → SMS."}
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       <label className="block">
         <span className="label">Заметка</span>
