@@ -16,7 +16,7 @@
  * Настройки — через окружение, значения по умолчанию соответствуют боевому
  * серверу:
  *
- *   DEPLOY_HOST    217.12.37.199
+ *   DEPLOY_HOST    93.125.12.160
  *   DEPLOY_USER    root
  *   DEPLOY_PATH    /var/www/vdf.by
  *   DEPLOY_KEY     ~/.ssh/vdf_deploy
@@ -35,7 +35,7 @@ import path from "node:path";
 
 import { env } from "../src/lib/env.mjs";
 
-const HOST = env("DEPLOY_HOST", "217.12.37.199");
+const HOST = env("DEPLOY_HOST", "93.125.12.160");
 const USER = env("DEPLOY_USER", "root");
 const APP_PATH = env("DEPLOY_PATH", "/var/www/vdf.by");
 const BRANCH = env("DEPLOY_BRANCH", "main");
