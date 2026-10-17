@@ -189,7 +189,7 @@ export function ImageComposer({
   const [label, setLabel] = useState("");
   const [mirrorProduct, setMirrorProduct] = useState(initialSettings?.mirrorProduct ?? false);
   const [mirrorCar, setMirrorCar] = useState(initialSettings?.mirrorCar ?? false);
-  const [slope, setSlope] = useState<"up" | "down">(initialSettings?.slope ?? "up");
+  const [slope, setSlope] = useState<"up" | "down">(initialSettings?.slope ?? "down");
   const [productScale, setProductScale] = useState(initialSettings?.productScale ?? 1);
   const [carShift, setCarShift] = useState(initialSettings?.carShift ?? 0.5);
   const [carShiftX, setCarShiftX] = useState(initialSettings?.carShiftX ?? 0.5);

@@ -25,7 +25,7 @@
  * непрозрачный столбец — первый пробел после него), а не задаются числами,
  * чтобы правка исходного файла не превращалась в правку скрипта.
  *
- * Знак одноцветный (#ffd21d) на прозрачном фоне, то есть по сути это
+ * Знак одноцветный (#a2db00) на прозрачном фоне, то есть по сути это
  * альфа-маска. Поэтому уменьшаем не картинку, а маску, а цвет заливаем
  * ровным слоем поверх. Если уменьшать RGBA как есть, по краю остаётся кайма
  * из полупрозрачных пикселей соседнего цвета — на тёмной вкладке она видна.
@@ -45,9 +45,9 @@ const SRC = "public/brand/logo-source.png";
 const OUT = "src/app/";
 const LOGO = "public/brand/logo.png";
 const LOGO_WIDTH = 600;
-const YELLOW = { r: 255, g: 210, b: 29 };
+const LIME = { r: 162, g: 219, b: 0 };
 const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
-const INK = { r: 11, g: 16, b: 32, alpha: 1 };
+const INK = { r: 17, g: 18, b: 16, alpha: 1 };
 
 /**
  * Размеры внутри .ico. 16 и 32 — вкладка и панель задач, 24 — ярлыки
@@ -135,7 +135,7 @@ async function icon(size, { contrast = 1, pad = 0, background = CLEAR } = {}) {
   const alpha = await mask.raw().toBuffer();
 
   const flat = sharp({
-    create: { width: size, height: size, channels: 3, background: YELLOW },
+    create: { width: size, height: size, channels: 3, background: LIME },
   }).joinChannel(alpha, { raw: { width: size, height: size, channels: 1 } });
 
   // Непрозрачная иконка — тот же знак, положенный на цвет подложки.

@@ -181,7 +181,7 @@ const COMPETITORS_KEY = "seo:competitors";
 const STATUS_KEY = (kind: SeoKind) => `seo:status:${kind}`;
 const STALE_RUN_MS = 30 * 60 * 1000;
 const GSC_KEY_FILE = env("SEO_GSC_KEY_FILE", path.join(process.cwd(), "var", "gsc-key.json"));
-const YANDEX_TOKEN_FILE = env("SEO_YANDEX_TOKEN_FILE", path.join(process.cwd(), "var", "yandex-token.txt"));
+export const YANDEX_TOKEN_FILE = env("SEO_YANDEX_TOKEN_FILE", path.join(process.cwd(), "var", "yandex-token.txt"));
 
 export const OWN_DOMAIN = "vdf.by";
 

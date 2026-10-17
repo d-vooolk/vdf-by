@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FrameTypeList, type FrameTypeListRow } from "@/components/admin/FrameTypeList";
+import { FrameTypesRenderAll } from "@/components/admin/FrameTypesRenderAll";
 import { PlusIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
 import { getSite } from "@/lib/catalog";
@@ -52,6 +53,14 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
   }));
   const stockRows = allRows.filter((row) => (row.stockQty ?? 0) > 0);
   const rows = stockOnly ? stockRows : allRows;
+  const renderable = groups.filter((group) => group.hasFrameImage && group.composer && group.products.length);
+  const renderTypes = renderable.map((group) => ({
+    type: group.type,
+    productIds: group.products.map((product) => product.id),
+  }));
+  const notRenderable = groups
+    .filter((group) => group.products.length && !(group.hasFrameImage && group.composer))
+    .map((group) => group.type);
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
 
   return (
@@ -82,6 +91,8 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           названии.
         </p>
       ) : (
+        <>
+        <FrameTypesRenderAll categoryId={categoryId} types={renderTypes} missing={notRenderable} />
         <FrameTypeList
           rows={rows}
           categories={categories}
@@ -91,6 +102,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           stockCount={stockRows.length}
           totalCount={allRows.length}
         />
+        </>
       )}
     </div>
   );

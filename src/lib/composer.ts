@@ -4,35 +4,32 @@ import sharp, { type Sharp } from "sharp";
 
 export const CANVAS = 1600;
 
-const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Inter-Bold.ttf");
+const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Montserrat-ExtraBold.ttf");
 const LOGO_FILE = path.join(process.cwd(), "public", "brand", "logo.png");
 
-const BAND = 96;
-const GLASS_BLUR = 22;
-const ACCENT_LIGHT = "#fcd34d";
-const ACCENT = "#f59e0b";
-const ACCENT_LINE = 4;
-const HAIRLINE = 1.5;
-const SHADOW_DEPTH = 48;
-const BEAM_GAP = 14;
-const BEAMS: Array<{ thickness: number; share: number; opacity: number }> = [
-  { thickness: 9, share: 0.46, opacity: 1 },
-  { thickness: 4, share: 0.3, opacity: 0.75 },
-];
-const TEXT_HEIGHT = 0.34;
-const TEXT_TRACKING = 3200;
-const LOW = 0.58;
-const HIGH = 0.42;
-const PRODUCT_TOP = 60;
+const MARGIN = 48;
+const RADIUS = 34;
+const BAND = 116;
+const BAND_RADIUS = 26;
+const GAP = 28;
+const HIGH = 0.44;
+const LOW = 0.6;
+const LIME = "#a2db00";
+const LIME_LIGHT = "#c4f03a";
+const BAND_TEXT = "#0d0f0a";
+const TEXT_HEIGHT = 0.4;
+const TEXT_WIDTH = 0.82;
+const FIELD_CENTER = "#3a3c3f";
+const FIELD_EDGE = "#121314";
+const FIELD_NOISE = 10;
+const PRODUCT_PAD = 56;
 const CAR_ZOOM_MIN = 1;
 const CAR_ZOOM_MAX = 1.8;
-const PRODUCT_SIDE = 80;
-const PRODUCT_GAP = 36;
 const WATERMARK_WIDTH = 230;
-const WATERMARK_OPACITY = 0.2;
+const WATERMARK_OPACITY = 0.22;
 const WATERMARK_STEP_X = 680;
 const WATERMARK_STEP_Y = 380;
-const WATERMARK_ANGLE = -30;
+const WATERMARK_ANGLE = -12;
 
 export type Slope = "up" | "down";
 
@@ -47,16 +44,6 @@ export type Background = keyof typeof BACKGROUNDS;
 export function isBackground(value: unknown): value is Background {
   return typeof value === "string" && value in BACKGROUNDS;
 }
-
-const BAND_GRADIENT =
-  `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">` +
-  `<stop offset="0" stop-color="#f7c948"/><stop offset="0.5" stop-color="#fbbf24"/>` +
-  `<stop offset="1" stop-color="#e09a12"/></linearGradient></defs>`;
-const BAND_OPACITY = 0.94;
-const BAND_MARK = "#0b1020";
-const BAND_TEXT = "#3b2a04";
-const BAND_HIGHLIGHT = "#fff6d5";
-const BAND_SHADE = "#0b1020";
 
 export interface ComposeOptions {
   product: Buffer;
@@ -77,7 +64,7 @@ export type ComposerSettings = Omit<ComposeOptions, "product" | "car" | "label">
 export const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
   mirrorProduct: false,
   mirrorCar: false,
-  slope: "up",
+  slope: "down",
   productScale: 1,
   carShift: 0.5,
   carShiftX: 0.5,
@@ -96,7 +83,7 @@ export function parseComposerSettings(raw: unknown): ComposerSettings {
   return {
     mirrorProduct: value.mirrorProduct === true,
     mirrorCar: value.mirrorCar === true,
-    slope: value.slope === "down" ? "down" : "up",
+    slope: value.slope === "up" ? "up" : value.slope === "down" ? "down" : defaults.slope,
     productScale: finiteOr(value.productScale, defaults.productScale),
     carShift: finiteOr(value.carShift, defaults.carShift),
     carShiftX: finiteOr(value.carShiftX, defaults.carShiftX),
@@ -115,14 +102,59 @@ function divider(slope: Slope): { left: number; right: number } {
   return slope === "up" ? { left: low, right: high } : { left: high, right: low };
 }
 
-function polygon(points: Array<[number, number]>, fill: string): string {
-  return `<polygon points="${points.map(([x, y]) => `${x},${y}`).join(" ")}" fill="${fill}"/>`;
-}
+type Point = [number, number];
 
 function svg(body: string): Buffer {
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS}" height="${CANVAS}">${body}</svg>`,
   );
+}
+
+function roundedPath(points: Point[], radius: number): string {
+  const toward = (from: Point, to: Point): Point => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const step = Math.min(radius, length / 2) / length;
+    return [from[0] + (to[0] - from[0]) * step, from[1] + (to[1] - from[1]) * step];
+  };
+  const format = ([x, y]: Point) => `${x.toFixed(1)},${y.toFixed(1)}`;
+  const parts = points.map((corner, index) => {
+    const previous = points[(index + points.length - 1) % points.length];
+    const next = points[(index + 1) % points.length];
+    return `${index === 0 ? "M" : "L"}${format(toward(corner, previous))} Q${format(corner)} ${format(toward(corner, next))}`;
+  });
+  return `${parts.join(" ")} Z`;
+}
+
+interface Layout {
+  lineAt: (x: number) => number;
+  productCard: Point[];
+  band: Point[];
+  carCard: Point[];
+  productBottom: number;
+  carTop: number;
+}
+
+function layout(slope: Slope): Layout {
+  const { left, right } = divider(slope);
+  const lineAt = (x: number) => left + ((right - left) * x) / CANVAS;
+  const near = MARGIN;
+  const far = CANVAS - MARGIN;
+  const edge = (offset: number): [Point, Point] => [
+    [near, lineAt(near) + offset],
+    [far, lineAt(far) + offset],
+  ];
+  const [cardLeft, cardRight] = edge(-BAND / 2 - GAP);
+  const [bandTopLeft, bandTopRight] = edge(-BAND / 2);
+  const [bandBottomLeft, bandBottomRight] = edge(BAND / 2);
+  const [carLeft, carRight] = edge(BAND / 2 + GAP);
+  return {
+    lineAt,
+    productCard: [[near, near], [far, near], cardRight, cardLeft],
+    band: [bandTopLeft, bandTopRight, bandBottomRight, bandBottomLeft],
+    carCard: [carLeft, carRight, [far, far], [near, far]],
+    productBottom: Math.min(cardLeft[1], cardRight[1]),
+    carTop: Math.floor(Math.min(carLeft[1], carRight[1])),
+  };
 }
 
 const clampShare = (value: number) => Math.min(Math.max(value, 0), 1);
@@ -134,45 +166,21 @@ interface CarFraming {
   zoom: number;
 }
 
-async function coverRegion(car: Buffer, height: number, framing: CarFraming): Promise<Sharp> {
+async function coverRegion(car: Buffer, width: number, height: number, framing: CarFraming): Promise<Buffer> {
   const upright = await sharp(car).rotate().png().toBuffer({ resolveWithObject: true });
   const zoom = Math.min(Math.max(framing.zoom, CAR_ZOOM_MIN), CAR_ZOOM_MAX);
-  const scale = Math.max(CANVAS / upright.info.width, height / upright.info.height) * zoom;
-  const width = Math.max(CANVAS, Math.ceil(upright.info.width * scale));
+  const scale = Math.max(width / upright.info.width, height / upright.info.height) * zoom;
+  const scaledWidth = Math.max(width, Math.ceil(upright.info.width * scale));
   const scaledHeight = Math.max(height, Math.ceil(upright.info.height * scale));
-  let resized = sharp(upright.data).resize(width, scaledHeight, { fit: "fill" });
+  let resized = sharp(upright.data).resize(scaledWidth, scaledHeight, { fit: "fill" });
   if (framing.mirror) resized = resized.flop();
-  return sharp(await resized.png().toBuffer()).extract({
-    left: Math.round((width - CANVAS) * (1 - clampShare(framing.shiftX))),
-    top: Math.round((scaledHeight - height) * (1 - clampShare(framing.shiftY))),
-    width: CANVAS,
-    height,
-  });
-}
-
-async function carLayer(car: Buffer, framing: CarFraming, left: number, right: number): Promise<Buffer> {
-  const top = Math.min(left, right) - BAND;
-  const height = CANVAS - top;
-  const image = await coverRegion(car, height, framing);
-  const photo = await image.png().toBuffer();
-
-  const below = polygon(
-    [
-      [0, left],
-      [CANVAS, right],
-      [CANVAS, CANVAS],
-      [0, CANVAS],
-    ],
-    "#fff",
-  );
-
-  return sharp({
-    create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
-  })
-    .composite([
-      { input: photo, top, left: 0 },
-      { input: svg(below), blend: "dest-in" },
-    ])
+  return sharp(await resized.png().toBuffer())
+    .extract({
+      left: Math.round((scaledWidth - width) * (1 - clampShare(framing.shiftX))),
+      top: Math.round((scaledHeight - height) * (1 - clampShare(framing.shiftY))),
+      width,
+      height,
+    })
     .png()
     .toBuffer();
 }
@@ -191,12 +199,11 @@ async function productLayer(
   product: Buffer,
   mirror: boolean,
   scale: number,
-  left: number,
-  right: number,
+  bottom: number,
 ): Promise<{ input: Buffer; top: number; left: number }> {
-  const boxWidth = CANVAS - PRODUCT_SIDE * 2;
-  const bottom = Math.min(left, right) - BAND / 2 - PRODUCT_GAP;
-  const boxHeight = bottom - PRODUCT_TOP;
+  const boxTop = MARGIN + PRODUCT_PAD;
+  const boxWidth = CANVAS - (MARGIN + PRODUCT_PAD) * 2;
+  const boxHeight = bottom - PRODUCT_PAD - boxTop;
   const factor = Math.min(Math.max(scale, 0.5), 1.3);
 
   let image = await trimmed(product);
@@ -212,169 +219,65 @@ async function productLayer(
   return {
     input: data,
     left: Math.round((CANVAS - info.width) / 2),
-    top: Math.max(0, Math.round(PRODUCT_TOP + (boxHeight - info.height) / 2)),
+    top: Math.max(0, Math.round(boxTop + (boxHeight - info.height) / 2)),
   };
 }
 
-function strip(left: number, right: number, from: number, to: number): Array<[number, number]> {
-  return [
-    [0, left + from],
-    [CANVAS, right + from],
-    [CANVAS, right + to],
-    [0, left + to],
-  ];
+function cached(build: () => Promise<Buffer>): () => Promise<Buffer> {
+  let cache: Promise<Buffer> | null = null;
+  return () => {
+    cache ??= build().catch((error) => {
+      cache = null;
+      throw error;
+    });
+    return cache;
+  };
 }
 
-function bandShadow(left: number, right: number): Buffer {
-  const half = BAND / 2;
-  return svg(
-    `<defs><filter id="s" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="16"/></filter></defs>` +
-      `<g filter="url(#s)" opacity="0.5">${polygon(strip(left, right, half - 6, half + SHADOW_DEPTH), "#000")}</g>`,
+const fieldLayer = cached(async () => {
+  const gradient = svg(
+    `<defs><radialGradient id="f" cx="0.5" cy="0.45" r="0.75">` +
+      `<stop offset="0" stop-color="${FIELD_CENTER}"/><stop offset="1" stop-color="${FIELD_EDGE}"/>` +
+      `</radialGradient></defs><rect width="${CANVAS}" height="${CANVAS}" fill="url(#f)"/>`,
   );
-}
-
-async function glassBand(base: Buffer, left: number, right: number): Promise<Buffer> {
-  const half = BAND / 2;
-  const tinted = await sharp(base)
-    .blur(GLASS_BLUR)
-    .composite([
-      {
-        input: svg(
-          `${BAND_GRADIENT}<rect width="${CANVAS}" height="${CANVAS}" fill="url(#g)" fill-opacity="${BAND_OPACITY}"/>`,
-        ),
-      },
-    ])
-    .png()
-    .toBuffer();
-  return sharp(tinted)
-    .ensureAlpha()
-    .composite([{ input: svg(polygon(strip(left, right, -half, half), "#fff")), blend: "dest-in" }])
-    .png()
-    .toBuffer();
-}
-
-function bandEdges(left: number, right: number): Buffer {
-  const half = BAND / 2;
-  return svg(
-    `<defs><linearGradient id="h" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${CANVAS}" y2="0">` +
-      `<stop offset="0" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.2"/>` +
-      `<stop offset="0.5" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.95"/>` +
-      `<stop offset="1" stop-color="${BAND_HIGHLIGHT}" stop-opacity="0.2"/>` +
-      `</linearGradient></defs>` +
-      polygon(strip(left, right, -half, -half + ACCENT_LINE / 2), "url(#h)") +
-      `<g opacity="0.35">${polygon(strip(left, right, half - HAIRLINE, half), BAND_SHADE)}</g>`,
-  );
-}
-
-function segment(
-  left: number,
-  right: number,
-  fromX: number,
-  toX: number,
-  fromOffset: number,
-  toOffset: number,
-): Array<[number, number]> {
-  const y = (x: number) => left + ((right - left) * x) / CANVAS;
-  return [
-    [fromX, y(fromX) + fromOffset],
-    [toX, y(toX) + fromOffset],
-    [toX, y(toX) + toOffset],
-    [fromX, y(fromX) + toOffset],
-  ];
-}
-
-function bandBeams(left: number, right: number): Buffer {
-  const half = BAND / 2;
-  const gradients: string[] = [];
-  const shapes: string[] = [];
-
-  let above = -half - ACCENT_LINE - BEAM_GAP;
-  let below = half + HAIRLINE + BEAM_GAP;
-  BEAMS.forEach((beam, index) => {
-    const length = CANVAS * beam.share;
-    gradients.push(
-      `<linearGradient id="u${index}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${length}" y2="0">` +
-        `<stop offset="0" stop-color="${ACCENT}" stop-opacity="${beam.opacity}"/>` +
-        `<stop offset="0.55" stop-color="${ACCENT_LIGHT}" stop-opacity="${beam.opacity * 0.8}"/>` +
-        `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
-        `</linearGradient>` +
-        `<linearGradient id="d${index}" gradientUnits="userSpaceOnUse" x1="${CANVAS}" y1="0" x2="${CANVAS - length}" y2="0">` +
-        `<stop offset="0" stop-color="${ACCENT}" stop-opacity="${beam.opacity}"/>` +
-        `<stop offset="0.55" stop-color="${ACCENT_LIGHT}" stop-opacity="${beam.opacity * 0.8}"/>` +
-        `<stop offset="1" stop-color="${ACCENT_LIGHT}" stop-opacity="0"/>` +
-        `</linearGradient>`,
-    );
-    shapes.push(
-      polygon(segment(left, right, 0, length, above - beam.thickness, above), `url(#u${index})`),
-      polygon(segment(left, right, CANVAS - length, CANVAS, below, below + beam.thickness), `url(#d${index})`),
-    );
-    above -= beam.thickness + BEAM_GAP * 0.6;
-    below += beam.thickness + BEAM_GAP * 0.6;
-  });
-
-  return svg(`<defs>${gradients.join("")}</defs>${shapes.join("")}`);
-}
-
-function labelMarkup(label: string): string {
-  const text = label.trim().toUpperCase();
-  const period = text.match(/\s+((?:С\s+)?\d{4}(?:\s*[–-]\s*\d{4})?)$/);
-  const main = period ? text.slice(0, period.index).trim() : text;
-  const [mark, ...rest] = main.split(/\s+/);
-  const parts = [`<span foreground="${BAND_MARK}">${escapeMarkup(mark ?? "")}</span>`];
-  if (rest.length) parts.push(`<span foreground="${BAND_TEXT}">${escapeMarkup(rest.join(" "))}</span>`);
-  if (period) {
-    parts.push(`<span foreground="${BAND_TEXT}" fgalpha="62%">·  ${escapeMarkup(period[1])}</span>`);
+  const noise = Buffer.alloc(CANVAS * CANVAS * 4);
+  let seed = 20261017;
+  for (let index = 0; index < noise.length; index += 4) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const light = seed & 0x10000 ? 255 : 0;
+    noise[index] = light;
+    noise[index + 1] = light;
+    noise[index + 2] = light;
+    noise[index + 3] = (seed >>> 24) % FIELD_NOISE;
   }
-  return `<span letter_spacing="${TEXT_TRACKING}">${parts.join("  ")}</span>`;
-}
-
-async function labelLayer(
-  label: string,
-  left: number,
-  right: number,
-): Promise<{ input: Buffer; top: number; left: number } | null> {
-  if (!label.trim()) return null;
-
-  const length = Math.hypot(CANVAS, right - left);
-  const angle = (Math.atan2(right - left, CANVAS) * 180) / Math.PI;
-
-  const rendered = await sharp({
-    text: {
-      text: labelMarkup(label),
-      font: "Inter Bold",
-      fontfile: FONT_FILE,
-      width: Math.round(length * 0.8),
-      height: Math.round(BAND * TEXT_HEIGHT),
-      align: "centre",
-      rgba: true,
-    },
-  })
+  return sharp(gradient)
+    .composite([{ input: noise, raw: { width: CANVAS, height: CANVAS, channels: 4 } }])
     .png()
     .toBuffer();
+});
 
-  const rotated = await sharp(rendered)
-    .rotate(angle, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer({ resolveWithObject: true });
-
-  return {
-    input: rotated.data,
-    left: Math.round(CANVAS / 2 - rotated.info.width / 2),
-    top: Math.round((left + right) / 2 - rotated.info.height / 2),
-  };
+function paint(data: Buffer, value: number): Buffer {
+  for (let index = 0; index < data.length; index += 4) {
+    data[index] = value;
+    data[index + 1] = value;
+    data[index + 2] = value;
+  }
+  return data;
 }
 
 async function watermarkTile(): Promise<{ data: Buffer; width: number; height: number }> {
-  const logo = await sharp(LOGO_FILE).resize({ width: WATERMARK_WIDTH }).ensureAlpha().png().toBuffer();
   const pad = 6;
-  const shadow = await sharp(logo)
-    .tint("#0b1020")
+  const { data: raw, info: size } = await sharp(LOGO_FILE)
+    .resize({ width: WATERMARK_WIDTH })
+    .ensureAlpha()
     .extend({ top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .blur(2.5)
-    .png()
-    .toBuffer();
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const rawInfo = { raw: { width: size.width, height: size.height, channels: 4 as const } };
+  const logo = await sharp(paint(Buffer.from(raw), 255), rawInfo).png().toBuffer();
+  const shadow = await sharp(paint(Buffer.from(raw), 0), rawInfo).blur(2.5).png().toBuffer();
   const { data, info } = await sharp(shadow)
-    .composite([{ input: logo, top: pad, left: pad }])
+    .composite([{ input: logo }])
     .raw()
     .toBuffer({ resolveWithObject: true });
   for (let index = 3; index < data.length; index += 4) {
@@ -383,9 +286,7 @@ async function watermarkTile(): Promise<{ data: Buffer; width: number; height: n
   return { data, width: info.width, height: info.height };
 }
 
-let watermarkCache: Promise<Buffer> | null = null;
-
-async function buildWatermark(): Promise<Buffer> {
+const watermarkLayer = cached(async () => {
   const tile = await watermarkTile();
   const tileImage = await sharp(tile.data, {
     raw: { width: tile.width, height: tile.height, channels: 4 },
@@ -425,50 +326,134 @@ async function buildWatermark(): Promise<Buffer> {
     })
     .png()
     .toBuffer();
-}
+});
 
-function watermarkLayer(): Promise<Buffer> {
-  watermarkCache ??= buildWatermark().catch((error) => {
-    watermarkCache = null;
-    throw error;
+function transparent(): Sharp {
+  return sharp({
+    create: { width: CANVAS, height: CANVAS, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   });
-  return watermarkCache;
 }
 
-export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
-  const { left, right } = divider(options.slope);
-
-  const [car, product, label, watermark] = await Promise.all([
-    carLayer(
-      options.car,
-      { mirror: options.mirrorCar, shiftX: options.carShiftX, shiftY: options.carShift, zoom: options.carZoom },
-      left,
-      right,
+async function cardsLayer(
+  options: ComposeOptions,
+  shape: Layout,
+  product: { input: Buffer; top: number; left: number },
+): Promise<Buffer> {
+  const car = await coverRegion(options.car, CANVAS - MARGIN * 2, CANVAS - MARGIN - shape.carTop, {
+    mirror: options.mirrorCar,
+    shiftX: options.carShiftX,
+    shiftY: options.carShift,
+    zoom: options.carZoom,
+  });
+  const productCard = roundedPath(shape.productCard, RADIUS);
+  const carCard = roundedPath(shape.carCard, RADIUS);
+  const clip = (layers: Array<{ input: Buffer; top: number; left: number }>, outline: string) =>
+    transparent()
+      .composite([...layers, { input: svg(`<path d="${outline}" fill="#fff"/>`), blend: "dest-in" }])
+      .png()
+      .toBuffer();
+  const [productSide, carSide] = await Promise.all([
+    clip(
+      [{ input: svg(`<path d="${productCard}" fill="${BACKGROUNDS[options.background]}"/>`), top: 0, left: 0 }, product],
+      productCard,
     ),
-    productLayer(options.product, options.mirrorProduct, options.productScale, left, right),
-    labelLayer(options.label, left, right),
-    watermarkLayer(),
+    clip([{ input: car, top: shape.carTop, left: MARGIN }], carCard),
   ]);
-
-  const base = await sharp({
-    create: { width: CANVAS, height: CANVAS, channels: 3, background: BACKGROUNDS[options.background] },
-  })
+  const clipped = await transparent()
     .composite([
-      { input: car, top: 0, left: 0 },
-      product,
-      { input: watermark, top: 0, left: 0 },
-      { input: bandShadow(left, right), top: 0, left: 0 },
+      { input: productSide, top: 0, left: 0 },
+      { input: carSide, top: 0, left: 0 },
     ])
     .png()
     .toBuffer();
+  return sharp(clipped)
+    .composite([{ input: await watermarkLayer(), blend: "atop" }])
+    .png()
+    .toBuffer();
+}
 
-  return sharp(base)
+function cardShadow(shape: Layout): Buffer {
+  return svg(
+    `<defs><filter id="s" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="18"/></filter></defs>` +
+      `<g filter="url(#s)" opacity="0.6" transform="translate(0 12)">` +
+      `<path d="${roundedPath(shape.productCard, RADIUS)}" fill="#000"/>` +
+      `<path d="${roundedPath(shape.carCard, RADIUS)}" fill="#000"/></g>`,
+  );
+}
+
+function bandLayer(shape: Layout): Buffer {
+  const outline = roundedPath(shape.band, BAND_RADIUS);
+  const [topLeft, topRight] = shape.band;
+  const top = Math.min(topLeft[1], topRight[1]);
+  const bottom = Math.max(topLeft[1], topRight[1]) + BAND;
+  return svg(
+    `<defs>` +
+      `<filter id="glow" x="-10%" y="-60%" width="120%" height="220%"><feGaussianBlur stdDeviation="24"/></filter>` +
+      `<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="0" y1="${top}" x2="0" y2="${bottom}">` +
+      `<stop offset="0" stop-color="${LIME_LIGHT}"/><stop offset="0.5" stop-color="${LIME}"/>` +
+      `<stop offset="1" stop-color="${LIME}"/></linearGradient>` +
+      `</defs>` +
+      `<path d="${outline}" fill="${LIME}" opacity="0.65" filter="url(#glow)"/>` +
+      `<path d="${outline}" fill="url(#fill)"/>` +
+      `<line x1="${topLeft[0] + BAND_RADIUS}" y1="${topLeft[1] + 2}" x2="${topRight[0] - BAND_RADIUS}" ` +
+      `y2="${topRight[1] + 2}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="2"/>`,
+  );
+}
+
+async function labelLayer(
+  label: string,
+  shape: Layout,
+): Promise<{ input: Buffer; top: number; left: number } | null> {
+  if (!label.trim()) return null;
+
+  const [topLeft, topRight] = shape.band;
+  const length = Math.hypot(topRight[0] - topLeft[0], topRight[1] - topLeft[1]);
+  const angle = (Math.atan2(topRight[1] - topLeft[1], topRight[0] - topLeft[0]) * 180) / Math.PI;
+
+  const rendered = await sharp({
+    text: {
+      text: `<span foreground="${BAND_TEXT}">${escapeMarkup(label.trim().toUpperCase())}</span>`,
+      font: "Montserrat ExtraBold",
+      fontfile: FONT_FILE,
+      width: Math.round(length * TEXT_WIDTH),
+      height: Math.round(BAND * TEXT_HEIGHT),
+      align: "centre",
+      rgba: true,
+    },
+  })
+    .png()
+    .toBuffer();
+
+  const rotated = await sharp(rendered)
+    .rotate(angle, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    input: rotated.data,
+    left: Math.round(CANVAS / 2 - rotated.info.width / 2),
+    top: Math.round(shape.lineAt(CANVAS / 2) - rotated.info.height / 2),
+  };
+}
+
+export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
+  const shape = layout(options.slope);
+
+  const [field, product, label] = await Promise.all([
+    fieldLayer(),
+    productLayer(options.product, options.mirrorProduct, options.productScale, shape.productBottom),
+    labelLayer(options.label, shape),
+  ]);
+  const cards = await cardsLayer(options, shape, product);
+
+  return sharp(field)
     .composite([
-      { input: await glassBand(base, left, right), top: 0, left: 0 },
-      { input: bandEdges(left, right), top: 0, left: 0 },
-      { input: bandBeams(left, right), top: 0, left: 0 },
+      { input: cardShadow(shape), top: 0, left: 0 },
+      { input: cards, top: 0, left: 0 },
+      { input: bandLayer(shape), top: 0, left: 0 },
       ...(label ? [label] : []),
     ])
+    .flatten({ background: FIELD_EDGE })
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
 }

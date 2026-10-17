@@ -7,6 +7,7 @@ import { PhoneIcon } from "@/components/icons";
 import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 export function Footer() {
   const site = getSite();
@@ -124,9 +125,7 @@ export function Footer() {
           </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
-        <p className="container-page pb-6 text-xs text-brand-400">
-          Независимый магазин ООО «Первый Автосвет», не является официальным сайтом производителя VDF.
-        </p>
+        <p className="container-page pb-6 text-xs leading-relaxed text-brand-500">{DISCLAIMER_FULL}</p>
       </div>
     </footer>
   );

@@ -1,10 +1,10 @@
 .page {
-  --yellow: #ffd21f;
-  --yellow-glow: rgb(255 210 31 / 0.5);
-  --bg: #0b1020;
-  --card: #131b30;
+  --yellow: #a2db00;
+  --yellow-glow: rgb(162 219 0 / 0.5);
+  --bg: #111210;
+  --card: #1d1e1b;
   --line: rgb(255 255 255 / 0.08);
-  --muted: #a3acc4;
+  --muted: #b4b7ae;
 
   position: relative;
   isolation: isolate;
@@ -13,8 +13,8 @@
   overflow: hidden;
   color: #fff;
   background:
-    radial-gradient(900px 520px at 110% 35%, rgb(255 210 31 / 0.08), transparent 60%),
-    radial-gradient(700px 520px at -20% 90%, rgb(71 86 127 / 0.35), transparent 60%),
+    radial-gradient(900px 520px at 110% 35%, rgb(162 219 0 / 0.08), transparent 60%),
+    radial-gradient(700px 520px at -20% 90%, rgb(84 87 80 / 0.3), transparent 60%),
     var(--bg);
 }
 
@@ -27,7 +27,7 @@
   width: 55%;
   height: 160%;
   transform: rotate(18deg);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), rgb(255 210 31 / 0.09), transparent);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.06), rgb(162 219 0 / 0.09), transparent);
   animation: beam 8s ease-in-out 1s infinite;
 }
 
@@ -51,7 +51,7 @@
   width: 520px;
   height: 520px;
   transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgb(255 210 31 / 0.2), rgb(255 210 31 / 0.05) 55%, transparent 72%);
+  background: radial-gradient(closest-side, rgb(162 219 0 / 0.2), rgb(162 219 0 / 0.05) 55%, transparent 72%);
   animation: glow 6s ease-in-out infinite;
 }
 
@@ -62,7 +62,7 @@
   padding: 12px 16px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgb(11 16 32 / 0.6);
+  background: rgb(17 18 16 / 0.6);
   backdrop-filter: blur(10px);
 }
 
@@ -153,13 +153,13 @@
   text-decoration: none;
   color: inherit;
   border: 1px solid var(--line);
-  background: linear-gradient(135deg, #1c2743, var(--card));
+  background: linear-gradient(135deg, #2a2c27, var(--card));
   box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
   transition: transform 0.15s, border-color 0.15s;
 }
 
 .platform:hover {
-  border-color: rgb(255 210 31 / 0.35);
+  border-color: rgb(162 219 0 / 0.35);
 }
 
 .platform:active {

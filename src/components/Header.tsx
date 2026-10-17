@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AccountLink } from "@/components/AccountLink";
 import { CartBadge } from "@/components/CartBadge";
+import { DisclaimerHint } from "@/components/DisclaimerHint";
 import { HomeLink } from "@/components/HomeLink";
 import { PhoneIcon } from "@/components/icons";
 import { MobileMenu } from "@/components/MobileMenu";
@@ -94,12 +95,13 @@ export function Header() {
             alt={site.name}
             width={600}
             height={100}
-            className="h-5 w-auto sm:h-6 lg:h-7"
+            className="h-5 w-auto drop-shadow-[0_0_6px_var(--color-accent-glow)] sm:h-6 lg:h-7"
           />
           <span className="mt-1 text-[9px] leading-none font-semibold tracking-[0.12em] whitespace-nowrap text-brand-500 uppercase sm:text-[10px] lg:text-[11px]">
             Автосвет Беларусь
           </span>
         </HomeLink>
+        <DisclaimerHint className="-ml-1 shrink-0 self-start mt-3 lg:-ml-3 lg:mt-3.5" />
 
         <div className="min-w-0 flex-1">
           <SearchBox currencySymbol={site.currencySymbol} />

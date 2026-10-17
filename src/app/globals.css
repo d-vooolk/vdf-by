@@ -5,33 +5,34 @@
 /* ------------------------------------------------------------------ */
 
 @theme {
-  /* Основной цвет — глубокий чернильно-синий.
+  /* Основной цвет — нейтральный графит.
      Раньше здесь был обычный яркий синий, и он тянул на себя всё: кнопки,
      ссылки, иконки, заливку хиро. Страница получалась пёстрой, а цвет
      переставал что-либо значить — если синее всё, синим ничего не выделишь.
      Теперь brand работает как «чернила»: почти чёрный, спокойный, годится
-     и для текста, и для главной кнопки. Контраст brand-700 на белом — 14:1,
+     для текста и тёмных поверхностей. Контраст brand-700 на белом — 15:1,
      с запасом проходит AA даже для мелкого шрифта.
      Яркое выделение осталось ровно одно, и оно ниже — accent. */
-  --color-brand-50: #f4f6fb;
-  --color-brand-100: #e7ebf4;
-  --color-brand-200: #cbd4e5;
-  --color-brand-300: #8b99ba;
-  --color-brand-400: #5f6f94;
-  --color-brand-500: #47567f;
-  --color-brand-600: #2e3c62;
-  --color-brand-700: #1c2743;
-  --color-brand-800: #131b30;
-  --color-brand-900: #0b1020;
+  --color-brand-50: #f5f6f3;
+  --color-brand-100: #eaebe7;
+  --color-brand-200: #d4d6d0;
+  --color-brand-300: #9fa29a;
+  --color-brand-400: #6e716a;
+  --color-brand-500: #53564f;
+  --color-brand-600: #393b36;
+  --color-brand-700: #242622;
+  --color-brand-800: #1a1b18;
+  --color-brand-900: #111210;
 
-  /* Акцент — тёплый свет фары. Единственный яркий цвет на сайте, поэтому
-     каждое его появление что-то значит: скидка, хит, «в наличии».
-     Только для плашек и подсветки, не для текста: на белом не проходит AA. */
-  --color-accent-100: #fef3c7;
-  --color-accent-300: #fcd34d;
-  --color-accent-400: #fbbf24;
-  --color-accent-500: #f59e0b;
-  --color-accent-600: #d97706;
+  /* Акцент — лаймовый, как в Prime CRM. Единственный яркий цвет на сайте:
+     главная кнопка, плашки, подсветка. Только для заливки и свечения, не для
+     текста: на белом не проходит AA. */
+  --color-accent-100: #f0fad2;
+  --color-accent-300: #c4f03a;
+  --color-accent-400: #a2db00;
+  --color-accent-500: #8fc400;
+  --color-accent-600: #6f9900;
+  --color-accent-glow: rgb(162 219 0 / 0.45);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
@@ -45,10 +46,11 @@
   /* Тени почти невесомые: в светлом минимализме плоскости разделяет линия
      толщиной в пиксель, а тень появляется только под курсором — как отклик
      на действие, а не как постоянное украшение. */
-  --shadow-card: 0 1px 2px 0 rgb(11 16 32 / 0.04);
-  --shadow-card-hover: 0 8px 24px -12px rgb(11 16 32 / 0.18),
-    0 2px 6px -3px rgb(11 16 32 / 0.06);
-  --shadow-pop: 0 16px 48px -20px rgb(11 16 32 / 0.28);
+  --shadow-card: 0 1px 2px 0 rgb(17 18 16 / 0.04);
+  --shadow-card-hover: 0 8px 24px -12px rgb(17 18 16 / 0.18),
+    0 2px 6px -3px rgb(17 18 16 / 0.06);
+  --shadow-pop: 0 16px 48px -20px rgb(17 18 16 / 0.28);
+  --shadow-glow: 0 0 14px var(--color-accent-glow);
 }
 
 /* ------------------------------------------------------------------ */
@@ -130,7 +132,7 @@
   }
 
   .btn-primary {
-    @apply bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900;
+    @apply bg-accent-400 text-brand-900 shadow-glow hover:bg-accent-300 active:bg-accent-500;
   }
 
   .btn-secondary {
@@ -142,17 +144,16 @@
     @apply text-brand-700 hover:bg-brand-50;
   }
 
-  /* Кнопка-акцент. Одна на страницу, не больше: янтарный работает, пока он
-     редкий. Текст на ней тёмный — на янтарном белый нечитаем. */
+  /* Кнопка-акцент. Текст на ней тёмный — на лаймовом белый нечитаем. */
   .btn-accent {
-    @apply bg-accent-400 text-brand-900 hover:bg-accent-500;
+    @apply bg-accent-400 text-brand-900 shadow-glow hover:bg-accent-300 active:bg-accent-500;
   }
 
   .field {
     @apply w-full rounded-control border border-brand-200 bg-white
       px-4 py-2.5 text-base text-brand-900 placeholder:text-brand-300
       transition-colors duration-150
-      focus:border-brand-500 focus:ring-4 focus:ring-brand-100 focus:outline-none;
+      focus:border-accent-500 focus:ring-4 focus:ring-accent-100 focus:outline-none;
   }
 
   .field-error {
@@ -219,12 +220,12 @@
     background:
       radial-gradient(
         60rem 28rem at 78% -12%,
-        rgb(251 191 36 / 0.18),
+        rgb(162 219 0 / 0.16),
         transparent 60%
       ),
       radial-gradient(
         44rem 24rem at 6% 0%,
-        rgb(28 39 67 / 0.07),
+        rgb(36 38 34 / 0.07),
         transparent 62%
       );
   }
@@ -259,8 +260,8 @@
     border-radius: 9999px;
     background: radial-gradient(
       circle,
-      rgb(251 191 36 / 0.55),
-      rgb(251 191 36 / 0.12) 45%,
+      rgb(162 219 0 / 0.55),
+      rgb(162 219 0 / 0.12) 45%,
       transparent 70%
     );
     filter: blur(2.5rem);
@@ -276,17 +277,17 @@
     isolation: isolate;
     background: conic-gradient(
       from 210deg,
-      #e7ebf4,
+      #eaebe7,
       #ffffff 12%,
-      #cbd4e5 28%,
-      #f4f6fb 46%,
-      #b9c3d8 62%,
+      #d4d6d0 28%,
+      #f5f6f3 46%,
+      #c2c5bd 62%,
       #ffffff 80%,
-      #e7ebf4
+      #eaebe7
     );
     box-shadow:
-      0 40px 80px -40px rgb(11 16 32 / 0.45),
-      0 2px 6px -2px rgb(11 16 32 / 0.12);
+      0 40px 80px -40px rgb(17 18 16 / 0.45),
+      0 2px 6px -2px rgb(17 18 16 / 0.12);
   }
 
   .lens-bezel::before {
@@ -312,14 +313,14 @@
     border-radius: 9999px;
     background: repeating-conic-gradient(
       from 0deg,
-      rgb(251 191 36 / 0.2) 0deg 4deg,
+      rgb(162 219 0 / 0.2) 0deg 4deg,
       transparent 4deg 22deg
     );
     mask-image: radial-gradient(circle, black 30%, transparent 70%);
     filter: blur(3px);
   }
 
-  /* Стекло: блик сверху слева, тёплое ядро в центре, холодная периферия. */
+  /* Стекло: блик сверху слева, яркое ядро в центре, холодная периферия. */
   .lens-glass {
     position: relative;
     overflow: hidden;
@@ -334,17 +335,17 @@
       ),
       radial-gradient(
         circle at 50% 52%,
-        #fffaf0 0%,
-        #fde08a 22%,
-        #f59e0b 40%,
-        rgb(245 158 11 / 0.25) 56%,
+        #fbfff0 0%,
+        #def79a 22%,
+        #a2db00 40%,
+        rgb(162 219 0 / 0.25) 56%,
         transparent 70%
       ),
-      radial-gradient(circle at 50% 50%, #ffffff, #eef1f8 55%, #b9c3d8 100%);
+      radial-gradient(circle at 50% 50%, #ffffff, #f0f1ee 55%, #c2c5bd 100%);
     box-shadow:
-      inset 0 0 0 1px rgb(11 16 32 / 0.07),
+      inset 0 0 0 1px rgb(17 18 16 / 0.07),
       inset 0 1.5rem 3rem rgb(255 255 255 / 0.6),
-      inset 0 -1rem 2.5rem rgb(11 16 32 / 0.1);
+      inset 0 -1rem 2.5rem rgb(17 18 16 / 0.1);
   }
 
   .lens-glass::after {
@@ -374,8 +375,8 @@
     inset: 0;
     z-index: -1;
     background-image:
-      linear-gradient(to right, rgb(11 16 32 / 0.045) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(11 16 32 / 0.045) 1px, transparent 1px);
+      linear-gradient(to right, rgb(17 18 16 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(17 18 16 / 0.045) 1px, transparent 1px);
     background-size: 4rem 4rem;
     /* Сетка гаснет к низу, чтобы не спорить с содержимым страницы. */
     mask-image: linear-gradient(to bottom, black, transparent 78%);

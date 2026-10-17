@@ -8,6 +8,7 @@ import {
   getRootCategories,
   getSite,
 } from "@/lib/catalog";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 import { pluralize } from "@/lib/format";
 import { buildMetadata } from "@/lib/seo";
 
@@ -42,6 +43,10 @@ export default function AboutPage() {
             в каталоге{" "}
             {pluralize(products.length, "позиция", "позиции", "позиций")} в{" "}
             {pluralize(categories.length, "разделе", "разделах", "разделах")}.
+          </p>
+
+          <p className="mt-4 rounded-card border-l-4 border-accent-400 bg-brand-50 px-4 py-3 text-sm">
+            {DISCLAIMER_FULL}
           </p>
 
           <h2 className="mt-8 mb-3 text-xl font-semibold text-brand-900">

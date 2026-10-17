@@ -31,6 +31,7 @@ const NAV: Array<NavLink | NavGroup> = [
     label: "Сводка",
     links: [
       { href: "/admin/", label: "Общая", exact: true },
+      { href: "/admin/traffic/", label: "Посещаемость" },
       { href: "/admin/seo/", label: "SEO" },
     ],
   },
