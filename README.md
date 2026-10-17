@@ -149,9 +149,11 @@ npm run deploy
 Та же команда работает и на самом сервере — из папки приложения она
 выполнит деплой напрямую, без SSH. Либо, если привычнее, `./deploy/deploy.sh`.
 
-Сайт запущен под PM2 как приложение `vdf` на порту 3011 (3000 и 3010
+Сайт запущен в Docker как сервис `vdf` на порту 3011 (3000 и 3010
 на сервере заняты другими проектами), nginx перед ним обратный прокси.
-Node — 22 из nvm: системному 18, а `better-sqlite3` требует 22.
+Образ — только среда (Node 22, ffmpeg), код, база и фотографии лежат в папке
+сайта и смонтированы в контейнер. Логи — `docker compose logs -f vdf`,
+разовые команды — `docker compose run --rm tools npm run admin`.
 
-Подробности в шапках `ecosystem.config.cjs`, `deploy/nginx.conf` и
-`deploy/deploy.sh`.
+Подробности в шапках `Dockerfile`, `docker-compose.yml`, `deploy/nginx.conf`
+и `deploy/deploy.sh`.

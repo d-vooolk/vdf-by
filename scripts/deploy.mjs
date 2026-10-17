@@ -172,7 +172,7 @@ const result = spawnSync(
     "-o", "StrictHostKeyChecking=accept-new",
     "-o", "ConnectTimeout=10",
     `${USER}@${HOST}`,
-    // bash -lc, чтобы подхватился nvm: deploy.sh переключается на Node 22.
+    // bash -lc — с окружением входа, как при ручном запуске на сервере.
     `bash -lc 'cd ${APP_PATH} && ./deploy/deploy.sh'`,
   ],
   { stdio: "inherit" },
@@ -186,7 +186,7 @@ if (result.status !== 0) {
   fail(
     `Деплой прерван, код ${result.status}. Сайт при этом работает на прежней сборке:\n` +
       "  сборка идёт до перезапуска, и при её падении процесс не трогается.\n\n" +
-      `  Логи: ${SSH} -i ${KEY} ${USER}@${HOST} 'pm2 logs vdf --lines 50 --nostream'`,
+      `  Логи: ${SSH} -i ${KEY} ${USER}@${HOST} 'cd ${APP_PATH} && docker compose logs --tail 50 vdf'`,
   );
 }
 

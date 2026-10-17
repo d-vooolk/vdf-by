@@ -84,7 +84,7 @@ prime-auto.by/price и записаны в `PRICES` в
 node scripts/seo-report.mjs
 ```
 
-На сервере — под Node 22 из nvm. Пишет `var/seo/report-ДАТА.md` и
+На сервере — `docker compose run --rm tools node scripts/seo-report.mjs`. Пишет `var/seo/report-ДАТА.md` и
 `var/seo/raw-ДАТА.json` — удобно для подробного разбора.
 
 ## Чего здесь нет

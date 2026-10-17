@@ -28,8 +28,8 @@ set -euo pipefail
 # лежит, оттуда и работает. После перезапуска из копии (см. ниже) путь
 # приходит переменной — копия лежит в /tmp и о папке сайта знать не может.
 APP="${DEPLOY_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-PM2_APP="vdf"
-PORT=3011
+SERVICE="vdf"   # сервис и контейнер в docker-compose.yml
+PORT=3011       # тот же, что в command сервиса vdf
 PUBLIC_HOST="vdf.by"
 
 # ------------------------------------------------------------------
@@ -80,14 +80,16 @@ trap 'rm -f "$0" ${DEPLOY_PREV:+"$DEPLOY_PREV"}' EXIT
 cd "$APP"
 echo "==> Папка: $APP"
 
-# Node 22 из nvm, а не системный. Системному на этом сервере 18 лет по
-# паспорту, его нельзя обновлять — на нём работают чужие приложения, — а
-# better-sqlite3 требует 22 и выше.
-export NVM_DIR="$HOME/.nvm"
-# shellcheck disable=SC1091
-. "$NVM_DIR/nvm.sh"
-nvm use 22 >/dev/null
-echo "==> Node $(node -v)"
+# Node и системные программы (ffmpeg) — из образа vdf-runtime, а не с
+# сервера: Dockerfile держит версию Node, которую требует better-sqlite3.
+# Все команды ниже, которым нужен Node, идут через сервис tools той же
+# среды. Образ пересобирается по-настоящему только при правке Dockerfile.
+command -v docker >/dev/null || { echo "Нет docker"; exit 1; }
+run() { docker compose run --rm --no-deps tools "$@"; }
+
+echo "==> Образ среды"
+docker compose build -q
+echo "==> Node $(run node -v)"
 
 echo "==> Ставлю зависимости"
 # npm ci ставит строго то, что в package-lock.json — сборка воспроизводима.
@@ -97,16 +99,16 @@ echo "==> Ставлю зависимости"
 # бинарник лежит в самом пакете. Без флага установка падает на отсутствии
 # компилятора. Install-скрипт во всём дереве зависимостей всего один, и он
 # не нужен.
-npm ci --ignore-scripts --no-audit --no-fund
+run npm ci --ignore-scripts --no-audit --no-fund
 
 echo "==> Модели нейросетей для генератора картинок"
-node scripts/ml-worker.mjs --download
+run node scripts/ml-worker.mjs --download
 
 echo "==> Обновляю справочник автомобилей"
 # Идемпотентно: строки обновляются по внешнему id, адреса уже заведённых
 # записей не меняются, привязки товаров не рвутся. Пара секунд на пятнадцать
 # тысяч строк — дешевле, чем помнить про отдельную команду после деплоя.
-npm run import-cars -- --logos
+run npm run import-cars -- --logos
 
 current_slot="$(cat var/dist-slot 2>/dev/null || echo .next)"
 if [ "$current_slot" = ".next-a" ]; then build_slot=".next-b"; else build_slot=".next-a"; fi
@@ -119,7 +121,7 @@ echo "==> Собираю сайт в $build_slot (сейчас работает 
 # шаблоне, ошибка типов), скрипт прервётся здесь и старый процесс продолжит
 # работать со старой сборкой. Сайт не заметит неудачного деплоя.
 rm -rf "$build_slot" "$current_slot/types" "$current_slot/dev/types"
-NODE_ENV=production NEXT_DIST_DIR="$build_slot" npm run build
+docker compose run --rm --no-deps -e NODE_ENV=production -e NEXT_DIST_DIR="$build_slot" tools npm run build
 rm -rf "$build_slot/cache/turbopack"
 printf '%s\n' "$build_slot" > var/dist-slot
 
@@ -149,14 +151,37 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-seo
 
-echo "==> Перезапускаю $PM2_APP"
-if pm2 describe "$PM2_APP" >/dev/null 2>&1; then
-  pm2 reload ecosystem.config.cjs --update-env
+echo "==> Прокси нейросети"
+# Служба хоста (deploy/vdf-ai-proxy.service). Ставится, только если на
+# сервере есть сам wireproxy и его конфиг с ключом WireGuard: без них
+# кнопки нейросети в админке просто неактивны, остальное работает.
+if [ -x /usr/local/bin/wireproxy ] && [ -f /etc/wireproxy/vdf-ai.conf ]; then
+  if ! cmp -s deploy/vdf-ai-proxy.service /etc/systemd/system/vdf-ai-proxy.service; then
+    # До Docker прокси жил в pm2 под тем же именем — гасим его, иначе
+    # служба не сможет занять порт.
+    if command -v pm2 >/dev/null 2>&1 && pm2 describe vdf-ai-proxy >/dev/null 2>&1; then
+      pm2 delete vdf-ai-proxy >/dev/null && pm2 save --force >/dev/null
+    fi
+    cp deploy/vdf-ai-proxy.service /etc/systemd/system/vdf-ai-proxy.service
+    systemctl daemon-reload
+    systemctl enable vdf-ai-proxy >/dev/null 2>&1
+    systemctl restart vdf-ai-proxy
+  fi
+  systemctl is-active --quiet vdf-ai-proxy || echo "    ВНИМАНИЕ: vdf-ai-proxy не запущен (journalctl -u vdf-ai-proxy)"
 else
-  pm2 start ecosystem.config.cjs
+  echo "    нет /usr/local/bin/wireproxy или /etc/wireproxy/vdf-ai.conf — пропускаю"
 fi
-# Без save новый процесс не поднимется после перезагрузки сервера.
-pm2 save >/dev/null
+
+echo "==> Перезапускаю $SERVICE"
+# До Docker магазин жил в pm2 под тем же именем и держал порт — гасим его
+# перед стартом контейнера. Когда pm2 на сервере не останется, шаг пустой.
+if command -v pm2 >/dev/null 2>&1 && pm2 describe "$SERVICE" >/dev/null 2>&1; then
+  pm2 delete "$SERVICE" >/dev/null
+  pm2 save --force >/dev/null
+fi
+# Пересоздание контейнера — пара секунд без ответа, как раньше у pm2 reload.
+# После перезагрузки сервера контейнер поднимается сам (restart в compose).
+docker compose up -d --no-deps --force-recreate "$SERVICE"
 
 echo "==> Жду, пока поднимется"
 for attempt in $(seq 1 30); do
@@ -172,9 +197,9 @@ for attempt in $(seq 1 30); do
     if [ -d "$current_slot" ]; then
       echo "    Возвращаю прежнюю сборку $current_slot"
       printf '%s\n' "$current_slot" > var/dist-slot
-      pm2 reload "$PM2_APP" --update-env
+      docker compose restart "$SERVICE"
     fi
-    echo "    Смотрите: pm2 logs $PM2_APP --lines 50"
+    echo "    Смотрите: docker compose logs --tail 50 $SERVICE"
     exit 1
   fi
   sleep 1

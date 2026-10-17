@@ -6,7 +6,7 @@
 
 ## Шаги на сервере (один раз)
 
-Деплой копирует код, но не конфиги nginx и PM2.
+Деплой копирует код, но не конфиги nginx.
 
 1. **nginx.** Скопировать `deploy/nginx.conf`, как описано в
    `docs/rate-limit.md` («Как применить на сервере»). Конфиг подключает
@@ -24,10 +24,9 @@
    затем `cp deploy/nginx-brotli.conf /etc/nginx/vdf-brotli.conf`.
    Конфиг подключает файл по маске `vdf-brotli*.conf`: пока файла нет,
    nginx работает без brotli и не падает.
-4. **PM2.** В `ecosystem.config.cjs` появился `--keepAliveTimeout 75000`
-   (Node не должен закрывать соединение раньше nginx). `pm2 reload` новые
-   аргументы не подхватывает:
-   `pm2 delete vdf && pm2 start ecosystem.config.cjs && pm2 save`.
+4. **keepAliveTimeout.** Сайт запускается с `--keepAliveTimeout 75000`
+   (Node не должен закрывать соединение раньше nginx) — аргумент в `command`
+   сервиса `vdf` в `docker-compose.yml`, деплой пересоздаёт контейнер сам.
 5. **Порядок.** Сначала nginx (там `text/x-component` в `gzip_types`), потом
    деплой: Next больше не сжимает ответы сам (`compress: false`).
 

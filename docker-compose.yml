@@ -1,0 +1,47 @@
+# Запуск магазина в Docker.
+#
+#   docker compose up -d vdf          # поднять (deploy/deploy.sh делает сам)
+#   docker compose logs -f vdf        # логи
+#   docker compose run --rm tools npm run admin
+#
+# network_mode: host — сайт слушает порт хоста, как раньше под pm2, и наружу
+# его публикует только nginx. Поэтому без правок продолжают работать cron
+# (curl localhost:3011), CRM_URL=http://127.0.0.1:3005 и прокси нейросети
+# AI_PROXY=http://127.0.0.1:25345 из .env.
+#
+# .env приложение читает само из своей папки — она смонтирована целиком.
+
+name: vdf
+
+x-app: &app
+  build: .
+  image: vdf-runtime
+  network_mode: host
+  init: true
+  working_dir: /app
+  volumes:
+    - .:/app
+
+services:
+  vdf:
+    <<: *app
+    container_name: vdf
+    # Порт не 3000: на общем сервере 3000 и 3010 заняты другими проектами.
+    # Только 127.0.0.1: без --hostname Next слушает все адреса, и сайт
+    # открывался напрямую по IP:3011 в обход nginx с его лимитами запросов.
+    # next вызывается напрямую, без npm: сигнал остановки доходит до Node
+    # без посредника.
+    command: ["node", "node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3011", "--keepAliveTimeout", "75000"]
+    environment:
+      NODE_ENV: production
+      MALLOC_ARENA_MAX: "2"
+    # Прежний max_memory_restart у pm2 был 1500M на сам сайт. Здесь потолок на
+    # весь контейнер, вместе с процессом нейросети scripts/ml-worker.mjs
+    # (~420 МБ под нагрузкой, см. docs/image-composer.md).
+    mem_limit: 2g
+    restart: unless-stopped
+
+  # Разовые команды в той же среде: npm ci, сборка, импорт, админ.
+  tools:
+    <<: *app
+    profiles: ["tools"]

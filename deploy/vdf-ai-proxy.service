@@ -1,0 +1,32 @@
+# Прокси для запросов к нейросети (AI_PROXY=http://127.0.0.1:25345).
+#
+# OpenRouter не принимает запросы с российских адресов, поэтому запросы к
+# нейросети идут через WireGuard. wireproxy — WireGuard-клиент в виде
+# обычной программы: открывает HTTP-прокси только на 127.0.0.1 и больше
+# ничего в сети сервера не меняет. Через него ходят vdf.by и prime-auto.by;
+# Telegram, курс доллара и прочее — напрямую.
+#
+# Служба хоста, а не контейнер: это инфраструктура сервера, как nginx.
+# Ставит deploy/deploy.sh, если на сервере есть /usr/local/bin/wireproxy и
+# /etc/wireproxy/vdf-ai.conf (конфиг WireGuard + секция [http]).
+[Unit]
+Description=wireproxy: HTTP-прокси к нейросети через WireGuard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Конфиг с ключом WireGuard доступен только root (600). Служба работает под
+# временным пользователем без прав, а файл получает копией через
+# LoadCredential — читать сам /etc/wireproxy ей не нужно.
+LoadCredential=vdf-ai.conf:/etc/wireproxy/vdf-ai.conf
+ExecStart=/usr/local/bin/wireproxy -c ${CREDENTIALS_DIRECTORY}/vdf-ai.conf
+Restart=always
+RestartSec=5
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
