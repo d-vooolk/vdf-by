@@ -7,11 +7,11 @@ export const CANVAS = 1600;
 const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Montserrat-ExtraBold.ttf");
 const LOGO_FILE = path.join(process.cwd(), "public", "brand", "logo.png");
 
-const MARGIN = 48;
-const RADIUS = 34;
+const MARGIN = 16;
+const RADIUS = 26;
 const BAND = 116;
 const BAND_RADIUS = 26;
-const GAP = 28;
+const GAP = 10;
 const HIGH = 0.44;
 const LOW = 0.6;
 const LIME = "#a2db00";
@@ -27,6 +27,7 @@ const CAR_ZOOM_MIN = 1;
 const CAR_ZOOM_MAX = 1.8;
 const WATERMARK_WIDTH = 230;
 const WATERMARK_OPACITY = 0.22;
+const WATERMARK_SHADOW_OPACITY = 0.32;
 const WATERMARK_STEP_X = 680;
 const WATERMARK_STEP_Y = 380;
 const WATERMARK_ANGLE = -12;
@@ -274,15 +275,15 @@ async function watermarkTile(): Promise<{ data: Buffer; width: number; height: n
     .raw()
     .toBuffer({ resolveWithObject: true });
   const rawInfo = { raw: { width: size.width, height: size.height, channels: 4 as const } };
-  const logo = await sharp(paint(Buffer.from(raw), 255), rawInfo).png().toBuffer();
-  const shadow = await sharp(paint(Buffer.from(raw), 0), rawInfo).blur(2.5).png().toBuffer();
-  const { data, info } = await sharp(shadow)
-    .composite([{ input: logo }])
+  const shadow = await sharp(paint(Buffer.from(raw), 0), rawInfo).blur(2.5).raw().toBuffer();
+  const faded = (data: Buffer, opacity: number) => {
+    for (let index = 3; index < data.length; index += 4) data[index] = Math.round(data[index] * opacity);
+    return sharp(data, rawInfo).png().toBuffer();
+  };
+  const { data, info } = await sharp(await faded(shadow, WATERMARK_SHADOW_OPACITY))
+    .composite([{ input: await faded(paint(Buffer.from(raw), 255), WATERMARK_OPACITY) }])
     .raw()
     .toBuffer({ resolveWithObject: true });
-  for (let index = 3; index < data.length; index += 4) {
-    data[index] = Math.round(data[index] * WATERMARK_OPACITY);
-  }
   return { data, width: info.width, height: info.height };
 }
 
