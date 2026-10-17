@@ -35,7 +35,7 @@ export function CategoryTile({ category, priority = false }: CategoryTileProps) 
         <Picture
           entry={getImage(category.image)}
           alt={category.name}
-          sizes="(max-width: 640px) 31vw, (max-width: 1024px) 23vw, 200px"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 340px"
           priority={priority}
           className="h-full w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"
         />

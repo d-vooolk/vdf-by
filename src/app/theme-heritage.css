@@ -1,0 +1,632 @@
+:root:has(.theme-heritage),
+:root:has(.theme-heritage) :is(header.sticky, .beam, footer) {
+  --color-brand-50: color-mix(in srgb, var(--z-ink) 4%, var(--z-bg));
+  --color-brand-100: color-mix(in srgb, var(--z-ink) 10%, var(--z-bg));
+  --color-brand-200: color-mix(in srgb, var(--z-ink) 19%, var(--z-bg));
+  --color-brand-300: color-mix(in srgb, var(--z-ink) 40%, var(--z-bg));
+  --color-brand-400: color-mix(in srgb, var(--z-ink) 55%, var(--z-bg));
+  --color-brand-500: color-mix(in srgb, var(--z-ink) 66%, var(--z-bg));
+  --color-brand-600: color-mix(in srgb, var(--z-ink) 78%, var(--z-bg));
+  --color-brand-700: color-mix(in srgb, var(--z-ink) 88%, var(--z-bg));
+  --color-brand-800: color-mix(in srgb, var(--z-ink) 94%, var(--z-bg));
+  --color-brand-900: var(--z-ink);
+}
+
+:root:has(.theme-heritage) {
+  --z-bg: var(--k-bg);
+  --z-ink: var(--k-ink);
+  --color-white: var(--k-surface);
+  --color-accent-100: color-mix(in srgb, var(--k-accent) 14%, var(--k-bg));
+  --color-accent-300: color-mix(in srgb, var(--k-accent) 60%, #ffffff);
+  --color-accent-400: var(--k-accent);
+  --color-accent-500: color-mix(in srgb, var(--k-accent) 85%, #000000);
+  --color-accent-600: color-mix(in srgb, var(--k-accent) 70%, #000000);
+  --radius-card: var(--k-radius);
+  --radius-control: var(--k-control-radius);
+  --shadow-card: var(--k-card-shadow);
+  --shadow-card-hover: var(--k-card-shadow-hover);
+  --shadow-pop: var(--k-pop-shadow);
+  color-scheme: var(--k-scheme);
+}
+
+:root:has(.theme-heritage) header.sticky {
+  --z-bg: var(--k-header-solid);
+  --z-ink: var(--k-header-ink);
+  --color-white: color-mix(in srgb, var(--k-header-ink) 6%, var(--k-header-solid));
+  background: var(--k-header-bg);
+  border-color: var(--k-header-line);
+  box-shadow: var(--k-header-shadow);
+  color-scheme: var(--k-header-scheme);
+}
+
+:root:has(.theme-heritage) .beam {
+  --z-bg: var(--k-hero-solid);
+  --z-ink: var(--k-hero-ink);
+  --color-white: color-mix(in srgb, var(--k-hero-ink) 8%, var(--k-hero-solid));
+  background: var(--k-hero-bg);
+  width: var(--k-hero-width);
+  margin: var(--k-hero-margin);
+  border: var(--k-hero-border);
+  border-radius: var(--k-hero-radius);
+  box-shadow: var(--k-hero-shadow);
+  color-scheme: var(--k-hero-scheme);
+}
+
+:root:has(.theme-heritage) footer {
+  --z-bg: var(--k-footer-solid);
+  --z-ink: var(--k-footer-ink);
+  --color-white: var(--k-footer-solid);
+  background: var(--k-footer-bg);
+  border-color: var(--k-footer-line);
+  color-scheme: var(--k-footer-scheme);
+}
+
+:root:has(.theme-heritage) body {
+  background: var(--k-page);
+  background-attachment: fixed;
+}
+
+:root:has(.theme-heritage) :is(h1, h2) {
+  font-family: var(--k-display);
+  font-weight: var(--k-display-weight);
+  font-style: var(--k-display-style);
+  letter-spacing: var(--k-display-track);
+  text-transform: var(--k-display-case);
+}
+
+:root:has(.theme-heritage) h3 {
+  font-family: var(--k-subdisplay);
+  font-weight: var(--k-subdisplay-weight);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:root:has(.theme-heritage) .beam h1 {
+  font-size: var(--k-hero-title-size);
+  line-height: 1.08;
+}
+
+:root:has(.theme-heritage) .beam h1 [aria-hidden="true"]:not(.sweep) {
+  background: var(--k-underline);
+}
+
+:root:has(.theme-heritage) .eyebrow {
+  color: var(--k-eyebrow);
+  letter-spacing: var(--k-eyebrow-track);
+  font-style: var(--k-eyebrow-style);
+  text-transform: var(--k-eyebrow-case);
+}
+
+:root:has(.theme-heritage) :is(.btn-primary, .btn-accent) {
+  border: var(--k-cta-border);
+  border-radius: var(--k-btn-radius);
+  background: var(--k-cta);
+  color: var(--k-cta-ink);
+  text-shadow: none;
+  text-transform: var(--k-btn-case);
+  letter-spacing: var(--k-btn-track);
+  box-shadow: var(--k-cta-shadow);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+:root:has(.theme-heritage) :is(.btn-primary, .btn-accent):hover {
+  background: var(--k-cta-hover);
+  color: var(--k-cta-hover-ink);
+  box-shadow: var(--k-cta-shadow-hover);
+  filter: none;
+}
+
+:root:has(.theme-heritage) :is(.btn-primary, .btn-accent, .btn-secondary):active {
+  translate: none;
+}
+
+:root:has(.theme-heritage) .btn-secondary {
+  border: var(--k-ghost-border);
+  border-radius: var(--k-btn-radius);
+  background: var(--k-ghost-bg);
+  color: var(--color-brand-900);
+  text-transform: var(--k-btn-case);
+  letter-spacing: var(--k-btn-track);
+  box-shadow: var(--k-ghost-shadow);
+}
+
+:root:has(.theme-heritage) .btn-secondary:hover {
+  border-color: var(--k-ghost-hover-line);
+  background: var(--k-ghost-hover-bg);
+}
+
+:root:has(.theme-heritage) .beam .btn-secondary {
+  border-color: color-mix(in srgb, var(--z-ink) 45%, transparent);
+  background: transparent;
+  color: var(--z-ink);
+  box-shadow: none;
+}
+
+:root:has(.theme-heritage) .beam .btn-secondary:hover {
+  border-color: var(--z-ink);
+  background: color-mix(in srgb, var(--z-ink) 10%, transparent);
+}
+
+:root:has(.theme-heritage) .field {
+  border-radius: var(--k-field-radius);
+}
+
+:root:has(.theme-heritage) :is(.bg-accent-300, .bg-accent-400, .bg-accent-500) {
+  color: var(--k-cta-ink);
+}
+
+:root:has(.theme-heritage) .bg-brand-700 {
+  background: var(--k-cta);
+  color: var(--k-cta-ink);
+}
+
+:root:has(.theme-heritage) .card-link .badge.bg-accent-400 {
+  background: var(--k-badge-bg);
+  color: var(--k-badge-ink);
+  border-radius: var(--k-badge-radius);
+}
+
+:root:has(.theme-heritage) :is(header, footer) img[src="/brand/logo.png"] {
+  object-position: -9999px 0;
+  background: var(--k-logo);
+  -webkit-mask: url("/brand/logo.png") center / contain no-repeat;
+  mask: url("/brand/logo.png") center / contain no-repeat;
+  filter: none;
+}
+
+:root:has(.theme-heritage) footer img[src="/brand/logo.png"] {
+  background: var(--k-footer-logo);
+}
+
+:root:has(.theme-heritage) .card-link::after,
+:root:has(.theme-heritage) .beam > .container-page::after {
+  display: none;
+}
+
+:root:has(.theme-heritage) .card {
+  border: var(--k-card-border);
+  border-radius: var(--k-radius);
+  background: var(--k-card-bg);
+  box-shadow: var(--k-card-shadow);
+  backdrop-filter: var(--k-card-blur);
+}
+
+:root:has(.theme-heritage) .card-link {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+
+:root:has(.theme-heritage) .card-link,
+:root:has(.theme-heritage) .card-link:hover,
+:root:has(.theme-heritage) .card-link :is(img, img[src]) {
+  translate: none;
+  transform: none;
+  scale: none;
+}
+
+:root:has(.theme-heritage) .card-link:hover {
+  border: var(--k-card-border-hover);
+  box-shadow: var(--k-card-shadow-hover);
+}
+
+:root:has(.theme-heritage) .card-link :is(.aspect-square, .aspect-\[4\/3\]) {
+  margin: var(--k-photo-inset);
+  border-radius: var(--k-photo-radius);
+  background: var(--k-photo-bg);
+  box-shadow: var(--k-photo-shadow);
+}
+
+:root:has(.theme-heritage) .card-link :is(.aspect-square, .aspect-\[4\/3\]) img {
+  mix-blend-mode: var(--k-photo-blend);
+}
+
+:root:has(.theme-heritage) .card-link > .aspect-\[4\/3\] + span {
+  border-color: transparent;
+}
+
+:root:has(.theme-heritage) main section {
+  border-color: var(--k-section-line);
+}
+
+:root:has(.theme-heritage) .bg-brand-50\/50 {
+  background: var(--k-band);
+}
+
+:root:has(.theme-heritage) .beam::before {
+  background: var(--k-hero-glow);
+}
+
+:root:has(.theme-heritage) .grid-hint::after {
+  background-image: var(--k-hero-pattern);
+  background-size: var(--k-hero-pattern-size);
+  mask-image: var(--k-hero-pattern-mask);
+}
+
+:root:has(.theme-heritage) .beam > .container-page {
+  padding-block: var(--k-hero-pad);
+}
+
+:root:has(.theme-heritage) .lens-halo {
+  background: radial-gradient(circle, rgb(var(--k-glow) / 0.5), rgb(var(--k-glow) / 0.12) 48%, transparent 72%);
+}
+
+:root:has(.theme-heritage) .lens-rays {
+  background: repeating-conic-gradient(from 0deg, rgb(var(--k-glow) / 0.18) 0deg 4deg, transparent 4deg 22deg);
+}
+
+:root:has(.theme-heritage) .lens-bezel {
+  background: var(--k-lens-bezel);
+}
+
+:root:has(.theme-heritage) .lens-glass {
+  background:
+    radial-gradient(circle at 34% 26%, rgb(255 255 255 / 0.92), transparent 40%),
+    radial-gradient(circle at 50% 52%, #ffffff 0%, rgb(var(--k-glow) / 0.6) 22%, rgb(var(--k-glow)) 40%, rgb(var(--k-glow) / 0.22) 56%, transparent 70%),
+    radial-gradient(circle at 50% 50%, #ffffff, #eeeeea 55%, #bdbdb6 100%);
+}
+
+:root:has(.theme-heritage) .lens-chip {
+  border: var(--k-chip-border);
+  border-radius: var(--k-chip-radius);
+  background: var(--k-chip-bg);
+  color: var(--k-chip-ink);
+  box-shadow: var(--k-chip-shadow);
+}
+
+:root:has(.theme-heritage) .home-features {
+  padding: var(--k-features-pad);
+  border: var(--k-features-border);
+  border-radius: var(--k-radius);
+  background: var(--k-features-bg);
+  box-shadow: var(--k-features-shadow);
+}
+
+:root:has(.theme-heritage) .home-features > div {
+  border-color: var(--k-features-divider);
+}
+
+:root:has(.theme-heritage) .home-features .bg-accent-100 {
+  border-radius: var(--k-icon-radius);
+  background: var(--k-icon-bg);
+  color: var(--k-icon-ink);
+  box-shadow: var(--k-icon-shadow);
+}
+
+:root:has(.theme-heritage) :is(.decoration-accent-400, .hover\:decoration-accent-600:hover) {
+  text-decoration-color: var(--k-accent);
+}
+
+
+:root:has(.theme-heritage) {
+  --k-scheme: light;
+  --k-page: #f3f6f6;
+  --k-surface: #ffffff;
+  --k-display: var(--font-lora), Georgia, serif;
+  --k-display-weight: 600;
+  --k-display-style: normal;
+  --k-display-track: -0.01em;
+  --k-display-case: none;
+  --k-subdisplay: var(--font-sans);
+  --k-subdisplay-weight: 600;
+  --k-hero-title-size: clamp(2.1rem, 4.4vw, 3.2rem);
+  --k-eyebrow-track: 0.18em;
+  --k-eyebrow-style: normal;
+  --k-eyebrow-case: uppercase;
+  --k-radius: 16px;
+  --k-control-radius: 12px;
+  --k-btn-radius: 9999px;
+  --k-field-radius: 9999px;
+  --k-btn-case: none;
+  --k-btn-track: 0.02em;
+  --k-cta-border: 0 solid transparent;
+  --k-cta-hover-ink: var(--k-cta-ink);
+  --k-cta-shadow: none;
+  --k-cta-shadow-hover: none;
+  --k-ghost-border: 0 solid transparent;
+  --k-ghost-bg: linear-gradient(145deg, #ffffff, #ebf0f0);
+  --k-ghost-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.95), -4px -4px 10px rgb(255 255 255 / 0.9), 5px 6px 14px rgb(60 80 80 / 0.2);
+  --k-ghost-hover-line: transparent;
+  --k-ghost-hover-bg: linear-gradient(145deg, #ffffff, #f3f6f6);
+  --k-badge-radius: 9999px;
+  --k-card-border: 0 solid transparent;
+  --k-card-bg: linear-gradient(145deg, #ffffff 0%, #f8fafa 55%, #ebf0f0 100%);
+  --k-card-blur: none;
+  --k-card-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.95), inset -1px -1px 0 rgb(40 60 60 / 0.08), -9px -9px 20px rgb(255 255 255 / 0.9), 12px 14px 28px rgb(60 80 80 / 0.22);
+  --k-card-shadow-hover: inset 1px 1px 0 rgb(255 255 255 / 1), inset 0 0 0 1px rgb(30 54 45 / 0.28), -11px -11px 24px rgb(255 255 255 / 1), 15px 17px 34px rgb(60 80 80 / 0.28);
+  --k-card-border-hover: 0 solid transparent;
+  --k-pop-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.35);
+  --k-photo-inset: 10px 10px 0;
+  --k-photo-radius: 12px;
+  --k-photo-bg: #f8fafa;
+  --k-photo-blend: multiply;
+  --k-photo-shadow: inset 4px 4px 10px rgb(60 80 80 / 0.14), inset -4px -4px 10px rgb(255 255 255 / 1);
+  --k-section-line: transparent;
+  --k-band: transparent;
+  --k-header-line: rgb(30 54 45 / 0.1);
+  --k-header-shadow: none;
+  --k-header-scheme: light;
+  --k-hero-width: min(1216px, calc(100% - 2rem));
+  --k-hero-margin: 1.25rem auto 0;
+  --k-hero-border: 0 solid transparent;
+  --k-hero-radius: 28px;
+  --k-hero-shadow: 0 40px 70px -40px rgb(26 43 32 / 0.6);
+  --k-hero-scheme: dark;
+  --k-hero-pattern: none;
+  --k-hero-pattern-size: auto;
+  --k-hero-pattern-mask: none;
+  --k-hero-pad: 3.5rem;
+  --k-hero-glow: radial-gradient(30rem 20rem at 80% 50%, rgb(243 237 226 / 0.08), transparent 70%);
+  --k-footer-line: rgb(244 242 238 / 0.12);
+  --k-footer-scheme: dark;
+  --k-lens-bezel: conic-gradient(from 210deg, #b8a586, #f3ede2 12%, #7a6a56 30%, #f3ede2 48%, #b8a586 64%, #ffffff 80%, #b8a586);
+  --k-chip-border: 1px solid rgb(243 237 226 / 0.45);
+  --k-chip-radius: 9999px;
+  --k-chip-bg: #1e362d;
+  --k-chip-ink: #f3ede2;
+  --k-chip-shadow: none;
+  --k-features-pad: 2rem;
+  --k-features-border: 0 solid transparent;
+  --k-features-bg: linear-gradient(145deg, #ffffff 0%, #f8fafa 55%, #ebf0f0 100%);
+  --k-features-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.95), inset -1px -1px 0 rgb(40 60 60 / 0.08), -9px -9px 20px rgb(255 255 255 / 0.9), 12px 14px 28px rgb(60 80 80 / 0.22);
+  --k-features-divider: rgb(122 106 86 / 0.25);
+  --k-icon-radius: 9999px;
+  --k-icon-bg: linear-gradient(145deg, #ffffff, #e8eeee);
+  --k-icon-ink: #1e362d;
+  --k-icon-shadow: inset 1px 1px 0 rgb(255 255 255 / 0.95), -4px -4px 10px rgb(255 255 255 / 0.9), 5px 6px 14px rgb(60 80 80 / 0.2);
+  --k-bg: #f3f6f6;
+  --k-ink: #1a2b20;
+  --k-accent: #1e362d;
+  --k-glow: 190 160 110;
+  --k-cta: #1e362d;
+  --k-cta-ink: #f3ede2;
+  --k-cta-hover: #1a2b20;
+  --k-eyebrow: #5b6b62;
+  --k-logo: #1e362d;
+  --k-underline: #7a6a56;
+  --k-badge-bg: #7a6a56;
+  --k-badge-ink: #f3ede2;
+  --k-header-solid: #f3f6f6;
+  --k-header-bg: rgb(243 246 246 / 0.9);
+  --k-header-ink: #1a2b20;
+  --k-hero-solid: #1e362d;
+  --k-hero-ink: #f3ede2;
+  --k-hero-bg: radial-gradient(28rem 18rem at 82% 40%, rgb(184 165 134 / 0.25), transparent 70%), linear-gradient(135deg, #1e362d 0%, #2f4a3d 100%);
+  --k-footer-solid: #1e362d;
+  --k-footer-bg: #1e362d;
+  --k-footer-ink: #f4f2ee;
+  --k-footer-logo: #ffffff;
+}
+
+:root:has(.theme-heritage) .card-link > .aspect-\[4\/3\] {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root:has(.theme-heritage) .card-link > .aspect-\[4\/3\] img {
+  mix-blend-mode: multiply;
+}
+
+:root:has(.theme-heritage) main .grid:has(> .card-link) {
+  gap: 1.5rem;
+  padding: 0.5rem 0.75rem 1.5rem 0.5rem;
+}
+
+:root:has(.theme-heritage) .card-link > .aspect-square {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root:has(.theme-heritage) .card-link > .aspect-square img {
+  mix-blend-mode: multiply;
+}
+
+:root:has(.theme-heritage) article.card-link {
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 1),
+    inset 0 0 0 1px rgb(255 255 255 / 0.75),
+    inset -2px -2px 5px rgb(40 60 60 / 0.07),
+    0 0 0 1px rgb(40 60 60 / 0.06),
+    -12px -12px 26px rgb(255 255 255 / 0.95),
+    17px 19px 38px rgb(60 80 80 / 0.3);
+}
+
+:root:has(.theme-heritage) article.card-link:hover {
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 1),
+    inset 0 0 0 1px rgb(30 54 45 / 0.3),
+    inset -2px -2px 5px rgb(40 60 60 / 0.08),
+    0 0 0 1px rgb(30 54 45 / 0.12),
+    -14px -14px 30px rgb(255 255 255 / 1),
+    21px 23px 46px rgb(60 80 80 / 0.36);
+}
+
+:root:has(.theme-heritage) main .grid:has(> article.card-link) {
+  gap: 1.9rem;
+  padding: 0.75rem 1rem 2rem 0.75rem;
+}
+
+:root:has(.theme-heritage) main section.border-y.bg-brand-50\/50 {
+  --z-bg: #1e362d;
+  --z-ink: #f4f2ee;
+  --color-brand-50: color-mix(in srgb, var(--z-ink) 4%, var(--z-bg));
+  --color-brand-100: color-mix(in srgb, var(--z-ink) 10%, var(--z-bg));
+  --color-brand-200: color-mix(in srgb, var(--z-ink) 19%, var(--z-bg));
+  --color-brand-300: color-mix(in srgb, var(--z-ink) 40%, var(--z-bg));
+  --color-brand-400: color-mix(in srgb, var(--z-ink) 55%, var(--z-bg));
+  --color-brand-500: color-mix(in srgb, var(--z-ink) 66%, var(--z-bg));
+  --color-brand-600: color-mix(in srgb, var(--z-ink) 78%, var(--z-bg));
+  --color-brand-700: color-mix(in srgb, var(--z-ink) 88%, var(--z-bg));
+  --color-brand-800: color-mix(in srgb, var(--z-ink) 94%, var(--z-bg));
+  --color-brand-900: var(--z-ink);
+  border-color: transparent;
+  background:
+    radial-gradient(60rem 30rem at 85% 0%, rgb(184 165 134 / 0.2), transparent 60%),
+    linear-gradient(180deg, #1e362d 0%, #1a2b20 100%);
+}
+
+:root:has(.theme-heritage) main section.border-y.bg-brand-50\/50 .card {
+  --z-bg: #eef2f2;
+  --z-ink: #1a2b20;
+  --color-brand-50: color-mix(in srgb, var(--z-ink) 4%, var(--z-bg));
+  --color-brand-100: color-mix(in srgb, var(--z-ink) 10%, var(--z-bg));
+  --color-brand-200: color-mix(in srgb, var(--z-ink) 19%, var(--z-bg));
+  --color-brand-300: color-mix(in srgb, var(--z-ink) 40%, var(--z-bg));
+  --color-brand-400: color-mix(in srgb, var(--z-ink) 55%, var(--z-bg));
+  --color-brand-500: color-mix(in srgb, var(--z-ink) 66%, var(--z-bg));
+  --color-brand-600: color-mix(in srgb, var(--z-ink) 78%, var(--z-bg));
+  --color-brand-700: color-mix(in srgb, var(--z-ink) 88%, var(--z-bg));
+  --color-brand-800: color-mix(in srgb, var(--z-ink) 94%, var(--z-bg));
+  --color-brand-900: var(--z-ink);
+}
+
+:root:has(.theme-heritage) main section.border-y.bg-brand-50\/50 .eyebrow {
+  color: #c8b48e;
+}
+
+:root:has(.theme-heritage) main section.border-y.bg-brand-50\/50 article.card-link {
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.8),
+    inset -1px -1px 0 rgb(40 60 60 / 0.12),
+    0 2px 4px rgb(0 0 0 / 0.25),
+    0 22px 40px -18px rgb(0 0 0 / 0.65);
+}
+
+:root:has(.theme-heritage) main section.border-y.bg-brand-50\/50 article.card-link:hover {
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.85),
+    inset 0 0 0 1px rgb(200 180 142 / 0.7),
+    0 2px 4px rgb(0 0 0 / 0.25),
+    0 26px 48px -18px rgb(0 0 0 / 0.75);
+}
+
+:root:has(.theme-heritage) footer.bg-brand-50\/50,
+:root:has(.theme-heritage) footer {
+  background: #1e362d;
+  border-color: transparent;
+}
+
+:root:has(.theme-heritage) footer > div + div {
+  border-color: rgb(244 242 238 / 0.12);
+}
+
+:root:has(.theme-heritage) .grid:has(> a.card-link > .aspect-\[4\/3\]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  :root:has(.theme-heritage) .grid:has(> a.card-link > .aspect-\[4\/3\]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  :root:has(.theme-heritage) .grid:has(> a.card-link > .aspect-\[4\/3\]) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+:root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\]) {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 4;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(150deg, #ffffff 0%, #f4f7f7 60%, #e8eeee 100%);
+}
+
+:root:has(.theme-heritage) a.card-link > .aspect-\[4\/3\] {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  aspect-ratio: auto;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root:has(.theme-heritage) a.card-link > .aspect-\[4\/3\] img {
+  position: absolute;
+  right: -7%;
+  bottom: -9%;
+  width: 82%;
+  height: 76%;
+  padding: 0;
+  object-fit: contain;
+  object-position: 62% 100%;
+  mix-blend-mode: normal;
+  filter: drop-shadow(-6px 10px 12px rgb(30 54 45 / 0.22)) drop-shadow(0 0 1px rgb(30 54 45 / 0.35));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root:has(.theme-heritage) a.card-link:hover > .aspect-\[4\/3\] img {
+  transform: translate(-3%, -3%) scale(1.04);
+}
+
+:root:has(.theme-heritage) a.card-link > .aspect-\[4\/3\] + span {
+  position: relative;
+  z-index: 1;
+  display: block;
+  padding: 1rem 3rem 0 1.1rem;
+  border: 0;
+  text-align: left;
+  font-family: var(--k-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #1a2b20;
+}
+
+:root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\])::after {
+  content: "↗";
+  display: grid;
+  place-items: center;
+  position: absolute;
+  z-index: 1;
+  top: 0.85rem;
+  right: 0.85rem;
+  inset-inline-start: auto;
+  bottom: auto;
+  left: auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 9999px;
+  background: transparent;
+  color: #1e362d;
+  font-size: 1.05rem;
+  opacity: 1;
+  filter: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+:root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\]):hover::after {
+  background: #1e362d;
+  color: #f4f2ee;
+}
+
+:root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\]):hover {
+  box-shadow:
+    inset 0 0 0 1.5px #1e362d,
+    -9px -9px 20px rgb(255 255 255 / 0.9),
+    12px 14px 28px rgb(60 80 80 / 0.24);
+}
+
+:root:has(.theme-heritage) a.card-link:is(
+  [href$="/catalog/bi-led-moduli/"],
+  [href$="/catalog/korpusa-far/"],
+  [href$="/catalog/stekla-far/"],
+  [href$="/catalog/dnevnye-hodovye-ogni/"],
+  [href$="/catalog/bloki-upravleniya/"]
+) > .aspect-\[4\/3\] img {
+  bottom: 3%;
+}
+
+:root:has(.theme-heritage) a.card-link[href$="/catalog/svetodiodnye-lampy/"] > .aspect-\[4\/3\] img {
+  bottom: -3%;
+  height: 70%;
+}

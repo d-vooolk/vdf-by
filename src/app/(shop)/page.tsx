@@ -147,18 +147,18 @@ export default function HomePage() {
                 <span className="lens-glass block" />
               </span>
 
-              <span className="lens-chip top-[6%] left-0">би-ЛЕД</span>
+              <span className="lens-chip top-[6%] left-0">Bi-LED</span>
               <span
                 className="lens-chip top-[32%] right-0"
                 style={{ animationDelay: "1.4s" }}
               >
-                5000K
+                Стёкла фар
               </span>
               <span
                 className="lens-chip bottom-[9%] left-[6%]"
                 style={{ animationDelay: "2.6s" }}
               >
-                2.5″ и 3″
+                Световоды
               </span>
             </div>
           </div>
@@ -276,7 +276,7 @@ export default function HomePage() {
           {/* Без карточек: четыре обведённых прямоугольника подряд — это
               четыре рамки, которые спорят друг с другом. Достаточно одной
               вертикальной линии слева, она же задаёт ритм колонок. */}
-          <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="home-features grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {site.features.map((feature, position) => {
               const Icon = ICONS[position % ICONS.length];
               return (

@@ -6,6 +6,8 @@ import { ListingTrailKeeper } from "@/components/ListingTrail";
 import { getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
 
+import "../theme-heritage.css";
+
 /**
  * Обрамление витрины: шапка с меню и поиском, подвал с контактами.
  *
@@ -24,7 +26,7 @@ export default function ShopLayout({
   const channels = getChannels(getSite());
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="theme-heritage flex min-h-dvh flex-col">
       {/* Ссылка для клавиатуры и скринридеров: позволяет пропустить шапку
           с меню и поиском и уйти сразу к содержимому страницы. */}
       <a

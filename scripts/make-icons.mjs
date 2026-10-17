@@ -25,7 +25,7 @@
  * непрозрачный столбец — первый пробел после него), а не задаются числами,
  * чтобы правка исходного файла не превращалась в правку скрипта.
  *
- * Знак одноцветный (#a2db00) на прозрачном фоне, то есть по сути это
+ * Знак одноцветный (#1e362d) на прозрачном фоне, то есть по сути это
  * альфа-маска. Поэтому уменьшаем не картинку, а маску, а цвет заливаем
  * ровным слоем поверх. Если уменьшать RGBA как есть, по краю остаётся кайма
  * из полупрозрачных пикселей соседнего цвета — на тёмной вкладке она видна.
@@ -33,7 +33,7 @@
  * Подложки нет намеренно: прозрачны и поля, и просветы внутри буквы. Белый
  * квадрат под ней выглядел бы заплаткой на тёмной теме браузера. Исключение —
  * apple-icon: iOS прозрачность не понимает и зальёт её чёрным. Подложка там
- * чернильная, brand-900, а не белая: жёлтый на белом почти не виден.
+ * цвета слоновой кости: тёмно-зелёный знак на ней читается, а на чёрном терялся бы.
  */
 
 import { Buffer } from "node:buffer";
@@ -45,9 +45,9 @@ const SRC = "public/brand/logo-source.png";
 const OUT = "src/app/";
 const LOGO = "public/brand/logo.png";
 const LOGO_WIDTH = 600;
-const LIME = { r: 162, g: 219, b: 0 };
+const GREEN = { r: 30, g: 54, b: 45 };
 const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
-const INK = { r: 17, g: 18, b: 16, alpha: 1 };
+const IVORY = { r: 243, g: 237, b: 226, alpha: 1 };
 
 /**
  * Размеры внутри .ico. 16 и 32 — вкладка и панель задач, 24 — ярлыки
@@ -135,7 +135,7 @@ async function icon(size, { contrast = 1, pad = 0, background = CLEAR } = {}) {
   const alpha = await mask.raw().toBuffer();
 
   const flat = sharp({
-    create: { width: size, height: size, channels: 3, background: LIME },
+    create: { width: size, height: size, channels: 3, background: GREEN },
   }).joinChannel(alpha, { raw: { width: size, height: size, channels: 1 } });
 
   // Непрозрачная иконка — тот же знак, положенный на цвет подложки.
@@ -187,7 +187,7 @@ writeFileSync(OUT + "icon.png", await icon(512));
 writeFileSync(
   OUT + "apple-icon.png",
   // Полями отбиваем знак от краёв: iOS обрежет иконку скруглением.
-  await icon(180, { pad: 0.1, background: INK }),
+  await icon(180, { pad: 0.1, background: IVORY }),
 );
 
 const logo = await sharp(SRC)

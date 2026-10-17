@@ -132,7 +132,8 @@
   }
 
   .btn-primary {
-    @apply bg-accent-400 text-brand-900 shadow-glow hover:bg-accent-300 active:bg-accent-500;
+    @apply bg-accent-400 text-white shadow-glow hover:bg-accent-300 active:bg-accent-500;
+    text-shadow: 0 1px 2px rgb(17 18 16 / 0.45);
   }
 
   .btn-secondary {
@@ -144,9 +145,9 @@
     @apply text-brand-700 hover:bg-brand-50;
   }
 
-  /* Кнопка-акцент. Текст на ней тёмный — на лаймовом белый нечитаем. */
   .btn-accent {
-    @apply bg-accent-400 text-brand-900 shadow-glow hover:bg-accent-300 active:bg-accent-500;
+    @apply bg-accent-400 text-white shadow-glow hover:bg-accent-300 active:bg-accent-500;
+    text-shadow: 0 1px 2px rgb(17 18 16 / 0.45);
   }
 
   .field {

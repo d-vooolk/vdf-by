@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { getSite } from "@/lib/catalog";
 
+import "./theme-heritage.css";
+
 /**
  * 404 для адресов, не совпавших ни с одним маршрутом.
  *
@@ -13,7 +15,7 @@ export default function NotFound() {
   const site = getSite();
 
   return (
-    <main id="main" className="container-page flex min-h-dvh flex-col items-center justify-center py-16 text-center">
+    <main id="main" className="theme-heritage container-page flex min-h-dvh flex-col items-center justify-center py-16 text-center">
       <Link href="/" aria-label={`${site.name} — на главную`}>
         <img src="/brand/logo.png" alt={site.name} width={600} height={100} className="h-7 w-auto" />
       </Link>

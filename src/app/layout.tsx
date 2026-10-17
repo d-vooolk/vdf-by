@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lora } from "next/font/google";
 
 import { getSite } from "@/lib/catalog";
 
@@ -28,6 +28,13 @@ const inter = Inter({
   adjustFontFallback: true,
 });
 
+const lora = Lora({
+  subsets: ["latin", "cyrillic"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+  variable: "--font-lora",
+});
+
 const site = getSite();
 
 export const metadata: Metadata = {
@@ -51,7 +58,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111210",
+  themeColor: "#1e362d",
   width: "device-width",
   initialScale: 1,
 };
@@ -60,7 +67,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className={inter.variable} data-scroll-behavior="smooth">
+    <html lang="ru" className={`${inter.variable} ${lora.variable}`} data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );

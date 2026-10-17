@@ -7,27 +7,24 @@ export const CANVAS = 1600;
 const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Montserrat-ExtraBold.ttf");
 const LOGO_FILE = path.join(process.cwd(), "public", "brand", "logo.png");
 
-const MARGIN = 16;
-const RADIUS = 26;
 const BAND = 116;
 const BAND_RADIUS = 26;
+const BAND_INSET = 28;
 const GAP = 10;
 const HIGH = 0.44;
 const LOW = 0.6;
-const LIME = "#a2db00";
-const LIME_LIGHT = "#c4f03a";
-const BAND_TEXT = "#0d0f0a";
+const BAND_COLOR = "#1e362d";
+const BAND_COLOR_LIGHT = "#33503f";
+const BAND_EDGE = "#b8a586";
+const BAND_TEXT = "#c8b48e";
 const TEXT_HEIGHT = 0.4;
 const TEXT_WIDTH = 0.82;
-const FIELD_CENTER = "#3a3c3f";
-const FIELD_EDGE = "#121314";
-const FIELD_NOISE = 10;
-const PRODUCT_PAD = 56;
+const PRODUCT_PAD = 18;
 const CAR_ZOOM_MIN = 1;
 const CAR_ZOOM_MAX = 1.8;
 const WATERMARK_WIDTH = 230;
-const WATERMARK_OPACITY = 0.22;
-const WATERMARK_SHADOW_OPACITY = 0.32;
+const WATERMARK_OPACITY = 0.14;
+const WATERMARK_SHADOW_OPACITY = 0.1;
 const WATERMARK_STEP_X = 680;
 const WATERMARK_STEP_Y = 380;
 const WATERMARK_ANGLE = -12;
@@ -138,21 +135,19 @@ interface Layout {
 function layout(slope: Slope): Layout {
   const { left, right } = divider(slope);
   const lineAt = (x: number) => left + ((right - left) * x) / CANVAS;
-  const near = MARGIN;
-  const far = CANVAS - MARGIN;
-  const edge = (offset: number): [Point, Point] => [
+  const edge = (near: number, far: number, offset: number): [Point, Point] => [
     [near, lineAt(near) + offset],
     [far, lineAt(far) + offset],
   ];
-  const [cardLeft, cardRight] = edge(-BAND / 2 - GAP);
-  const [bandTopLeft, bandTopRight] = edge(-BAND / 2);
-  const [bandBottomLeft, bandBottomRight] = edge(BAND / 2);
-  const [carLeft, carRight] = edge(BAND / 2 + GAP);
+  const [cardLeft, cardRight] = edge(0, CANVAS, -BAND / 2 - GAP);
+  const [carLeft, carRight] = edge(0, CANVAS, BAND / 2 + GAP);
+  const [bandTopLeft, bandTopRight] = edge(BAND_INSET, CANVAS - BAND_INSET, -BAND / 2);
+  const [bandBottomLeft, bandBottomRight] = edge(BAND_INSET, CANVAS - BAND_INSET, BAND / 2);
   return {
     lineAt,
-    productCard: [[near, near], [far, near], cardRight, cardLeft],
+    productCard: [[0, 0], [CANVAS, 0], cardRight, cardLeft],
     band: [bandTopLeft, bandTopRight, bandBottomRight, bandBottomLeft],
-    carCard: [carLeft, carRight, [far, far], [near, far]],
+    carCard: [carLeft, carRight, [CANVAS, CANVAS], [0, CANVAS]],
     productBottom: Math.min(cardLeft[1], cardRight[1]),
     carTop: Math.floor(Math.min(carLeft[1], carRight[1])),
   };
@@ -202,8 +197,8 @@ async function productLayer(
   scale: number,
   bottom: number,
 ): Promise<{ input: Buffer; top: number; left: number }> {
-  const boxTop = MARGIN + PRODUCT_PAD;
-  const boxWidth = CANVAS - (MARGIN + PRODUCT_PAD) * 2;
+  const boxTop = PRODUCT_PAD;
+  const boxWidth = CANVAS - PRODUCT_PAD * 2;
   const boxHeight = bottom - PRODUCT_PAD - boxTop;
   const factor = Math.min(Math.max(scale, 0.5), 1.3);
 
@@ -234,28 +229,6 @@ function cached(build: () => Promise<Buffer>): () => Promise<Buffer> {
     return cache;
   };
 }
-
-const fieldLayer = cached(async () => {
-  const gradient = svg(
-    `<defs><radialGradient id="f" cx="0.5" cy="0.45" r="0.75">` +
-      `<stop offset="0" stop-color="${FIELD_CENTER}"/><stop offset="1" stop-color="${FIELD_EDGE}"/>` +
-      `</radialGradient></defs><rect width="${CANVAS}" height="${CANVAS}" fill="url(#f)"/>`,
-  );
-  const noise = Buffer.alloc(CANVAS * CANVAS * 4);
-  let seed = 20261017;
-  for (let index = 0; index < noise.length; index += 4) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    const light = seed & 0x10000 ? 255 : 0;
-    noise[index] = light;
-    noise[index + 1] = light;
-    noise[index + 2] = light;
-    noise[index + 3] = (seed >>> 24) % FIELD_NOISE;
-  }
-  return sharp(gradient)
-    .composite([{ input: noise, raw: { width: CANVAS, height: CANVAS, channels: 4 } }])
-    .png()
-    .toBuffer();
-});
 
 function paint(data: Buffer, value: number): Buffer {
   for (let index = 0; index < data.length; index += 4) {
@@ -340,14 +313,14 @@ async function cardsLayer(
   shape: Layout,
   product: { input: Buffer; top: number; left: number },
 ): Promise<Buffer> {
-  const car = await coverRegion(options.car, CANVAS - MARGIN * 2, CANVAS - MARGIN - shape.carTop, {
+  const car = await coverRegion(options.car, CANVAS, CANVAS - shape.carTop, {
     mirror: options.mirrorCar,
     shiftX: options.carShiftX,
     shiftY: options.carShift,
     zoom: options.carZoom,
   });
-  const productCard = roundedPath(shape.productCard, RADIUS);
-  const carCard = roundedPath(shape.carCard, RADIUS);
+  const productCard = roundedPath(shape.productCard, 0);
+  const carCard = roundedPath(shape.carCard, 0);
   const clip = (layers: Array<{ input: Buffer; top: number; left: number }>, outline: string) =>
     transparent()
       .composite([...layers, { input: svg(`<path d="${outline}" fill="#fff"/>`), blend: "dest-in" }])
@@ -358,7 +331,7 @@ async function cardsLayer(
       [{ input: svg(`<path d="${productCard}" fill="${BACKGROUNDS[options.background]}"/>`), top: 0, left: 0 }, product],
       productCard,
     ),
-    clip([{ input: car, top: shape.carTop, left: MARGIN }], carCard),
+    clip([{ input: car, top: shape.carTop, left: 0 }], carCard),
   ]);
   const clipped = await transparent()
     .composite([
@@ -373,15 +346,6 @@ async function cardsLayer(
     .toBuffer();
 }
 
-function cardShadow(shape: Layout): Buffer {
-  return svg(
-    `<defs><filter id="s" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="18"/></filter></defs>` +
-      `<g filter="url(#s)" opacity="0.6" transform="translate(0 12)">` +
-      `<path d="${roundedPath(shape.productCard, RADIUS)}" fill="#000"/>` +
-      `<path d="${roundedPath(shape.carCard, RADIUS)}" fill="#000"/></g>`,
-  );
-}
-
 function bandLayer(shape: Layout): Buffer {
   const outline = roundedPath(shape.band, BAND_RADIUS);
   const [topLeft, topRight] = shape.band;
@@ -389,15 +353,16 @@ function bandLayer(shape: Layout): Buffer {
   const bottom = Math.max(topLeft[1], topRight[1]) + BAND;
   return svg(
     `<defs>` +
-      `<filter id="glow" x="-10%" y="-60%" width="120%" height="220%"><feGaussianBlur stdDeviation="24"/></filter>` +
+      `<filter id="shade" x="-10%" y="-60%" width="120%" height="220%"><feGaussianBlur stdDeviation="16"/></filter>` +
       `<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="0" y1="${top}" x2="0" y2="${bottom}">` +
-      `<stop offset="0" stop-color="${LIME_LIGHT}"/><stop offset="0.5" stop-color="${LIME}"/>` +
-      `<stop offset="1" stop-color="${LIME}"/></linearGradient>` +
+      `<stop offset="0" stop-color="${BAND_COLOR_LIGHT}"/><stop offset="0.55" stop-color="${BAND_COLOR}"/>` +
+      `<stop offset="1" stop-color="${BAND_COLOR}"/></linearGradient>` +
       `</defs>` +
-      `<path d="${outline}" fill="${LIME}" opacity="0.65" filter="url(#glow)"/>` +
+      `<path d="${outline}" fill="#000000" opacity="0.35" filter="url(#shade)" transform="translate(0 10)"/>` +
       `<path d="${outline}" fill="url(#fill)"/>` +
-      `<line x1="${topLeft[0] + BAND_RADIUS}" y1="${topLeft[1] + 2}" x2="${topRight[0] - BAND_RADIUS}" ` +
-      `y2="${topRight[1] + 2}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="2"/>`,
+      `<path d="${outline}" fill="none" stroke="${BAND_EDGE}" stroke-opacity="0.6" stroke-width="2"/>` +
+      `<line x1="${topLeft[0] + BAND_RADIUS}" y1="${topLeft[1] + 3}" x2="${topRight[0] - BAND_RADIUS}" ` +
+      `y2="${topRight[1] + 3}" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>`,
   );
 }
 
@@ -440,21 +405,19 @@ async function labelLayer(
 export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
   const shape = layout(options.slope);
 
-  const [field, product, label] = await Promise.all([
-    fieldLayer(),
+  const [product, label] = await Promise.all([
     productLayer(options.product, options.mirrorProduct, options.productScale, shape.productBottom),
     labelLayer(options.label, shape),
   ]);
   const cards = await cardsLayer(options, shape, product);
 
-  return sharp(field)
+  return sharp({ create: { width: CANVAS, height: CANVAS, channels: 3, background: "#ffffff" } })
     .composite([
-      { input: cardShadow(shape), top: 0, left: 0 },
       { input: cards, top: 0, left: 0 },
       { input: bandLayer(shape), top: 0, left: 0 },
       ...(label ? [label] : []),
     ])
-    .flatten({ background: FIELD_EDGE })
+    .flatten({ background: "#ffffff" })
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
 }
