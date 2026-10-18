@@ -271,7 +271,7 @@ export default async function ProductPage({ params }: PageProps) {
           <h2 className="mb-6 text-xl font-semibold text-brand-900 sm:text-2xl">
             Товары для этого же авто
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
             {sameCar.map((item) => (
               <ProductCard key={item.id} product={item} currencySymbol={site.currencySymbol} />
             ))}
@@ -291,7 +291,7 @@ export default async function ProductPage({ params }: PageProps) {
           <h2 className="mb-6 text-xl font-semibold text-brand-900 sm:text-2xl">
             Смотрите также
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
             {related.map((item) => (
               <ProductCard
                 key={item.id}

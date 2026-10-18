@@ -652,8 +652,8 @@
 @media (max-width: 639.98px) {
   :root:has(.theme-heritage) main .grid:has(> .card-link),
   :root:has(.theme-heritage) main .grid:has(> article.card-link) {
-    gap: 0.875rem;
-    padding: 0.25rem 0.25rem 1rem;
+    gap: 0.5rem;
+    padding: 0;
   }
 
   :root:has(.theme-heritage) .grid:has(> a.card-link > .aspect-\[4\/3\]) {
