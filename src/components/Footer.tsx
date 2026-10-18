@@ -7,6 +7,7 @@ import { PhoneIcon } from "@/components/icons";
 import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
+import { DisclaimerHint } from "@/components/DisclaimerHint";
 import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 export function Footer() {
@@ -23,8 +24,9 @@ export function Footer() {
     <footer className="mt-24 border-t border-brand-100 bg-brand-50/50">
       <div className="container-page grid gap-10 py-16 sm:grid-cols-2 lg:grid-cols-4">
         <div>
+          <div className="relative mb-4 inline-flex">
           <HomeLink
-            className="mb-4 inline-flex items-center transition-opacity hover:opacity-80"
+            className="inline-flex items-center transition-opacity hover:opacity-80"
             ariaLabel={`${site.name} — на главную`}
           >
             <img
@@ -36,6 +38,13 @@ export function Footer() {
               className="h-6 w-auto"
             />
           </HomeLink>
+          <DisclaimerHint
+            id="disclaimer-footer"
+            placement="above"
+            ring="dark"
+            className="absolute -top-3 -right-4 sm:-top-2.5 sm:-right-3"
+          />
+          </div>
           <p className="text-sm leading-relaxed text-brand-500">
             {site.tagline}. Подберём комплект под вашу модель авто и проверим
             перед отправкой.

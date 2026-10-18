@@ -102,7 +102,7 @@ export function Header() {
             Автосвет Беларусь
           </span>
         </HomeLink>
-        <DisclaimerHint className="absolute -top-2 -right-2.5 sm:-top-2.5 sm:-right-3" />
+        <DisclaimerHint id="disclaimer-header" className="absolute -top-3 -right-4 sm:-top-2.5 sm:-right-3" />
         </div>
 
         <div className="min-w-0 flex-1">
