@@ -56,9 +56,11 @@ export function AdminNav({
     return () => window.removeEventListener("keydown", close);
   }, [open]);
 
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href.replace(/\/$/, "") || pathname === href
-      : pathname.startsWith(href.replace(/\/$/, ""));
+  const isActive = (href: string, exact?: boolean, also: string[] = []) =>
+    (exact
+      ? pathname === href.replace(/\/$/, "") || pathname === href
+      : pathname.startsWith(href.replace(/\/$/, ""))) ||
+    also.some((path) => pathname.startsWith(path.replace(/\/$/, "")));
 
   const badgeCount = (badge: NavLink["badge"]) =>
     badge === "orders"
@@ -95,11 +97,11 @@ export function AdminNav({
     links: group.links.filter((link) => !bottomHrefs.has(link.href)),
   })).filter((group) => group.links.length);
   const moreLinks = moreGroups.flatMap((group) => group.links);
-  const moreActive = moreLinks.some((link) => isActive(link.href, link.exact));
+  const moreActive = moreLinks.some((link) => isActive(link.href, link.exact, link.also));
   const moreCount = moreLinks.reduce((sum, link) => sum + badgeCount(link.badge), 0);
 
   const renderLink = (link: NavLink, nested: boolean) => {
-    const active = isActive(link.href, link.exact);
+    const active = isActive(link.href, link.exact, link.also);
     const count = badgeCount(link.badge);
     return (
       <Link
@@ -125,7 +127,7 @@ export function AdminNav({
   };
 
   const renderGroup = (group: NavGroup) => {
-    const containsActive = group.links.some((link) => isActive(link.href, link.exact));
+    const containsActive = group.links.some((link) => isActive(link.href, link.exact, link.also));
     const expanded = toggled[group.label] ?? containsActive;
     return (
       <div key={group.label}>
@@ -216,7 +218,7 @@ export function AdminNav({
               </p>
               <div className="grid gap-0.5">
                 {group.links.map((link) => {
-                  const active = isActive(link.href, link.exact);
+                  const active = isActive(link.href, link.exact, link.also);
                   const count = badgeCount(link.badge);
                   const Icon = link.icon;
                   return (
@@ -243,7 +245,7 @@ export function AdminNav({
 
       <nav aria-label="Основные разделы" className="admin-bottom-nav lg:hidden">
         {bottomLinks.map((link) => {
-          const active = isActive(link.href, link.exact) && !open;
+          const active = isActive(link.href, link.exact, link.also) && !open;
           const count = badgeCount(link.badge);
           const Icon = link.icon;
           return (

@@ -10,7 +10,6 @@ import {
   ImagePlusIcon,
   ListIcon,
   PackageIcon,
-  SearchIcon,
   SparkIcon,
   TrashIcon,
   UserIcon,
@@ -24,6 +23,7 @@ export interface NavLink {
   href: string;
   label: string;
   exact?: boolean;
+  also?: string[];
   badge?: "orders" | "customers" | "service";
   icon: (props: React.SVGProps<SVGSVGElement>) => React.ReactElement;
 }
@@ -34,14 +34,7 @@ export interface NavGroup {
 }
 
 export const NAV: Array<NavLink | NavGroup> = [
-  {
-    label: "Сводка",
-    links: [
-      { href: "/admin/", label: "Общая", exact: true, icon: HomeIcon },
-      { href: "/admin/traffic/", label: "Посещаемость", icon: ChartIcon },
-      { href: "/admin/seo/", label: "SEO", icon: SearchIcon },
-    ],
-  },
+  { href: "/admin/", label: "Сводка", exact: true, also: ["/admin/traffic/", "/admin/seo/"], icon: HomeIcon },
   {
     label: "Товары",
     links: [
@@ -79,8 +72,6 @@ export const isGroup = (item: NavLink | NavGroup): item is NavGroup => "links" i
 
 export const NAV_LINKS: NavLink[] = NAV.flatMap((item) => (isGroup(item) ? item.links : [item]));
 
-const MOBILE_LABELS: Record<string, string> = { "/admin/": "Сводка" };
-
 const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
   { label: "Главное", hrefs: ["/admin/"] },
   { label: "Продажи", hrefs: ["/admin/orders/", "/admin/service-requests/", "/admin/customers/", "/admin/accounting/"] },
@@ -95,7 +86,7 @@ const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
 
 function mobileLink(href: string): NavLink[] {
   const link = NAV_LINKS.find((item) => item.href === href);
-  return link ? [{ ...link, label: MOBILE_LABELS[href] ?? link.label }] : [];
+  return link ? [link] : [];
 }
 
 export const MOBILE_GROUPS: NavGroup[] = MOBILE_SECTIONS.map((section) => ({
