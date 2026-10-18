@@ -1,106 +1,80 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { CloseIcon } from "@/components/icons";
 import type { Channel } from "@/lib/contacts";
 
-/**
- * Панель связи, висящая справа на каждой странице.
- *
- * Сделана по образцу prime-auto.by: столбик круглых кнопок мессенджеров и
- * переключатель под ними. Отличие одно, и оно важное — список каналов не
- * захардкожен в файле конфигурации, а приходит из настроек магазина
- * (src/lib/contacts.ts). Не заполнен Viber — кнопки Viber не будет.
- *
- * Свёрнутое состояние запоминается в sessionStorage: человек, который
- * закрыл панель, не должен закрывать её заново на каждой странице.
- */
+import styles from "./FloatingContacts.module.css";
 
-const STORAGE_KEY = "contacts-bar-open";
+const AUTO_OPEN_MS = 800;
+const AUTO_CLOSE_MS = 5000;
+const STEP_MS = 45;
+const DURATION_MS = 280;
 
-/*
- * Свёрнуто или развёрнуто — состояние внешнее по отношению к React: оно
- * лежит в sessionStorage и переживает переход на другую страницу.
- *
- * Отсюда useSyncExternalStore, а не useState с чтением в эффекте: страницы
- * собраны заранее, и на сервере sessionStorage не существует. У этого хука
- * для такого случая есть отдельный серверный снимок — на сборке панель
- * всегда развёрнута, а в браузере он сразу отдаёт сохранённое значение, без
- * лишнего рендера и без расхождения разметки при гидратации.
- */
-const listeners = new Set<() => void>();
-
-function subscribe(notify: () => void): () => void {
-  listeners.add(notify);
-  return () => listeners.delete(notify);
-}
-
-const isOpen = () => sessionStorage.getItem(STORAGE_KEY) !== "0";
-const openOnServer = () => true;
-
-function store(open: boolean): void {
-  sessionStorage.setItem(STORAGE_KEY, open ? "1" : "0");
-  for (const notify of listeners) notify();
+function itemDelay(index: number, count: number, open: boolean): string {
+  const delay = (open ? count - 1 - index : index) * STEP_MS;
+  return open ? `${delay}ms, ${delay}ms, ${delay}ms` : `${delay}ms, ${delay}ms, ${delay + DURATION_MS}ms`;
 }
 
 export function FloatingContacts({ channels }: { channels: Channel[] }) {
-  const open = useSyncExternalStore(subscribe, isOpen, openOnServer);
+  const [open, setOpen] = useState(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    timers.current = [
+      setTimeout(() => setOpen(true), AUTO_OPEN_MS),
+      setTimeout(() => setOpen(false), AUTO_OPEN_MS + AUTO_CLOSE_MS),
+    ];
+    return () => timers.current.forEach(clearTimeout);
+  }, []);
 
   if (!channels.length) return null;
 
+  const toggle = () => {
+    timers.current.forEach(clearTimeout);
+    setOpen((value) => !value);
+  };
+
   return (
-    <div
-      className="fixed right-3 bottom-4 z-40 flex flex-col items-center gap-2 sm:right-5 sm:bottom-6 sm:gap-2.5"
-      aria-label="Связаться с нами"
-    >
-      {channels.map((channel) => (
-        <a
-          key={channel.id}
-          href={channel.href}
-          target={channel.external ? "_blank" : undefined}
-          rel={channel.external ? "noopener noreferrer nofollow" : undefined}
-          title={channel.label}
-          aria-label={channel.label}
-          // Кнопки не размонтируются, а прячутся: так их видит краулер и
-          // читает скринридер, когда панель развёрнута.
-          hidden={!open}
-          className="flex h-12 w-12 items-center justify-center rounded-full shadow-card-hover transition-transform duration-150 hover:scale-110 active:scale-95 sm:h-[3.25rem] sm:w-[3.25rem]"
-        >
-          <img
-            src={channel.icon}
-            alt=""
-            width={52}
-            height={52}
-            loading="lazy"
-            fetchPriority="low"
-            className="h-full w-full"
-          />
-        </a>
-      ))}
+    <div className={`${styles.wrapper} ${open ? styles.open : ""}`} aria-label="Связаться с нами">
+      <div className={styles.items}>
+        {channels.map((channel, index) => (
+          <a
+            key={channel.id}
+            href={channel.href}
+            target={channel.external ? "_blank" : undefined}
+            rel={channel.external ? "noopener noreferrer nofollow" : undefined}
+            title={channel.label}
+            aria-label={channel.label}
+            aria-hidden={!open}
+            tabIndex={open ? 0 : -1}
+            className={styles.item}
+            style={
+              {
+                transitionDelay: itemDelay(index, channels.length, open),
+                "--shift": `${(channels.length - index) * 30}px`,
+              } as React.CSSProperties
+            }
+          >
+            <img src={channel.icon} alt="" width={52} height={52} loading="lazy" fetchPriority="low" />
+          </a>
+        ))}
+      </div>
 
       <button
         type="button"
-        onClick={() => store(!open)}
+        onClick={toggle}
         aria-expanded={open}
         title={open ? "Свернуть" : "Связаться"}
-        aria-label={open ? "Свернуть панель связи" : "Связаться с нами"}
-        className={`flex h-12 w-12 items-center justify-center rounded-full shadow-card-hover transition-transform duration-150 hover:scale-110 active:scale-95 sm:h-[3.25rem] sm:w-[3.25rem] ${
-          open ? "bg-brand-900 text-white" : ""
-        }`}
+        aria-label={open ? "Свернуть кнопки связи" : "Показать кнопки связи"}
+        className={styles.toggle}
       >
         {open ? (
-          <CloseIcon className="h-5 w-5" />
+          <svg viewBox="64 64 896 896" aria-hidden="true" className={styles.close}>
+            <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z" />
+          </svg>
         ) : (
-          <img
-            src="/chatIcons/phone.svg"
-            alt=""
-            width={52}
-            height={52}
-            loading="lazy"
-            fetchPriority="low"
-            className="h-full w-full"
-          />
+          <img src="/chatIcons/phone.svg" alt="" width={52} height={52} className={styles.pulse} />
         )}
       </button>
     </div>

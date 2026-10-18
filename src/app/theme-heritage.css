@@ -648,3 +648,52 @@
   --color-green-900: #1a2b20;
   --color-red-500: #7a6a56;
 }
+
+@media (max-width: 639.98px) {
+  :root:has(.theme-heritage) main .grid:has(> .card-link),
+  :root:has(.theme-heritage) main .grid:has(> article.card-link) {
+    gap: 0.875rem;
+    padding: 0.25rem 0.25rem 1rem;
+  }
+
+  :root:has(.theme-heritage) .grid:has(> a.card-link > .aspect-\[4\/3\]) {
+    gap: 0.75rem;
+  }
+
+  :root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\]) {
+    aspect-ratio: 1 / 1.08;
+  }
+
+  :root:has(.theme-heritage) a.card-link > .aspect-\[4\/3\] img {
+    right: -4%;
+    bottom: -3%;
+    width: 84%;
+    height: 54%;
+  }
+
+  :root:has(.theme-heritage) a.card-link:is(
+    [href$="/catalog/bi-led-moduli/"],
+    [href$="/catalog/korpusa-far/"],
+    [href$="/catalog/stekla-far/"],
+    [href$="/catalog/dnevnye-hodovye-ogni/"],
+    [href$="/catalog/bloki-upravleniya/"]
+  ) > .aspect-\[4\/3\] img {
+    bottom: 3%;
+  }
+
+  :root:has(.theme-heritage) a.card-link[href$="/catalog/svetodiodnye-lampy/"] > .aspect-\[4\/3\] img {
+    bottom: 0;
+    height: 50%;
+  }
+
+  :root:has(.theme-heritage) a.card-link > .aspect-\[4\/3\] + span {
+    padding: 0.8rem 2.1rem 0 0.85rem;
+    font-size: 0.95rem;
+    text-shadow: 0 0 6px #ffffff, 0 0 12px #ffffff, 0 0 2px #ffffff;
+  }
+
+  :root:has(.theme-heritage) a.card-link:has(> .aspect-\[4\/3\])::after {
+    top: 0.55rem;
+    right: 0.55rem;
+  }
+}

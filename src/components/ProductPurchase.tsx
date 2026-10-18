@@ -54,6 +54,8 @@ import { lineLimit, useCart, useHydrated } from "@/store/cart";
 export type PurchaseProduct = VariantProduct &
   Pick<Product, "title" | "unit" | "stockQty" | "videos">;
 
+const SWIPE_CLOSE_PX = 90;
+
 interface ProductPurchaseProps {
   product: PurchaseProduct;
   /** Записи манифеста только для фото этого товара — не весь манифест. */
@@ -275,14 +277,30 @@ export function ProductPurchase({
 
   // Свайп по фото на телефоне. Порог в 40 пикселей отсекает дрожание
   // пальца при обычном нажатии, чтобы оно не пролистывало галерею.
-  const touchStartX = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number; vertical: boolean | null } | null>(null);
+  const [dragY, setDragY] = useState(0);
   const onTouchStart = (event: React.TouchEvent) => {
-    touchStartX.current = event.touches[0].clientX;
+    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, vertical: null };
+  };
+  const onTouchMove = (event: React.TouchEvent) => {
+    const start = touchStart.current;
+    if (!start) return;
+    const dx = event.touches[0].clientX - start.x;
+    const dy = event.touches[0].clientY - start.y;
+    if (start.vertical === null && Math.hypot(dx, dy) > 10) start.vertical = Math.abs(dy) > Math.abs(dx);
+    if (start.vertical) setDragY(Math.max(0, dy));
   };
   const onTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const shift = event.changedTouches[0].clientX - touchStartX.current;
-    touchStartX.current = null;
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    if (start.vertical) {
+      const dy = event.changedTouches[0].clientY - start.y;
+      setDragY(0);
+      if (dy > SWIPE_CLOSE_PX) setLightbox(false);
+      return;
+    }
+    const shift = event.changedTouches[0].clientX - start.x;
     if (Math.abs(shift) > 40) step(shift < 0 ? 1 : -1);
   };
 
@@ -650,6 +668,7 @@ export function ProductPurchase({
       {lightbox && mainEntry && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-brand-900/90 p-4"
+          style={dragY ? { backgroundColor: `rgb(26 43 32 / ${Math.max(0.2, 0.9 - dragY / 500)})` } : undefined}
           onClick={() => setLightbox(false)}
           role="dialog"
           aria-modal="true"
@@ -698,8 +717,17 @@ export function ProductPurchase({
           <div
             onClick={(event) => event.stopPropagation()}
             onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
-            className="flex max-h-full max-w-full items-center justify-center"
+            onTouchCancel={() => {
+              touchStart.current = null;
+              setDragY(0);
+            }}
+            style={{
+              transform: dragY ? `translateY(${dragY}px) scale(${Math.max(0.85, 1 - dragY / 1500)})` : undefined,
+              transition: dragY ? "none" : "transform 0.2s ease",
+            }}
+            className="flex max-h-full max-w-full touch-none items-center justify-center"
           >
             <Picture
               entry={mainEntry}
