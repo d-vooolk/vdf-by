@@ -45,12 +45,13 @@ const SRC = "public/brand/logo-source.png";
 const OUT = "src/app/";
 const LOGO = "public/brand/logo.png";
 const LOGO_WIDTH = 600;
-const GREEN = { r: 30, g: 54, b: 45 };
 const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
-const IVORY = { r: 243, g: 237, b: 226, alpha: 1 };
-const BRASS = { r: 200, g: 180, b: 142 };
-const DEEP_GREEN = { r: 26, g: 43, b: 32, alpha: 1 };
+const DEEP_GREEN = { r: 26, g: 43, b: 32 };
+const GOLD_LIGHT = "#e6c37a";
+const GOLD_DARK = "#c99a45";
 const ADMIN_OUT = "public/brand/";
+
+const ICO_PADS = { 16: 0.1, 24: 0.12, 32: 0.13, 48: 0.14 };
 
 /**
  * Размеры внутри .ico. 16 и 32 — вкладка и панель задач, 24 — ярлыки
@@ -61,15 +62,7 @@ const ADMIN_OUT = "public/brand/";
  * размер, тем меньше нужна помощь, на 64 и выше — не нужна вовсе, иначе
  * края становятся ступенчатыми.
  */
-const ICO_SIZES = [
-  [16, 1.6],
-  [24, 1.45],
-  [32, 1.35],
-  [48, 1.2],
-  [64, 1],
-  [128, 1],
-  [256, 1],
-];
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 
 async function firstGlyph(file) {
   const { data, info } = await sharp(file)
@@ -115,41 +108,29 @@ const GLYPH = await firstGlyph(SRC);
  * потерянные пиксели, поэтому по умолчанию ноль: буква 407x355, при
  * вписывании в квадрат сверху и снизу и так остаётся воздух.
  */
-async function icon(size, { contrast = 1, pad = 0, background = CLEAR, color = GREEN } = {}) {
-  const inset = Math.round(size * pad);
-  const fitted = await sharp(SRC)
+async function goldTile(size, { pad = 0.16, radius = 0.22 } = {}) {
+  const inner = size - Math.round(size * pad) * 2;
+  const offset = Math.round(size * pad);
+  const mask = await sharp(SRC)
     .extract(GLYPH)
-    .resize(size - inset * 2, size - inset * 2, {
-      fit: "contain",
-      background: CLEAR,
-      kernel: "lanczos3",
-    })
+    .resize(inner, inner, { fit: "contain", background: CLEAR, kernel: "lanczos3" })
+    .extractChannel(3)
     .toBuffer();
-
-  // Квадратим в RGBA, а не на одноканальной маске: fit: "contain" заполняет
-  // поля одноканального изображения белым, а не пустотой.
-  let mask = sharp({
-    create: { width: size, height: size, channels: 4, background: CLEAR },
-  })
-    .composite([{ input: fitted, left: inset, top: inset }])
-    .extractChannel(3);
-
-  if (contrast !== 1) mask = mask.linear(contrast, -(contrast - 1) * 128);
-  const alpha = await mask.raw().toBuffer();
-
-  const flat = sharp({
-    create: { width: size, height: size, channels: 3, background: color },
-  }).joinChannel(alpha, { raw: { width: size, height: size, channels: 1 } });
-
-  // Непрозрачная иконка — тот же знак, положенный на цвет подложки.
-  const composed =
-    background === CLEAR
-      ? flat
-      : sharp({
-          create: { width: size, height: size, channels: 4, background },
-        }).composite([{ input: await flat.png().toBuffer() }]);
-
-  return composed.png({ compressionLevel: 9, effort: 10 }).toBuffer();
+  const glyph = await sharp({ create: { width: inner, height: inner, channels: 3, background: DEEP_GREEN } })
+    .joinChannel(mask)
+    .png()
+    .toBuffer();
+  const corner = Math.round(size * radius);
+  const plate = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
+      `<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">` +
+      `<stop offset="0" stop-color="${GOLD_LIGHT}"/><stop offset="1" stop-color="${GOLD_DARK}"/>` +
+      `</linearGradient></defs><rect width="${size}" height="${size}" rx="${corner}" fill="url(#gold)"/></svg>`,
+  );
+  return sharp(plate)
+    .composite([{ input: glyph, left: offset, top: offset }])
+    .png({ compressionLevel: 9, effort: 10 })
+    .toBuffer();
 }
 
 /**
@@ -179,25 +160,20 @@ function ico(images) {
 }
 
 const frames = await Promise.all(
-  ICO_SIZES.map(async ([size, contrast]) => ({
+  ICO_SIZES.map(async (size) => ({
     size,
-    data: await icon(size, { contrast }),
+    data: await goldTile(size, { pad: ICO_PADS[size] ?? 0.16 }),
   })),
 );
 
 writeFileSync(OUT + "favicon.ico", ico(frames));
-writeFileSync(OUT + "icon.png", await icon(512));
-writeFileSync(
-  OUT + "apple-icon.png",
-  // Полями отбиваем знак от краёв: iOS обрежет иконку скруглением.
-  await icon(180, { pad: 0.1, background: IVORY }),
-);
+writeFileSync(OUT + "icon.png", await goldTile(512));
+writeFileSync(OUT + "apple-icon.png", await goldTile(180, { pad: 0.16, radius: 0 }));
 
-const adminIcon = (size, pad) => icon(size, { pad, background: DEEP_GREEN, color: BRASS });
-writeFileSync(ADMIN_OUT + "admin-192.png", await adminIcon(192, 0.16));
-writeFileSync(ADMIN_OUT + "admin-512.png", await adminIcon(512, 0.16));
-writeFileSync(ADMIN_OUT + "admin-maskable-512.png", await adminIcon(512, 0.26));
-writeFileSync(ADMIN_OUT + "admin-apple-180.png", await adminIcon(180, 0.14));
+writeFileSync(ADMIN_OUT + "admin-192.png", await goldTile(192));
+writeFileSync(ADMIN_OUT + "admin-512.png", await goldTile(512));
+writeFileSync(ADMIN_OUT + "admin-maskable-512.png", await goldTile(512, { pad: 0.26, radius: 0 }));
+writeFileSync(ADMIN_OUT + "admin-apple-180.png", await goldTile(180, { pad: 0.16, radius: 0 }));
 
 const logo = await sharp(SRC)
   .resize(LOGO_WIDTH, null, { kernel: "lanczos3" })
@@ -207,6 +183,6 @@ writeFileSync(LOGO, logo);
 const logoMeta = await sharp(logo).metadata();
 
 console.log(
-  `Готово: favicon.ico (${ICO_SIZES.map(([s]) => s).join(", ")}), icon.png 512, ` +
+  `Готово: favicon.ico (${ICO_SIZES.join(", ")}), icon.png 512, ` +
     `apple-icon.png 180, brand/admin-*.png, brand/logo.png ${logoMeta.width}x${logoMeta.height}`,
 );
