@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
 import { OrderCelebration } from "@/components/OrderCelebration";
@@ -16,6 +16,7 @@ import {
 } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice, pluralize } from "@/lib/format";
+import { deliveryPrice, parcelOf } from "@/lib/delivery-quote";
 import type { DeliveryMethod } from "@/lib/schema";
 import { useAccount } from "@/store/account";
 import { cartTotal, useCart, useHydrated, type StockCut } from "@/store/cart";
@@ -46,6 +47,7 @@ interface FormState {
   phone: string;
   email: string;
   consent: boolean;
+  city: string;
   address: string;
   comment: string;
   /** Ловушка для ботов: люди это поле не видят и не заполняют. */
@@ -57,6 +59,7 @@ const EMPTY_FORM: FormState = {
   phone: "",
   email: "",
   consent: false,
+  city: "",
   address: "",
   comment: "",
   website: "",
@@ -110,15 +113,29 @@ export function CartCheckout({
     Array<{ title: string; from: number; to: number }>
   >([]);
   const [stockCuts, setStockCuts] = useState<StockCut[]>([]);
+  const [parcelInfo, setParcelInfo] = useState<Record<string, { weight?: number; category?: string }>>({});
 
   const subtotal = cartTotal(items);
   const method = deliveryMethods.find((entry) => entry.id === methodId);
 
-  const deliveryCost = useMemo(() => {
-    if (!method) return 0;
-    if (method.freeFrom != null && subtotal >= method.freeFrom) return 0;
-    return method.price;
-  }, [method, subtotal]);
+  const parcelFor = useCallback(
+    (entry: DeliveryMethod) =>
+      entry.weightTariff
+        ? parcelOf(
+            items.map((line) => ({
+              weight: parcelInfo[line.key]?.weight ?? null,
+              categoryId: parcelInfo[line.key]?.category ?? "",
+              qty: line.qty,
+            })),
+            entry.weightTariff,
+          )
+        : null,
+    [items, parcelInfo],
+  );
+  const parcel = method ? parcelFor(method) : null;
+  const quoted = method ? deliveryPrice(method, subtotal, parcel, form.city) : 0;
+  const deliveryPending = Boolean(method?.weightTariff) && quoted === null;
+  const deliveryCost = quoted ?? 0;
 
   const total = subtotal + deliveryCost;
 
@@ -136,8 +153,19 @@ export function CartCheckout({
     let cancelled = false;
     fetch("/variants.json")
       .then((response) => (response.ok ? response.json() : null))
-      .then((retail: Record<string, { price: number; inStock: boolean; stock?: number }> | null) => {
+      .then(
+        (
+          retail: Record<
+            string,
+            { price: number; inStock: boolean; stock?: number; weight?: number; category?: string }
+          > | null,
+        ) => {
         if (cancelled || !retail) return;
+        setParcelInfo(
+          Object.fromEntries(
+            Object.entries(retail).map(([key, entry]) => [key, { weight: entry.weight, category: entry.category }]),
+          ),
+        );
         const prices = { ...retail };
         for (const [key, price] of Object.entries(wholesale ?? {})) {
           if (prices[key]) prices[key] = { ...prices[key], price };
@@ -145,7 +173,8 @@ export function CartCheckout({
         const changes = reprice(prices);
         if (changes.priceChanges.length) setPriceChanges(changes.priceChanges);
         if (changes.stockCuts.length) setStockCuts(changes.stockCuts);
-      })
+        },
+      )
       // Файл не загрузился — работаем по сохранённым ценам. Менеджер всё
       // равно подтверждает заказ звонком.
       .catch(() => undefined);
@@ -168,6 +197,9 @@ export function CartCheckout({
       next.phone = "Введите номер телефона — по нему подтвердим заказ";
     } else if (phoneDigits.length > 13) {
       next.phone = "Слишком длинный номер, проверьте";
+    }
+    if (method?.weightTariff && form.city.trim().length < 2) {
+      next.city = "Укажите город — от него зависит стоимость доставки";
     }
     if (method?.requiresAddress && form.address.trim().length < 5) {
       next.address = "Укажите адрес: улица, дом, квартира";
@@ -193,18 +225,19 @@ export function CartCheckout({
       "Заказ с сайта:",
       ...lines,
       "",
-      `Доставка: ${method?.name ?? "—"}${deliveryCost ? ` (${formatPrice(deliveryCost, currencySymbol)})` : " (бесплатно)"}`,
+      `Доставка: ${method?.name ?? "—"}${deliveryPending ? " (стоимость уточним)" : deliveryCost ? ` (${formatPrice(deliveryCost, currencySymbol)})` : " (бесплатно)"}`,
       `Итого: ${formatPrice(total, currencySymbol)}`,
       "",
       `Имя: ${form.name}`,
       `Телефон: ${form.phone}`,
       form.email ? `Email: ${form.email}` : "",
+      form.city ? `Город: ${form.city}` : "",
       form.address ? `Адрес: ${form.address}` : "",
       form.comment ? `Комментарий: ${form.comment}` : "",
     ]
       .filter(Boolean)
       .join("\n");
-  }, [items, method, deliveryCost, total, form, currencySymbol]);
+  }, [items, method, deliveryCost, deliveryPending, total, form, currencySymbol]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -230,6 +263,7 @@ export function CartCheckout({
           delivery: {
             id: method?.id ?? "",
             name: method?.name ?? "",
+            city: form.city.trim(),
             address: form.address.trim(),
             cost: deliveryCost,
           },
@@ -322,6 +356,7 @@ export function CartCheckout({
     <OrderSummary
       subtotal={subtotal}
       deliveryCost={deliveryCost}
+      deliveryPending={deliveryPending}
       total={total}
       methodName={method?.name}
       currencySymbol={currencySymbol}
@@ -410,7 +445,8 @@ export function CartCheckout({
               {deliveryMethods.map((entry) => {
                 const freeFrom = entry.freeFrom ?? null;
                 const free = freeFrom !== null && subtotal >= freeFrom;
-                const cost = free ? 0 : entry.price;
+                const entryParcel = parcelFor(entry);
+                const cost = deliveryPrice(entry, subtotal, entryParcel, form.city);
                 return (
                   <label
                     key={entry.id}
@@ -434,14 +470,25 @@ export function CartCheckout({
                           {entry.name}
                         </span>
                         <span className="tnum text-sm font-semibold text-brand-900">
-                          {cost === 0
-                            ? "бесплатно"
-                            : formatPrice(cost, currencySymbol)}
+                          {cost === null
+                            ? form.city.trim()
+                              ? "уточним"
+                              : "по весу"
+                            : cost === 0
+                              ? "бесплатно"
+                              : formatPrice(cost, currencySymbol)}
                         </span>
                       </span>
                       {entry.note && (
                         <span className="mt-1 block text-xs leading-relaxed text-brand-500">
                           {entry.note}
+                        </span>
+                      )}
+                      {entryParcel && (
+                        <span className="mt-1 block text-xs leading-relaxed text-brand-500">
+                          Вес заказа ≈ {entryParcel.weight.toLocaleString("ru-RU")} кг
+                          {entryParcel.glass ? " · стекло, +" + entry.weightTariff?.glassPercent + "% к тарифу" : ""}
+                          {!form.city.trim() ? " · укажите город ниже" : ""}
                         </span>
                       )}
                       {free && entry.price > 0 && freeFrom !== null && (
@@ -535,6 +582,30 @@ export function CartCheckout({
               )}
             </div>
 
+            {method?.weightTariff && (
+              <div>
+                <label htmlFor="city" className="label">
+                  Город <span className="text-red-600">*</span>
+                </label>
+                <input
+                  id="city"
+                  name="city"
+                  autoComplete="address-level2"
+                  value={form.city}
+                  onChange={(event) => setForm({ ...form, city: event.target.value })}
+                  className={`field ${errors.city ? "field-error" : ""}`}
+                  aria-invalid={Boolean(errors.city)}
+                  aria-describedby={errors.city ? "city-error" : undefined}
+                  placeholder="Гродно"
+                />
+                {errors.city && (
+                  <p id="city-error" className="mt-1.5 text-xs text-red-600">
+                    {errors.city}
+                  </p>
+                )}
+              </div>
+            )}
+
             {method?.requiresAddress && (
               <div>
                 <label htmlFor="address" className="label">
@@ -551,7 +622,7 @@ export function CartCheckout({
                   className={`field ${errors.address ? "field-error" : ""}`}
                   aria-invalid={Boolean(errors.address)}
                   aria-describedby={errors.address ? "address-error" : undefined}
-                  placeholder="г. Минск, ул. Притыцкого 29, кв. 15"
+                  placeholder={method?.weightTariff ? "ул. Советская 10, кв. 5" : "г. Минск, ул. Притыцкого 29, кв. 15"}
                 />
                 {errors.address && (
                   <p id="address-error" className="mt-1.5 text-xs text-red-600">
@@ -671,6 +742,7 @@ export function CartCheckout({
 interface OrderSummaryProps {
   subtotal: number;
   deliveryCost: number;
+  deliveryPending: boolean;
   total: number;
   methodName?: string;
   currencySymbol: string;
@@ -681,6 +753,7 @@ interface OrderSummaryProps {
 function OrderSummary({
   subtotal,
   deliveryCost,
+  deliveryPending,
   total,
   methodName,
   currencySymbol,
@@ -701,9 +774,11 @@ function OrderSummary({
         <div className="flex justify-between gap-3">
           <dt className="text-brand-500">{methodName ?? "Доставка"}</dt>
           <dd className="tnum shrink-0 font-medium text-brand-900">
-            {deliveryCost === 0
-              ? "бесплатно"
-              : formatPrice(deliveryCost, currencySymbol)}
+            {deliveryPending
+              ? "после ввода города"
+              : deliveryCost === 0
+                ? "бесплатно"
+                : formatPrice(deliveryCost, currencySymbol)}
           </dd>
         </div>
         <div className="flex items-baseline justify-between border-t border-brand-100 pt-2.5">

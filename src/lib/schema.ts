@@ -83,6 +83,7 @@ export const optionValueSchema = z.strictObject({
   sku: z.string().optional(),
   inStock: z.boolean().optional(),
   stockQty: z.number().int().nonnegative().optional(),
+  weight: z.number().positive().optional(),
   images: z.array(imagePath).optional(),
   priceSource: moneySourceSchema.optional(),
   wholesalePrice: money.optional(),
@@ -111,6 +112,7 @@ export const productSchema = z.strictObject({
   oldPrice: money.nullable().optional(),
   inStock: z.boolean().default(true),
   stockQty: z.number().int().nonnegative().nullable().optional(),
+  weight: z.number().positive().nullable().optional(),
   costPrice: money.nullable().optional(),
   wholesalePrice: money.nullable().optional(),
   priceSource: moneySourceSchema.optional(),
@@ -170,6 +172,20 @@ export const categorySchema = z.strictObject({
   collections: z.array(categoryCollectionSchema).optional(),
 });
 
+const tariffBandSchema = z.strictObject({
+  upTo: z.number().positive(),
+  price: money,
+});
+
+const weightTariffSchema = z.strictObject({
+  homeCity: z.string().min(1),
+  inCity: z.array(tariffBandSchema).min(1),
+  intercity: z.array(tariffBandSchema).min(1),
+  glassCategoryIds: z.array(z.string()),
+  glassPercent: z.number().nonnegative(),
+  defaultItemWeight: z.number().positive(),
+});
+
 const deliveryMethodSchema = z.strictObject({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -187,6 +203,7 @@ const deliveryMethodSchema = z.strictObject({
    */
   daysMin: z.number().int().nonnegative().optional(),
   daysMax: z.number().int().nonnegative().optional(),
+  weightTariff: weightTariffSchema.optional(),
 });
 
 export const siteSchema = z.strictObject({
@@ -247,6 +264,7 @@ export type Category = z.infer<typeof categorySchema>;
 export type CategoryCollection = z.infer<typeof categoryCollectionSchema>;
 export type Site = z.infer<typeof siteSchema>;
 export type DeliveryMethod = z.infer<typeof deliveryMethodSchema>;
+export type WeightTariff = z.infer<typeof weightTariffSchema>;
 
 /**
  * Разбирает данные и при ошибке падает с сообщением, по которому понятно,

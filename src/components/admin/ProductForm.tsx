@@ -565,6 +565,23 @@ export function ProductForm({
               className="field tnum disabled:bg-brand-50 disabled:text-brand-400"
             />
           </Field>
+
+          <Field
+            label="Вес, кг"
+            hint={
+              draft.optionGroups.length
+                ? "У товара есть опции — вес указывается в каждом значении опции"
+                : "Для расчёта доставки по весу: 0.35 — это 350 г"
+            }
+          >
+            <NumberInput
+              value={draft.optionGroups.length ? null : (draft.weight ?? null)}
+              onChange={(weight) => patch({ weight: weight && weight > 0 ? weight : null })}
+              placeholder={draft.optionGroups.length ? "в опциях" : "не указан"}
+              disabled={draft.optionGroups.length > 0}
+              className="field tnum disabled:bg-brand-50 disabled:text-brand-400"
+            />
+          </Field>
         </div>
 
         <div className="flex flex-wrap gap-5">
@@ -1090,6 +1107,7 @@ function clean(product: Product): Product {
     // null и undefined схема принимает одинаково, но в JSON товара лишний
     // ключ со значением null оставлять незачем.
     stockQty: product.stockQty ?? undefined,
+    weight: product.optionGroups.length ? undefined : (product.weight ?? undefined),
     costPrice: product.costPrice ?? undefined,
     priceSource: product.priceSource ?? undefined,
     wholesaleSource: product.wholesaleSource ?? undefined,

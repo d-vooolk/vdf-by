@@ -99,9 +99,11 @@ export default function DeliveryPage() {
                   {method.name}
                 </h3>
                 <span className="tnum shrink-0 text-base font-bold text-brand-700">
-                  {method.price === 0
-                    ? "бесплатно"
-                    : formatPrice(method.price, site.currencySymbol)}
+                  {method.weightTariff
+                    ? `от ${formatPrice(Math.min(...method.weightTariff.intercity.map((band) => band.price), ...method.weightTariff.inCity.map((band) => band.price)), site.currencySymbol)}`
+                    : method.price === 0
+                      ? "бесплатно"
+                      : formatPrice(method.price, site.currencySymbol)}
                 </span>
               </div>
               {(method.daysMin != null || method.daysMax != null) && (
@@ -113,6 +115,46 @@ export default function DeliveryPage() {
                 <p className="text-sm leading-relaxed text-brand-500">
                   {method.note}
                 </p>
+              )}
+              {method.weightTariff && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-brand-100 text-sm">
+                  <table className="w-full">
+                    <thead className="bg-brand-50 text-xs text-brand-500">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left font-medium">Вес заказа</th>
+                        <th className="px-3 py-1.5 text-right font-medium">{method.weightTariff.homeCity}</th>
+                        <th className="px-3 py-1.5 text-right font-medium">Другие города</th>
+                      </tr>
+                    </thead>
+                    <tbody className="tnum divide-y divide-brand-100">
+                      {method.weightTariff.intercity.map((band, index, bands) => {
+                        const local = [...(method.weightTariff?.inCity ?? [])]
+                          .sort((first, second) => first.upTo - second.upTo)
+                          .find((entry) => entry.upTo >= band.upTo);
+                        return (
+                          <tr key={band.upTo}>
+                            <td className="px-3 py-1.5 text-brand-700">
+                              {index === 0 ? "до" : `${bands[index - 1].upTo}–`}
+                              {index === 0 ? ` ${band.upTo}` : band.upTo} кг
+                            </td>
+                            <td className="px-3 py-1.5 text-right text-brand-700">
+                              {local ? formatPrice(local.price, site.currencySymbol) : "—"}
+                            </td>
+                            <td className="px-3 py-1.5 text-right text-brand-900">
+                              {formatPrice(band.price, site.currencySymbol)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {method.weightTariff.glassPercent > 0 && (
+                    <p className="border-t border-brand-100 px-3 py-2 text-xs text-brand-500">
+                      Стёкла фар и другие товары со стеклом — +{method.weightTariff.glassPercent}% к тарифу. Точную сумму
+                      корзина посчитает по весу заказа и городу.
+                    </p>
+                  )}
+                </div>
               )}
               {method.freeFrom != null && method.freeFrom > 0 && method.price > 0 && (
                 <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-green-700">

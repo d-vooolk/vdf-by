@@ -1,4 +1,5 @@
 import { getSite } from "@/lib/catalog";
+import { deliveryPrice, parcelOf } from "@/lib/delivery-quote";
 import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
@@ -228,13 +229,29 @@ function validate(
   );
   if (!method) return { error: "Не выбран способ доставки" };
 
-  const free = method.freeFrom != null && serverTotal >= method.freeFrom;
-  const deliveryCost = free ? 0 : method.price;
+  const city = clean(delivery.city, 80);
+  const parcel = method.weightTariff
+    ? parcelOf(
+        items.map((item) => ({
+          weight: prices[item.key]?.weight ?? null,
+          categoryId: prices[item.key]?.category ?? "",
+          qty: item.qty,
+        })),
+        method.weightTariff,
+      )
+    : null;
+  if (method.weightTariff && !city && !quick) return { error: "Не указан город доставки" };
+  const quoted = deliveryPrice(method, serverTotal, parcel, city);
+  const deliveryCost = quoted ?? 0;
+  if (parcel && quoted === null) {
+    notes.push(`вес заказа ${parcel.weight} кг — стоимость доставки «${method.name}» посчитать вручную`);
+  }
 
   const quickFromGuest = quick && !account;
   const staffPurchase = quick && account?.staff === true;
+  const street = clean(delivery.address, 300);
   const address =
-    clean(delivery.address, 300) ||
+    (city && street ? `${city}, ${street}` : street) ||
     (quick && method.requiresAddress ? (account?.address.slice(0, 300) ?? "") : "");
 
   if (method.requiresAddress && !quickFromGuest && !staffPurchase && address.length < 5) {

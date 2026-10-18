@@ -697,6 +697,7 @@ export const MIGRATIONS = [
   `
     ALTER TABLE orders ADD COLUMN total_manual INTEGER NOT NULL DEFAULT 0;
   `,
+  weightFromSpecs,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
@@ -722,6 +723,29 @@ function composedSku(sku, storage, frameType) {
     return FRAME_NUMBER.test(number) ? [number, storage, frameType].filter(Boolean).join("-") : sku;
   }
   return storage && !sku.endsWith(`-${storage}`) ? `${sku}-${storage}` : sku;
+}
+
+function specWeightKg(value) {
+  const match = String(value).replace(",", ".").match(/(\d+(?:\.\d+)?)\s*(кг|kg|г|гр|g)?/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const unit = (match[2] ?? "кг").toLowerCase();
+  return unit.startsWith("г") || unit === "g" ? amount / 1000 : amount;
+}
+
+function weightFromSpecs(db) {
+  const rows = db.prepare("SELECT id, data FROM products").all();
+  const write = db.prepare("UPDATE products SET data = ? WHERE id = ?");
+  for (const row of rows) {
+    const product = JSON.parse(row.data);
+    if (product.weight || product.optionGroups?.length) continue;
+    const spec = (product.specs ?? []).find((entry) => /^вес/i.test(String(entry.name).trim()));
+    const weight = spec ? specWeightKg(spec.value) : null;
+    if (!weight) continue;
+    product.weight = Math.round(weight * 1000) / 1000;
+    write.run(JSON.stringify(product), row.id);
+  }
 }
 
 function composeStorageSkus(db) {

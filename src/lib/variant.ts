@@ -3,7 +3,8 @@ import type { OptionValue, Product } from "./schema";
 export type VariantProduct = Pick<
   Product,
   "id" | "slug" | "price" | "oldPrice" | "inStock" | "sku" | "images" | "optionGroups"
->;
+> &
+  Partial<Pick<Product, "weight">>;
 
 /**
  * Разрешение опций товара: цоколь H7/HB4/H11, сторона, цветовая температура.
@@ -35,7 +36,7 @@ export interface ResolvedVariant {
   oldPrice: number | null;
   inStock: boolean;
   sku: string | null;
-  /** «H7 · 5000K» — для корзины, заказа и alt у картинок. */
+  weight: number | null;
   label: string;
   /** Устойчивый ключ позиции в корзине. */
   key: string;
@@ -106,6 +107,10 @@ export function resolveVariant(
   const sku =
     selected.find((entry) => entry.value.sku)?.value.sku ?? product.sku ?? null;
 
+  const weight = product.optionGroups.length
+    ? (selected.find((entry) => entry.value.weight)?.value.weight ?? null)
+    : (product.weight ?? null);
+
   return {
     images: ownImages?.length ? ownImages : product.images,
     price,
@@ -113,6 +118,7 @@ export function resolveVariant(
     oldPrice: oldPrice !== null && oldPrice > price ? oldPrice : null,
     inStock,
     sku,
+    weight,
     label: selected.map((entry) => entry.value.label).join(" · "),
     key: variantKey(product.id, selection),
     selected,

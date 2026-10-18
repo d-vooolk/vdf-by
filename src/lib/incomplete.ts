@@ -10,6 +10,7 @@ export const GAPS = {
   wholesale: "нет оптовой цены",
   description: "нет описания",
   photo: "нет фото",
+  weight: "нет веса",
   faq: "нет вопросов-ответов",
   cars: "не привязан к авто",
   frameType: "не привязан к типу рамки",
@@ -59,6 +60,10 @@ function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): G
   if (!product.images?.length && !values.some((value) => value.images?.length)) {
     gaps.push("photo");
   }
+  const weighed = product.optionGroups?.length
+    ? values.every((value) => (value.weight ?? 0) > 0)
+    : (product.weight ?? 0) > 0;
+  if (!weighed) gaps.push("weight");
   if (!product.faq?.length) gaps.push("faq");
   if (carFitment && cars === 0) gaps.push("cars");
   return gaps;

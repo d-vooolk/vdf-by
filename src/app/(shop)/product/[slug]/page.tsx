@@ -34,7 +34,8 @@ import { workshopPhotosFor } from "@/lib/workshop-photos";
 import { WorkshopPhotos } from "@/components/WorkshopPhotos";
 import { productSnippet } from "@/lib/snippet";
 import type { Product } from "@/lib/schema";
-import { allProductImages, hasPrice, priceRange } from "@/lib/variant";
+import { allProductImages, hasPrice, priceRange, resolveVariant } from "@/lib/variant";
+import { parcelOf, tariffPrice } from "@/lib/delivery-quote";
 
 export function generateStaticParams() {
   return getProducts().map((product) => ({ slug: product.slug }));
@@ -171,7 +172,16 @@ export default async function ProductPage({ params }: PageProps) {
   const quickPickup = site.delivery.methods.find((method) => !method.requiresAddress);
   const quickShipping = site.delivery.methods
     .filter((method) => method.requiresAddress)
-    .map(({ id, name, price, freeFrom }) => ({ id, name, price, freeFrom: freeFrom ?? null }));
+    .map(({ id, name, price, freeFrom, weightTariff }) => {
+      const parcel = weightTariff
+        ? parcelOf(
+            [{ weight: resolveVariant(product, {}).weight, categoryId: product.categoryId, qty: 1 }],
+            weightTariff,
+          )
+        : null;
+      const quoted = weightTariff && parcel ? tariffPrice(weightTariff, parcel, "") : null;
+      return { id, name, price: quoted ?? price, freeFrom: freeFrom ?? null };
+    });
 
   return (
     <div className="container-page max-w-[1120px]">

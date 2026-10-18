@@ -441,6 +441,18 @@ function ValuesEditor({
                   </label>
 
                   <label className="block">
+                    <span className="label mb-1 text-xs">Вес, кг</span>
+                    <NumberInput
+                      value={item.weight ?? null}
+                      onChange={(weight) =>
+                        update(index, { weight: weight && weight > 0 ? weight : undefined })
+                      }
+                      placeholder="не указан"
+                      className="field tnum py-2 text-sm"
+                    />
+                  </label>
+
+                  <label className="block">
                     <span className="label mb-1 text-xs">Артикул варианта</span>
                     <input
                       value={item.sku ?? ""}

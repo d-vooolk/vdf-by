@@ -26,7 +26,10 @@ export interface VariantPrice {
   price: number;
   inStock: boolean;
   stock?: number;
+  weight?: number;
+  category?: string;
 }
+
 
 export type PriceList = Record<string, VariantPrice>;
 
@@ -40,6 +43,8 @@ export function buildPriceList(): PriceList {
         price: variant.price,
         inStock: variant.inStock,
         stock: variantStockQty(product, variant),
+        ...(variant.weight ? { weight: variant.weight } : {}),
+        category: product.categoryId,
       };
     }
   }

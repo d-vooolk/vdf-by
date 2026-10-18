@@ -7,7 +7,8 @@ import { saveSiteAction } from "@/app/admin/actions";
 import { EditableCard, EditableField, type SaveResult } from "@/components/admin/Editable";
 import { NumberInput, Section } from "@/components/admin/form-parts";
 import { deliveryArea, type DeliveryArea } from "@/lib/delivery";
-import type { DeliveryMethod, Site } from "@/lib/schema";
+import { MM_COURIER_TARIFF } from "@/lib/delivery-quote";
+import type { DeliveryMethod, Site, WeightTariff } from "@/lib/schema";
 
 /**
  * Настройки магазина: контакты, доставка, оплата, тексты «о нас».
@@ -301,8 +302,13 @@ function DeliveryView({ method, currencySymbol }: { method: DeliveryMethod; curr
       ? "по всей Беларуси"
       : "по городу"
     : "самовывоз";
+  const tariff = method.weightTariff;
   const facts = [
-    method.price ? money(method.price, currencySymbol) : "бесплатно",
+    tariff
+      ? `по весу, от ${money(Math.min(...tariff.intercity.map((band) => band.price)), currencySymbol)} (до ${Math.max(...tariff.intercity.map((band) => band.upTo))} кг)`
+      : method.price
+        ? money(method.price, currencySymbol)
+        : "бесплатно",
     method.freeFrom ? `бесплатно от ${money(method.freeFrom, currencySymbol)}` : "",
     term(method),
     area,
@@ -424,6 +430,12 @@ function DeliveryFields({
         </label>
       )}
 
+      <WeightTariffFields
+        tariff={method.weightTariff}
+        onChange={(weightTariff) => update({ weightTariff })}
+        currencySymbol={currencySymbol}
+      />
+
       <label className="flex cursor-pointer items-center gap-2">
         <input
           type="checkbox"
@@ -436,6 +448,148 @@ function DeliveryFields({
           <span className="block text-xs text-brand-400">Для самовывоза выключите</span>
         </span>
       </label>
+    </div>
+  );
+}
+
+function BandsEditor({
+  title,
+  bands,
+  onChange,
+  currencySymbol,
+}: {
+  title: string;
+  bands: WeightTariff["inCity"];
+  onChange: (bands: WeightTariff["inCity"]) => void;
+  currencySymbol: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-medium text-brand-500">{title}</p>
+      {bands.map((band, index) => (
+        <div key={index} className="flex items-center gap-2 text-sm">
+          <span className="text-brand-500">до</span>
+          <NumberInput
+            value={band.upTo}
+            onChange={(upTo) => onChange(bands.map((item, i) => (i === index ? { ...item, upTo: upTo ?? 0 } : item)))}
+            className="field tnum w-20 py-1.5 text-sm"
+          />
+          <span className="text-brand-500">кг —</span>
+          <NumberInput
+            value={band.price}
+            onChange={(price) => onChange(bands.map((item, i) => (i === index ? { ...item, price: price ?? 0 } : item)))}
+            className="field tnum w-24 py-1.5 text-sm"
+          />
+          <span className="text-brand-500">{currencySymbol}</span>
+          <button
+            type="button"
+            onClick={() => onChange(bands.filter((_, i) => i !== index))}
+            disabled={bands.length <= 1}
+            className="btn-ghost px-2 py-1 text-xs text-brand-400 hover:text-red-700"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...bands, { upTo: (bands.at(-1)?.upTo ?? 0) + 10, price: bands.at(-1)?.price ?? 0 }])}
+        className="btn-ghost px-2 py-1 text-xs"
+      >
+        + ступень
+      </button>
+    </div>
+  );
+}
+
+function WeightTariffFields({
+  tariff,
+  onChange,
+  currencySymbol,
+}: {
+  tariff: WeightTariff | undefined;
+  onChange: (tariff: WeightTariff | undefined) => void;
+  currencySymbol: string;
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-brand-100 p-3">
+      <label className="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          checked={Boolean(tariff)}
+          onChange={(event) => onChange(event.target.checked ? MM_COURIER_TARIFF : undefined)}
+          className="h-4 w-4 rounded border-brand-200"
+        />
+        <span className="text-sm text-brand-700">
+          Считать стоимость по весу заказа
+          <span className="block text-xs text-brand-400">
+            Как калькулятор M&M Express: вес товаров, город получателя, ступени тарифа. Цена выше остаётся для разметки и
+            фидов.
+          </span>
+        </span>
+      </label>
+
+      {tariff && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="label mb-1 text-xs">Город отправки</span>
+              <input
+                value={tariff.homeCity}
+                onChange={(event) => onChange({ ...tariff, homeCity: event.target.value })}
+                className="field py-2 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="label mb-1 text-xs">Надбавка за стекло, %</span>
+              <NumberInput
+                value={tariff.glassPercent}
+                onChange={(glassPercent) => onChange({ ...tariff, glassPercent: glassPercent ?? 0 })}
+                className="field tnum py-2 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="label mb-1 text-xs">Вес товара без веса, кг</span>
+              <NumberInput
+                value={tariff.defaultItemWeight}
+                onChange={(defaultItemWeight) => onChange({ ...tariff, defaultItemWeight: defaultItemWeight || 1 })}
+                className="field tnum py-2 text-sm"
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="label mb-1 text-xs">Разделы со стеклом (коды через запятую)</span>
+            <input
+              value={tariff.glassCategoryIds.join(", ")}
+              onChange={(event) =>
+                onChange({
+                  ...tariff,
+                  glassCategoryIds: event.target.value.split(",").map((item) => item.trim()).filter(Boolean),
+                })
+              }
+              className="field py-2 text-sm"
+              placeholder="glasses"
+            />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <BandsEditor
+              title={`По городу отправки (${tariff.homeCity})`}
+              bands={tariff.inCity}
+              onChange={(inCity) => onChange({ ...tariff, inCity })}
+              currencySymbol={currencySymbol}
+            />
+            <BandsEditor
+              title="Между городами"
+              bands={tariff.intercity}
+              onChange={(intercity) => onChange({ ...tariff, intercity })}
+              currencySymbol={currencySymbol}
+            />
+          </div>
+          <button type="button" onClick={() => onChange(MM_COURIER_TARIFF)} className="btn-ghost px-2 py-1 text-xs">
+            Заполнить тарифами M&M (дверь–дверь, с 15.10.2026)
+          </button>
+        </>
+      )}
     </div>
   );
 }
