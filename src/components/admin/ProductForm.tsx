@@ -733,6 +733,7 @@ export function ProductForm({
             priceSource: draft.priceSource,
             wholesaleSource: draft.wholesaleSource,
             weight: draft.weight,
+            sku: draft.sku,
           }}
         />
       </Section>
