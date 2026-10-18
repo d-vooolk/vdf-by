@@ -1,0 +1,255 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(520px 380px at 50% 46%, rgb(200 180 142 / 0.18), transparent 70%),
+    linear-gradient(160deg, rgb(30 54 45 / 0.94), rgb(26 43 32 / 0.97));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.enter {
+  animation: overlay-in 0.25s ease forwards;
+}
+
+.exit {
+  animation: overlay-out 0.45s ease forwards;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.beam {
+  position: absolute;
+  top: -30%;
+  left: -50%;
+  width: 40%;
+  height: 160%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgb(243 237 226 / 0.06), rgb(200 180 142 / 0.16), transparent);
+  animation: beam 1.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+}
+
+@keyframes beam {
+  from {
+    left: -50%;
+  }
+  to {
+    left: 130%;
+  }
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.exit .stage {
+  animation: stage-out 0.45s ease forwards;
+}
+
+@keyframes stage-out {
+  to {
+    transform: scale(0.96) translateY(-6px);
+  }
+}
+
+.emblem {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin-bottom: 28px;
+}
+
+.mark {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 10px rgb(200 180 142 / 0.55)) drop-shadow(0 0 26px rgb(200 180 142 / 0.35));
+  animation: mark-pulse 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s;
+}
+
+@keyframes mark-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.07);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.track {
+  fill: rgb(200 180 142 / 0.07);
+  stroke: rgb(243 237 226 / 0.1);
+  stroke-width: 4;
+}
+
+.ring,
+.check {
+  fill: none;
+  stroke: #c8b48e;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.ring {
+  stroke-width: 4;
+  transform: rotate(-90deg);
+  transform-origin: 60px 60px;
+  animation: draw 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
+}
+
+.check {
+  stroke: #f3ede2;
+  stroke-width: 7;
+  animation: draw 0.35s cubic-bezier(0.65, 0, 0.35, 1) 0.5s forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.wave {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #c8b48e;
+  border-radius: 50%;
+  opacity: 0;
+  animation: wave 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.45s forwards;
+}
+
+.waveLate {
+  border-width: 1px;
+  animation-delay: 0.6s;
+}
+
+@keyframes wave {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.ray {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 34px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #c8b48e, transparent);
+  opacity: 0;
+  transform-origin: 50% 0;
+  transform: rotate(var(--ray-angle)) translateY(70px) scaleY(0.3);
+  animation: ray 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) var(--ray-delay) forwards;
+}
+
+@keyframes ray {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--ray-angle)) translateY(62px) scaleY(0.3);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--ray-angle)) translateY(132px) scaleY(1);
+  }
+}
+
+.label,
+.amount,
+.caption {
+  margin: 0;
+  opacity: 0;
+  animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.label {
+  color: #f3ede2;
+  font-family: var(--font-lora), Georgia, serif;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.15;
+  animation-delay: 0.55s;
+}
+
+.amount {
+  margin-top: 10px;
+  color: #c8b48e;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  animation-delay: 0.65s;
+}
+
+.caption {
+  margin-top: 8px;
+  color: rgb(243 237 226 / 0.7);
+  font-size: 0.95rem;
+  animation-delay: 0.75s;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam,
+  .wave,
+  .ray {
+    display: none;
+  }
+
+  .ring,
+  .check {
+    animation-duration: 0.01ms;
+  }
+}

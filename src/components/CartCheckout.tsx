@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
+import { OrderCelebration } from "@/components/OrderCelebration";
 import { CartLines } from "@/components/CartLines";
 import {
   AlertIcon,
@@ -103,6 +104,7 @@ export function CartCheckout({
     {},
   );
   const [status, setStatus] = useState<"idle" | "sending" | "failed">("idle");
+  const [celebration, setCelebration] = useState<{ id: number | null; total: number } | null>(null);
   const [failure, setFailure] = useState("");
   const [priceChanges, setPriceChanges] = useState<
     Array<{ title: string; from: number; to: number }>
@@ -275,8 +277,8 @@ export function CartCheckout({
         })),
       });
 
-      clear();
-      router.push("/order/success/");
+      router.prefetch("/order/success/");
+      setCelebration({ id: accepted?.id ?? null, total });
     } catch (error) {
       // Заказ не потерян: ниже показываем готовый текст, который можно
       // переслать в Telegram или продиктовать по телефону.
@@ -330,6 +332,17 @@ export function CartCheckout({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10">
+      {celebration && (
+        <OrderCelebration
+          orderId={celebration.id}
+          total={celebration.total}
+          currencySymbol={currencySymbol}
+          onDone={() => {
+            clear();
+            router.push("/order/success/");
+          }}
+        />
+      )}
       <div className="min-w-0">
         {priceChanges.length > 0 && (
           <div

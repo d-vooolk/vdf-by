@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
+import { OrderCelebration } from "@/components/OrderCelebration";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
@@ -93,6 +94,7 @@ export function QuickOrder({
     "idle",
   );
   const [failure, setFailure] = useState("");
+  const [celebration, setCelebration] = useState<{ id: number | null; total: number } | null>(null);
   const signedIn = useAccount((state) => state.status === "customer");
   const customer = useAccount((state) => state.customer);
   const loadAccount = useAccount((state) => state.load);
@@ -213,6 +215,7 @@ export function QuickOrder({
       });
 
       setStatus("done");
+      setCelebration({ id: accepted?.id ?? null, total: subtotal + deliveryCost });
     } catch (error) {
       setStatus("failed");
       setFailure(
@@ -248,6 +251,15 @@ export function QuickOrder({
 
   return (
     <>
+      {celebration && (
+        <OrderCelebration
+          orderId={celebration.id}
+          total={celebration.total}
+          currencySymbol={currencySymbol}
+          title="Заявка принята"
+          onDone={() => setCelebration(null)}
+        />
+      )}
       <button
         type="button"
         onClick={() => setOpen(true)}
