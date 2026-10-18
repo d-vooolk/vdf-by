@@ -10,6 +10,7 @@ import {
   HomeIcon,
   PhoneIcon,
   SendIcon,
+  ShieldIcon,
   SparkleListIcon,
   TruckIcon,
 } from "@/components/icons";
@@ -35,7 +36,10 @@ const GROUPS = [
   },
   {
     label: "Админка",
-    items: [{ href: "/admin/settings/view/", label: "Вид админки", icon: GearIcon }],
+    items: [
+      { href: "/admin/settings/view/", label: "Вид админки", icon: GearIcon },
+      { href: "/admin/settings/security/", label: "Протокол AID", icon: ShieldIcon },
+    ],
   },
 ];
 

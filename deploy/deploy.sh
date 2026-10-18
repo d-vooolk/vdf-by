@@ -155,6 +155,13 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-images
 
+echo "==> Удаление облачных копий при протоколе AID"
+cat > /etc/cron.d/vdf-panic <<CRON
+SHELL=/bin/bash
+* * * * * root bash $APP/deploy/panic-remote-wipe.sh >/dev/null 2>&1
+CRON
+chmod 644 /etc/cron.d/vdf-panic
+
 echo "==> Досылка заказов сотрудников в CRM"
 cat > /etc/cron.d/vdf-crm <<CRON
 SHELL=/bin/bash
