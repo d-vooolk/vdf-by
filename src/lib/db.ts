@@ -24,7 +24,7 @@ import { migrate } from "./migrations.mjs";
  * и переживает деплой — deploy.sh обновляет код рядом, но её не трогает.
  */
 
-const DB_PATH = env("DATABASE_PATH", path.join(process.cwd(), "var", "shop.db"));
+export const DB_PATH = env("DATABASE_PATH", path.join(process.cwd(), "var", "shop.db"));
 
 export const FRAME_IMAGE_DIR = path.join(path.dirname(DB_PATH), "frame-images");
 
