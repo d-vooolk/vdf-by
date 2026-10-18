@@ -7,6 +7,7 @@ import { NumberInput } from "@/components/admin/form-parts";
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
 import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { OptionGroup, OptionValue } from "@/lib/schema";
+import { isSidesGroup, refreshSides, sidesGroup, type SideBase } from "@/lib/side-options";
 import { toSlug } from "@/lib/slug.mjs";
 
 /**
@@ -30,6 +31,7 @@ interface OptionGroupsEditorProps {
   currencySymbol: string;
   basePrice: number;
   baseWholesale: number | null;
+  sideBase: SideBase;
 }
 
 export function OptionGroupsEditor({
@@ -40,7 +42,9 @@ export function OptionGroupsEditor({
   currencySymbol,
   basePrice,
   baseWholesale,
+  sideBase,
 }: OptionGroupsEditorProps) {
+  const hasSides = value.some(isSidesGroup);
   const updateGroup = (index: number, patch: Partial<OptionGroup>) =>
     onChange(
       value.map((group, i) => (i === index ? { ...group, ...patch } : group)),
@@ -155,6 +159,19 @@ export function OptionGroupsEditor({
             </div>
           </div>
 
+          {isSidesGroup(group) && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-brand-100 px-3 py-2 text-xs text-brand-500">
+              <span>Цены, опт и вес — из полей товара: у одного стекла как есть, у пары ×2.</span>
+              <button
+                type="button"
+                onClick={() => updateGroup(groupIndex, refreshSides(group, sideBase))}
+                className="btn-ghost px-2 py-1 text-xs"
+              >
+                Пересчитать из полей товара
+              </button>
+            </div>
+          )}
+
           {groupIndex === 0 ? (
             <p className="border-b border-brand-100 px-3 py-2 text-xs text-brand-400">
               Первый набор задаёт цену: у его значений указывайте цену целиком.
@@ -197,6 +214,15 @@ export function OptionGroupsEditor({
       >
         + Набор опций
       </button>
+      {!hasSides && (
+        <button
+          type="button"
+          onClick={() => onChange([sidesGroup(sideBase), ...value])}
+          className="btn-secondary ml-2 py-2 text-sm"
+        >
+          + Стороны: правое, левое, пара
+        </button>
+      )}
     </div>
   );
 }

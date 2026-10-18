@@ -726,6 +726,14 @@ export function ProductForm({
           currencySymbol={currencySymbol}
           basePrice={draft.price}
           baseWholesale={draft.wholesalePrice ?? null}
+          sideBase={{
+            price: draft.price,
+            oldPrice: draft.oldPrice,
+            wholesalePrice: draft.wholesalePrice,
+            priceSource: draft.priceSource,
+            wholesaleSource: draft.wholesaleSource,
+            weight: draft.weight,
+          }}
         />
       </Section>
 
