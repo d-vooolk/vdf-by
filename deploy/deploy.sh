@@ -148,6 +148,13 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-backup
 
+echo "==> Удаление фото, не используемых 7 дней"
+cat > /etc/cron.d/vdf-images <<CRON
+SHELL=/bin/bash
+20 4 * * * root curl -s -X POST --max-time 600 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/images/ -o $APP/var/images-cleanup.log
+CRON
+chmod 644 /etc/cron.d/vdf-images
+
 echo "==> Досылка заказов сотрудников в CRM"
 cat > /etc/cron.d/vdf-crm <<CRON
 SHELL=/bin/bash

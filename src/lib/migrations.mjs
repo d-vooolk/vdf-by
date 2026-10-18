@@ -711,6 +711,12 @@ export const MIGRATIONS = [
     CREATE INDEX rate_hits_by_time ON rate_hits(at);
   `,
   frameImagesToFiles,
+  `
+    CREATE TABLE image_unused_since (
+      path  TEXT PRIMARY KEY,
+      since INTEGER NOT NULL
+    );
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

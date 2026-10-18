@@ -14,7 +14,7 @@ function megabytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
-export function UnusedMediaGrid({ items: initial }: { items: MediaItem[] }) {
+export function UnusedMediaGrid({ items: initial }: { items: Array<MediaItem & { daysLeft?: number }> }) {
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -193,6 +193,11 @@ export function UnusedMediaGrid({ items: initial }: { items: MediaItem[] }) {
                   <span className="tnum mt-0.5 block text-[11px] text-brand-300">
                     {item.w}×{item.h} · {(item.bytes / 1024).toFixed(0)} КБ
                   </span>
+                  {item.daysLeft !== undefined && (
+                    <span className="tnum mt-0.5 block text-[11px] text-amber-700">
+                      {item.daysLeft > 1 ? `удалится через ${item.daysLeft} дн.` : "удалится этой ночью"}
+                    </span>
+                  )}
                 </span>
               </button>
             </li>
