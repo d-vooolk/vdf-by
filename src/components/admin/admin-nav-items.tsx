@@ -10,11 +10,9 @@ import {
   ImagePlusIcon,
   ListIcon,
   PackageIcon,
-  PhotoIcon,
   SearchIcon,
   SparkIcon,
   TrashIcon,
-  UploadIcon,
   UserIcon,
   WalletIcon,
   WrenchIcon,
@@ -62,7 +60,6 @@ export const NAV: Array<NavLink | NavGroup> = [
   {
     label: "Импорт",
     links: [
-      { href: "/admin/vdf-catalog/", label: "Каталог VDF", icon: UploadIcon },
       { href: "/admin/vdf-prices/", label: "Курсы и цены", icon: ChartIcon },
     ],
   },
@@ -70,7 +67,6 @@ export const NAV: Array<NavLink | NavGroup> = [
     label: "Справочник",
     links: [
       { href: "/admin/cars/", label: "Автомобили", icon: CarIcon },
-      { href: "/admin/media/", label: "Фото", icon: PhotoIcon },
       { href: "/admin/unused-photos/", label: "Неиспользуемые фото", icon: TrashIcon },
       { href: "/admin/ai/", label: "Нейросеть для текста", icon: SparkIcon },
       { href: "/admin/composer/", label: "Генератор картинок", icon: ImagePlusIcon },

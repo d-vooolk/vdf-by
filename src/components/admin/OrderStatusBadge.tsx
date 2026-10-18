@@ -8,11 +8,11 @@ import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-types";
  * сборке таких стилей просто не оказалось бы.
  */
 const TONES: Record<OrderStatus, string> = {
-  new: "bg-amber-100 text-amber-900",
-  called: "bg-blue-100 text-blue-900",
-  shipped: "bg-violet-100 text-violet-900",
-  done: "bg-green-100 text-green-900",
-  cancelled: "bg-brand-100 text-brand-500",
+  new: "order-status order-status-new",
+  called: "order-status order-status-called",
+  shipped: "order-status order-status-shipped",
+  done: "order-status order-status-done",
+  cancelled: "order-status order-status-cancelled",
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {

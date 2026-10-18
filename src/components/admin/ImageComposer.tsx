@@ -724,7 +724,7 @@ export function ImageComposer({
             </button>
             <button type="button" className="btn-primary flex-1" onClick={save} disabled={!preview || rendering || saving}>
               {saving ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <ImagePlusIcon className="h-4 w-4" />}
-              {onSaved ? "Добавить в фото товара" : "Сохранить в «Фото»"}
+              {onSaved ? "Добавить в фото товара" : "Сохранить на сайт"}
             </button>
           </div>
         )}

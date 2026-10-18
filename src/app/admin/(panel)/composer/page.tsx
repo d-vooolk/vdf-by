@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ImageComposer } from "@/components/admin/ImageComposer";
+import { ComposerTabs } from "@/components/admin/ComposerTabs";
 
 export const metadata = { title: "Генератор картинок" };
 
@@ -16,10 +16,11 @@ export default function ComposerPage() {
           <Link href="/istochniki-foto/" target="_blank" className="underline">
             «Источники фотографий»
           </Link>
-          .
+          . Во вкладке «Обработка фото» — любое фото без машины: убрать фон, залить белым, стереть
+          надпись, обрезать, отразить, затем скачать или сохранить на сайт.
         </p>
       </div>
-      <ImageComposer />
+      <ComposerTabs />
     </div>
   );
 }

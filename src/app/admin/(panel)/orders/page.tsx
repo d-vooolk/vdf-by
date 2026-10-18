@@ -19,8 +19,8 @@ interface PageProps {
 export default async function OrdersPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
-  const status = params.status ?? "";
   const query = params.q ?? "";
+  const status = params.status ?? (query ? "" : "new");
   const staff = params.kind === "staff";
 
   const site = getSite();
@@ -70,7 +70,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     const search = new URLSearchParams();
     if (staff) search.set("kind", "staff");
     if (id) search.set("status", id);
-    if (query) search.set("q", query);
 
     return (
       <Link
@@ -102,7 +101,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
       </nav>
 
       <div className="flex flex-wrap gap-2">
-        {tab("", "Все")}
         {ORDER_STATUSES.map((entry) =>
           tab(entry.id, entry.name, counts[entry.id]),
         )}
@@ -110,19 +108,18 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
       <form method="get" className="flex flex-wrap gap-2">
         {staff && <input type="hidden" name="kind" value="staff" />}
-        {status && <input type="hidden" name="status" value={status} />}
         <input
           name="q"
           type="search"
           defaultValue={query}
-          placeholder="Телефон, имя или адрес"
+          placeholder="Телефон, имя или адрес — по всем заказам"
           className="field max-w-72 py-2 text-sm"
         />
         <button type="submit" className="btn-secondary py-2 text-sm">
           Найти
         </button>
         {query && (
-          <Link href={pageLink(1, staff, status, "")} className="btn-ghost py-2 text-sm">
+          <Link href={pageLink(1, staff, "", "")} className="btn-ghost py-2 text-sm">
             Сбросить
           </Link>
         )}
@@ -163,7 +160,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
               )}
               {order.notes.length > 0 && (
                 <span
-                  className="badge bg-amber-100 text-amber-900"
+                  className="badge order-status order-status-new"
                   title={order.notes.join("; ")}
                 >
                   проверить

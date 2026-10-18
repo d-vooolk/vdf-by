@@ -188,7 +188,7 @@ export function BackgroundRemover({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-100 p-4">
           <p className="text-xs text-brand-400">
-            Фон станет белым. Сохраняется новым файлом, исходное фото остаётся в «Фото».
+            Фон станет белым. Сохраняется новым файлом, исходное фото не меняется.
           </p>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={onClose} disabled={saving} className="btn-ghost py-2 text-sm">

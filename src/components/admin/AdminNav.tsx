@@ -76,6 +76,18 @@ export function AdminNav({
     router.refresh();
   };
 
+  const themeButton = (
+    <button
+      type="button"
+      onClick={switchTheme}
+      aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+      title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+      className="btn-ghost ml-auto p-2"
+    >
+      {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+    </button>
+  );
+
   const bottomLinks = bottomNavLinks(bottomNav);
   const moreLinks = NAV_LINKS.filter((link) => !bottomLinks.includes(link));
   const moreActive = moreLinks.some((link) => isActive(link.href, link.exact));
@@ -158,9 +170,12 @@ export function AdminNav({
   return (
     <>
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-brand-100 bg-white lg:flex">
-        <Link href="/admin/" className="px-5 py-4 text-sm font-semibold text-brand-900">
-          {siteName}
-        </Link>
+        <div className="flex items-center gap-2 py-2 pr-3 pl-5">
+          <Link href="/admin/" className="min-w-0 truncate py-2 text-sm font-semibold text-brand-900">
+            {siteName}
+          </Link>
+          {themeButton}
+        </div>
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4">{links}</nav>
         <div className="border-t border-brand-100 px-4 py-3">{account}</div>
       </aside>
@@ -170,15 +185,7 @@ export function AdminNav({
           <Link href="/admin/" className="min-w-0 truncate text-sm font-semibold text-brand-900">
             {siteName}
           </Link>
-          <button
-            type="button"
-            onClick={switchTheme}
-            aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-            title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-            className="btn-ghost ml-auto p-2"
-          >
-            {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-          </button>
+          {themeButton}
         </div>
       </header>
 

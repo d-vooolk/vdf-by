@@ -2,12 +2,12 @@ import { DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 export function DisclaimerHint({ className = "" }: { className?: string }) {
   return (
-    <span className={`group relative inline-flex ${className}`}>
+    <span className={`group inline-flex ${className}`}>
       <button
         type="button"
         aria-label="О магазине: независимый магазин, не представитель VDF-Light"
         aria-describedby="disclaimer-hint"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-brand-300 text-[11px] leading-none font-bold text-brand-500 transition-colors hover:border-accent-500 hover:text-brand-900 focus-visible:border-accent-500"
+        className="flex h-5 w-5 items-center justify-center rounded-full bg-[#c8b48e] font-serif text-[12px] leading-none font-bold text-[#1a2b20] shadow-[0_0_0_2px_#f3f6f6,0_2px_6px_rgb(122_106_86/0.45)] transition-colors hover:bg-[#b8a586] focus-visible:bg-[#b8a586]"
       >
         i
       </button>

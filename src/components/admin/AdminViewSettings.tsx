@@ -45,7 +45,7 @@ export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bot
         <div>
           <h2 className="text-sm font-bold text-brand-900">Тема</h2>
           <p className="mt-0.5 text-xs text-brand-500">
-            Действует на телефоне и планшете. На компьютере админка всегда светлая.
+            Сохраняется на этом устройстве. Переключить можно и кнопкой ☀/☾ рядом с названием магазина.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -66,7 +66,7 @@ export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bot
       <section className="card space-y-3 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-sm font-bold text-brand-900">Нижнее меню</h2>
+            <h2 className="text-sm font-bold text-brand-900">Нижнее меню на телефоне</h2>
             <p className="mt-0.5 text-xs text-brand-500">
               До {BOTTOM_NAV_MAX} разделов, остальные — в «Ещё». Выбрано {selected.length} из {BOTTOM_NAV_MAX}.
             </p>

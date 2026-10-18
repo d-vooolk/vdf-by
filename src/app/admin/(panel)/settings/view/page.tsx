@@ -13,7 +13,7 @@ export default async function AdminViewPage() {
     <>
       <SettingsTabs active="view" />
       <div className="space-y-5">
-        <h1 className="text-xl font-semibold text-brand-900">Вид админки на телефоне</h1>
+        <h1 className="text-xl font-semibold text-brand-900">Вид админки</h1>
         <AdminViewSettings
           theme={parseAdminTheme(store.get(ADMIN_THEME_COOKIE)?.value)}
           bottomNav={parseBottomNav(store.get(BOTTOM_NAV_COOKIE)?.value)}

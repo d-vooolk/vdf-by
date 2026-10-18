@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { FrameTypeStockField } from "@/components/admin/FrameTypeStockField";
+import { startNavigationOverlay } from "@/components/admin/NavigationOverlay";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { CopyIcon, SpinnerIcon } from "@/components/icons";
 
@@ -31,7 +32,6 @@ interface FrameTypeListProps {
 }
 
 const QUERY_LENGTH = 10;
-const URL_SYNC_DELAY = 400;
 const PAGE_SIZE = 60;
 
 function listHref(categoryId: string, query: string, stockOnly: boolean): string {
@@ -58,9 +58,9 @@ export function FrameTypeList({
   const [input, setInput] = useState(initialQuery);
   const [switching, startSwitching] = useTransition();
   const [filtering, startFiltering] = useTransition();
-  const query = useDeferredValue(normalizeQuery(input));
-  const stale = query !== normalizeQuery(input);
-  const urlTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [query, setQuery] = useState(normalizeQuery(initialQuery));
+  const [searching, startSearching] = useTransition();
+  const stale = searching;
   const [limit, setLimit] = useState(PAGE_SIZE);
   const sentinel = useRef<HTMLDivElement>(null);
 
@@ -75,8 +75,6 @@ export function FrameTypeList({
   const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
   const hasMore = visible.length < shown.length;
 
-  useEffect(() => () => clearTimeout(urlTimer.current), []);
-
   useEffect(() => {
     const target = sentinel.current;
     if (!target || !hasMore) return;
@@ -90,37 +88,32 @@ export function FrameTypeList({
     return () => observer.disconnect();
   }, [hasMore, visible.length]);
 
-  const remember = (nextInput: string) => {
-    clearTimeout(urlTimer.current);
-    urlTimer.current = setTimeout(
-      () =>
-        window.history.replaceState(
-          null,
-          "",
-          listHref(categoryId, normalizeQuery(nextInput), stockOnly),
-        ),
-      URL_SYNC_DELAY,
-    );
-  };
-
-  const changeQuery = (value: string) => {
-    setInput(value);
-    setLimit(PAGE_SIZE);
-    remember(value);
+  const search = () => {
+    const next = normalizeQuery(input);
+    window.history.replaceState(null, "", listHref(categoryId, next, stockOnly));
+    startSearching(() => {
+      setQuery(next);
+      setLimit(PAGE_SIZE);
+    });
   };
 
   const toggleStockOnly = () => {
-    clearTimeout(urlTimer.current);
+    startNavigationOverlay();
     startFiltering(() => router.push(listHref(categoryId, normalizeQuery(input), !stockOnly)));
   };
 
-  const changeCategory = (nextCategoryId: string) =>
+  const changeCategory = (nextCategoryId: string) => {
+    startNavigationOverlay();
     startSwitching(() => router.push(listHref(nextCategoryId, normalizeQuery(input), stockOnly)));
+  };
 
   return (
     <>
       <form
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          search();
+        }}
         className="card flex flex-wrap items-end gap-3 p-4"
       >
         <div>
@@ -131,13 +124,16 @@ export function FrameTypeList({
             id="q"
             type="search"
             value={input}
-            onChange={(event) => changeQuery(event.target.value)}
+            onChange={(event) => setInput(event.target.value)}
             maxLength={QUERY_LENGTH}
             placeholder="110N"
             autoComplete="off"
             className="field tnum w-36 py-2 text-sm"
           />
         </div>
+        <button type="submit" disabled={searching} className="btn-secondary py-2 text-sm">
+          {searching ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Найти"}
+        </button>
         {categories.length > 1 && (
           <div>
             <label htmlFor="category" className="label">

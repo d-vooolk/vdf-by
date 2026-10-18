@@ -86,6 +86,7 @@ export function Header() {
           workHours={site.workHours}
         />
 
+        <div className="relative shrink-0">
         <HomeLink
           className="flex shrink-0 flex-col items-center transition-opacity hover:opacity-80"
           ariaLabel={`${site.name} — на главную`}
@@ -101,7 +102,8 @@ export function Header() {
             Автосвет Беларусь
           </span>
         </HomeLink>
-        <DisclaimerHint className="-ml-1 shrink-0 self-start mt-3 lg:-ml-3 lg:mt-3.5" />
+        <DisclaimerHint className="absolute -top-2 -right-2.5 sm:-top-2.5 sm:-right-3" />
+        </div>
 
         <div className="min-w-0 flex-1">
           <SearchBox currencySymbol={site.currencySymbol} />
