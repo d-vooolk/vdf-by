@@ -65,6 +65,8 @@ const nextConfig: NextConfig = {
   // они уже проиндексированы.
   trailingSlash: true,
 
+  env: { ADMIN_APP_VERSION: new Date().toISOString() },
+
   distDir: activeDistDir(),
 
   // Встроенный оптимизатор картинок не используется: все размеры и форматы

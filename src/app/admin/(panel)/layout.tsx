@@ -11,7 +11,6 @@ import { getSite } from "@/lib/catalog";
 import { countPendingWholesale } from "@/lib/customers";
 import { orderStats } from "@/lib/orders";
 
-import "../admin-theme.css";
 
 /**
  * Оболочка панели управления.
