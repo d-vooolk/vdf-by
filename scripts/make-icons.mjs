@@ -48,6 +48,9 @@ const LOGO_WIDTH = 600;
 const GREEN = { r: 30, g: 54, b: 45 };
 const CLEAR = { r: 0, g: 0, b: 0, alpha: 0 };
 const IVORY = { r: 243, g: 237, b: 226, alpha: 1 };
+const BRASS = { r: 200, g: 180, b: 142 };
+const DEEP_GREEN = { r: 26, g: 43, b: 32, alpha: 1 };
+const ADMIN_OUT = "public/brand/";
 
 /**
  * Размеры внутри .ico. 16 и 32 — вкладка и панель задач, 24 — ярлыки
@@ -112,7 +115,7 @@ const GLYPH = await firstGlyph(SRC);
  * потерянные пиксели, поэтому по умолчанию ноль: буква 407x355, при
  * вписывании в квадрат сверху и снизу и так остаётся воздух.
  */
-async function icon(size, { contrast = 1, pad = 0, background = CLEAR } = {}) {
+async function icon(size, { contrast = 1, pad = 0, background = CLEAR, color = GREEN } = {}) {
   const inset = Math.round(size * pad);
   const fitted = await sharp(SRC)
     .extract(GLYPH)
@@ -135,7 +138,7 @@ async function icon(size, { contrast = 1, pad = 0, background = CLEAR } = {}) {
   const alpha = await mask.raw().toBuffer();
 
   const flat = sharp({
-    create: { width: size, height: size, channels: 3, background: GREEN },
+    create: { width: size, height: size, channels: 3, background: color },
   }).joinChannel(alpha, { raw: { width: size, height: size, channels: 1 } });
 
   // Непрозрачная иконка — тот же знак, положенный на цвет подложки.
@@ -190,6 +193,12 @@ writeFileSync(
   await icon(180, { pad: 0.1, background: IVORY }),
 );
 
+const adminIcon = (size, pad) => icon(size, { pad, background: DEEP_GREEN, color: BRASS });
+writeFileSync(ADMIN_OUT + "admin-192.png", await adminIcon(192, 0.16));
+writeFileSync(ADMIN_OUT + "admin-512.png", await adminIcon(512, 0.16));
+writeFileSync(ADMIN_OUT + "admin-maskable-512.png", await adminIcon(512, 0.26));
+writeFileSync(ADMIN_OUT + "admin-apple-180.png", await adminIcon(180, 0.14));
+
 const logo = await sharp(SRC)
   .resize(LOGO_WIDTH, null, { kernel: "lanczos3" })
   .png({ compressionLevel: 9, effort: 10 })
@@ -199,5 +208,5 @@ const logoMeta = await sharp(logo).metadata();
 
 console.log(
   `Готово: favicon.ico (${ICO_SIZES.map(([s]) => s).join(", ")}), icon.png 512, ` +
-    `apple-icon.png 180, brand/logo.png ${logoMeta.width}x${logoMeta.height}`,
+    `apple-icon.png 180, brand/admin-*.png, brand/logo.png ${logoMeta.width}x${logoMeta.height}`,
 );

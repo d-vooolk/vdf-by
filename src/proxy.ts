@@ -38,5 +38,5 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Только админка. Витрина обязана оставаться быстрой и кешируемой, а любой
   // proxy на её маршрутах делает страницы динамическими.
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin", "/admin/((?!manifest\\.webmanifest|sw\\.js).*)"],
 };
