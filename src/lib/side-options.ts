@@ -24,7 +24,7 @@ const PAIR_SUFFIX = "P";
 
 function sideSku(base: SideBase, suffix: string): string | undefined {
   const sku = base.sku?.trim();
-  return sku ? `${sku}${suffix}` : undefined;
+  return sku ? `${sku}-${suffix}` : undefined;
 }
 
 function suffixOf(value: OptionValue): string | null {

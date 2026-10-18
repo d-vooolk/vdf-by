@@ -161,7 +161,7 @@ export function OptionGroupsEditor({
 
           {isSidesGroup(group) && (
             <div className="flex flex-wrap items-center gap-2 border-b border-brand-100 px-3 py-2 text-xs text-brand-500">
-              <span>Цены, опт, вес и артикулы (R, L, P) — из полей товара: у одного стекла как есть, у пары ×2.</span>
+              <span>Цены, опт, вес и артикулы (-R, -L, -P) — из полей товара: у одного стекла как есть, у пары ×2.</span>
               <button
                 type="button"
                 onClick={() => updateGroup(groupIndex, refreshSides(group, sideBase))}
