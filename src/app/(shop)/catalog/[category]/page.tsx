@@ -15,6 +15,8 @@ import { findRedirect } from "@/lib/redirects";
  * адресам, и поисковик сам решал бы, какой из них показывать.
  */
 
+export const revalidate = 3600;
+
 export function generateStaticParams() {
   return getRootCategories().map((category) => ({ category: category.slug }));
 }

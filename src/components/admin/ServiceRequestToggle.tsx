@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-import { setServiceRequestDoneAction } from "@/app/admin/actions";
+import { setServiceRequestDoneAction } from "@/app/admin/customer-actions";
 
 export function ServiceRequestToggle({ id, done }: { id: number; done: boolean }) {
   const router = useRouter();

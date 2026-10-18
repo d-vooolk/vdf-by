@@ -4,7 +4,8 @@ import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { orderStats } from "@/lib/orders";
-import { countOutOfStock, listCategoriesBrief, listProducts } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
+import { countOutOfStock, listProducts } from "@/lib/product-store";
 
 /** Сводка: с чего начинается рабочий день — сколько новых заказов и что в каталоге. */
 export default function DashboardPage() {

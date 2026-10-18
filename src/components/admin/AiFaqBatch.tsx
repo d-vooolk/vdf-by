@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-import { aiFillFaqAction } from "@/app/admin/actions";
+import { aiFillFaqAction } from "@/app/admin/ai-actions";
 import { SpinnerIcon } from "@/components/icons";
 import { pluralize } from "@/lib/format";
 

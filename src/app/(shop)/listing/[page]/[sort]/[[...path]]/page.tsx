@@ -22,6 +22,8 @@ import {
 } from "@/lib/listing";
 import type { Category, CategoryCollection } from "@/lib/schema";
 
+export const revalidate = 3600;
+
 export function generateStaticParams() {
   return [];
 }

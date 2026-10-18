@@ -1,11 +1,14 @@
 import { getSite } from "@/lib/catalog";
+import { clientIp } from "@/lib/client-ip";
+import { isLimited, recordHit } from "@/lib/rate-limit";
+import { revalidateStockMoves } from "@/lib/stock-revalidate";
 import { deliveryPrice, parcelOf } from "@/lib/delivery-quote";
 import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getCustomer } from "@/lib/customer-auth";
 import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
-import { buildPriceList, describeShortage, stockShortages } from "@/lib/prices";
+import { describeShortage, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildCostList, buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
@@ -57,31 +60,6 @@ const rateLimit = envNumber("ORDER_RATE_LIMIT", 5);
  * принятыми заказами, клиент с тремя опечатками получит блокировку на
  * десять минут и просто уйдёт.
  */
-const accepted = new Map<string, number[]>();
-const attempts = new Map<string, number[]>();
-
-function tooMany(store: Map<string, number[]>, ip: string, limit: number) {
-  const now = Date.now();
-  const recent = (store.get(ip) ?? []).filter(
-    (time) => now - time < RATE_WINDOW_MS,
-  );
-  store.set(ip, recent);
-  return recent.length >= limit;
-}
-
-function record(store: Map<string, number[]>, ip: string) {
-  const recent = store.get(ip) ?? [];
-  recent.push(Date.now());
-  store.set(ip, recent);
-  // Чистим карту здесь же: отдельный setInterval в route handler'е пережил бы
-  // не всякую пересборку в dev и остался бы висеть.
-  if (store.size > 5000) {
-    const now = Date.now();
-    for (const [key, times] of store) {
-      if (!times.some((time) => now - time < RATE_WINDOW_MS)) store.delete(key);
-    }
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Проверка заявки                                                     */
@@ -156,10 +134,16 @@ function validate(
     return { error: "Слишком много позиций" };
   }
 
-  const prices = buildPriceList();
-  const hasPrices = Object.keys(prices).length > 0;
   const notes: string[] = [];
   let serverTotal = 0;
+
+  const unknown = (body.items as unknown[])
+    .map((raw) => (raw ?? {}) as Record<string, unknown>)
+    .filter((line) => !variantPrice(clean(line.key, 200)))
+    .map((line) => clean(line.title, 200) || "позиция");
+  if (unknown.length) {
+    return { error: `Этих позиций больше нет в каталоге: ${unknown.join(", ")}. Обновите корзину` };
+  }
 
   const items: OrderItem[] = (body.items as unknown[]).map((raw) => {
     const line = (raw ?? {}) as Record<string, unknown>;
@@ -168,14 +152,12 @@ function validate(
     const claimed = Number(line.price) || 0;
     const title = clean(line.title, 200);
 
-    const retail = hasPrices ? prices[key] : undefined;
+    const retail = variantPrice(key);
     const special = cost?.[key] || wholesale?.[key];
     const actual = retail && special ? { ...retail, price: special } : retail;
-    const price = actual ? actual.price : claimed;
+    const price = actual?.price ?? 0;
 
-    if (hasPrices && !actual) {
-      notes.push(`позиции «${title}» нет в текущем прайсе`);
-    } else if (actual && Math.abs(actual.price - claimed) > 0.001) {
+    if (actual && Math.abs(actual.price - claimed) > 0.001) {
       notes.push(`«${title}»: в заявке ${claimed}, в прайсе ${actual.price}`);
     }
     if (actual && !actual.inStock) {
@@ -233,8 +215,8 @@ function validate(
   const parcel = method.weightTariff
     ? parcelOf(
         items.map((item) => ({
-          weight: prices[item.key]?.weight ?? null,
-          categoryId: prices[item.key]?.category ?? "",
+          weight: variantPrice(item.key)?.weight ?? null,
+          categoryId: variantPrice(item.key)?.category ?? "",
           qty: item.qty,
         })),
         method.weightTariff,
@@ -287,7 +269,7 @@ function validate(
       items,
       subtotal,
       total,
-      currency: clean(body.currency, 10) || getSite().currency,
+      currency: getSite().currency,
       notes,
     },
   };
@@ -359,37 +341,33 @@ function buildMessage(
 /* Обработчик                                                          */
 /* ------------------------------------------------------------------ */
 
-function clientIp(request: Request): string {
-  // Приложение работает за nginx, который проставляет X-Forwarded-For.
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
-
 export async function POST(request: Request) {
   const ip = clientIp(request);
 
   // Флуд запросами — отсекаем сразу, до разбора тела.
-  if (tooMany(attempts, ip, ABUSE_LIMIT)) {
+  if (isLimited(`order-try:${ip}`, ABUSE_LIMIT, RATE_WINDOW_MS)) {
     return Response.json(
       { error: "Слишком много запросов. Позвоните нам — оформим по телефону." },
       { status: 429 },
     );
   }
-  record(attempts, ip);
+  recordHit(`order-try:${ip}`);
 
   const customer = await getCustomer();
   const staffBuyer = customer?.staff === true;
 
-  if (!staffBuyer && tooMany(accepted, ip, rateLimit)) {
+  if (!staffBuyer && isLimited(`order:${ip}`, rateLimit, RATE_WINDOW_MS)) {
     return Response.json(
       { error: "Слишком много заявок. Позвоните нам — оформим по телефону." },
       { status: 429 },
     );
   }
 
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
+    return Response.json({ error: "Слишком большой запрос" }, { status: 413 });
+  }
   const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) {
     return Response.json({ error: "Слишком большой запрос" }, { status: 413 });
   }
 
@@ -419,7 +397,7 @@ export async function POST(request: Request) {
     return Response.json({ error: error ?? "Заявка не принята" }, { status: 400 });
   }
 
-  record(accepted, ip);
+  recordHit(`order:${ip}`);
 
   if (customer && !customer.address && order.address && order.addressRequired) {
     fillCustomerAddress(customer.id, order.address);
@@ -431,7 +409,7 @@ export async function POST(request: Request) {
   try {
     if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — по себестоимости");
     else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
-    id = createOrder({
+    const created = createOrder({
       ...order,
       ip,
       referer,
@@ -439,6 +417,8 @@ export async function POST(request: Request) {
       wholesale: wholesaleBuyer,
       staff: staffBuyer,
     });
+    id = created.id;
+    revalidateStockMoves(created.moved.map((move) => move.productId));
   } catch (dbError) {
     console.error("[order] не удалось записать заказ:", dbError);
     return Response.json(

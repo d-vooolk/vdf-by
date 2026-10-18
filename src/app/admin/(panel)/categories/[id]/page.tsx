@@ -8,7 +8,7 @@ import { listCarTexts } from "@/lib/car-texts";
 import { carName, carsRoot, modelUrl } from "@/lib/car-types";
 import { getCarTree, isCarFitmentCategory } from "@/lib/cars";
 import { getProductsInCategory } from "@/lib/catalog";
-import { getCategoryRaw, listCategoriesBrief } from "@/lib/store";
+import { getCategoryRaw, listCategoriesBrief } from "@/lib/category-store";
 
 interface PageProps {
   params: Promise<{ id: string }>;

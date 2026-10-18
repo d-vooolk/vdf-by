@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { checkAiConnectionAction, type AiCheckResult } from "@/app/admin/actions";
+import { checkAiConnectionAction, type AiCheckResult } from "@/app/admin/ai-actions";
 import { AlertIcon, CheckIcon, SpinnerIcon } from "@/components/icons";
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} с`;

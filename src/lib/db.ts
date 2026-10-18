@@ -26,6 +26,8 @@ import { migrate } from "./migrations.mjs";
 
 const DB_PATH = env("DATABASE_PATH", path.join(process.cwd(), "var", "shop.db"));
 
+export const FRAME_IMAGE_DIR = path.join(path.dirname(DB_PATH), "frame-images");
+
 /**
  * В dev Next перезагружает модули на каждое изменение файла. Без этого
  * тайника каждая перезагрузка открывала бы новое соединение, и через час

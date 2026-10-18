@@ -10,7 +10,8 @@ import { isFrameCategory } from "@/lib/frame-category";
 import { frameMembershipOf } from "@/lib/frame-membership";
 import { currentRates } from "@/lib/linked-prices";
 import { allProductImages } from "@/lib/variant";
-import { getProductRaw, listBrands, listCategoriesBrief } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
+import { getProductRaw, listBrands } from "@/lib/product-store";
 
 interface PageProps {
   params: Promise<{ id: string }>;

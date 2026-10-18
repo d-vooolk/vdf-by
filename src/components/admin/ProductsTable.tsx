@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteProductsAction } from "@/app/admin/actions";
+import { deleteProductsAction } from "@/app/admin/product-actions";
 import { ProductRow } from "@/components/admin/ProductRow";
 import { Problems } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductsView } from "@/lib/admin-prefs";
 import { pluralize } from "@/lib/format";
-import type { ProductBrief } from "@/lib/store";
+import { type ProductBrief } from "@/lib/product-store";
 
 /**
  * Список товаров с отметками и удалением пачкой.

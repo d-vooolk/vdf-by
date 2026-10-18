@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { applyFrameTypeAction } from "@/app/admin/actions";
+import { applyFrameTypeAction } from "@/app/admin/frame-type-actions";
 import { NumberInput } from "@/components/admin/form-parts";
 import { MoneyField } from "@/components/admin/MoneyField";
 import { AlertIcon, CheckIcon } from "@/components/icons";

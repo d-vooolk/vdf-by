@@ -3,11 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import {
-  checkTelegramAction,
-  saveTelegramSettingsAction,
-  sendTestTelegramAction,
-} from "@/app/admin/actions";
+import { checkTelegramAction, saveTelegramSettingsAction, sendTestTelegramAction } from "@/app/admin/settings-actions";
 import { EditableCard, EditableField, EditableSwitch, type SaveResult } from "@/components/admin/Editable";
 import { AlertIcon, CheckIcon, SpinnerIcon } from "@/components/icons";
 import type { TelegramBot, TelegramChat } from "@/lib/telegram";

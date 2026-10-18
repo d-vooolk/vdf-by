@@ -1,7 +1,7 @@
 import { CategoryForm } from "@/components/admin/CategoryForm";
 import { aiConfigured, DEFAULT_PROMPTS, getPrompts } from "@/lib/ai";
 import { getCategories } from "@/lib/catalog";
-import { listCategoriesBrief } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
 
 export const metadata = { title: "Новая категория" };
 

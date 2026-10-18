@@ -8,7 +8,8 @@ import { getSite } from "@/lib/catalog";
 import { frameLockedIds } from "@/lib/frame-membership";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
-import { listCategoriesBrief, listProducts } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
+import { listProducts } from "@/lib/product-store";
 
 /** Список товаров с поиском, фильтром по разделу и постраничной листалкой. */
 

@@ -3,12 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import {
-  forgetVdfSessionAction,
-  requestVdfCodeAction,
-  loadVdfPricesAction,
-  verifyVdfCodeAction,
-} from "@/app/admin/actions";
+import { forgetVdfSessionAction, requestVdfCodeAction, loadVdfPricesAction, verifyVdfCodeAction } from "@/app/admin/price-actions";
 import { SpinnerIcon } from "@/components/icons";
 
 interface VdfPricesPanelProps {

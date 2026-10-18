@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { saveSiteAction } from "@/app/admin/actions";
+import { saveSiteAction } from "@/app/admin/settings-actions";
 import { EditableCard, EditableField, type SaveResult } from "@/components/admin/Editable";
 import { NumberInput, Section } from "@/components/admin/form-parts";
 import { deliveryArea, type DeliveryArea } from "@/lib/delivery";

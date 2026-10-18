@@ -1,8 +1,13 @@
+import { cache } from "react";
+
 import { isFrameCategory } from "./frame-category";
 import { frameMembershipsIn } from "./frame-membership";
 import { productViewCounts } from "./product-views";
 import type { Category, Product } from "./schema";
 import { hasAnyInStock } from "./variant";
+
+const membershipsOf = cache((categoryId: string) => frameMembershipsIn(categoryId));
+const viewCounts = cache(() => productViewCounts());
 
 interface TypeGroup {
   first: number;
@@ -21,8 +26,8 @@ function representative(group: TypeGroup): Product {
 
 export function listingProducts(category: Category, products: Product[]): Product[] {
   if (!category.frameTypes || !isFrameCategory(category.id)) return products;
-  const types = frameMembershipsIn(category.id);
-  const views = productViewCounts();
+  const types = membershipsOf(category.id);
+  const views = viewCounts();
   const groups = new Map<string, TypeGroup>();
 
   products.forEach((product, index) => {

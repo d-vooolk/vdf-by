@@ -10,6 +10,10 @@
  * (src/lib/db.ts) и консольные скрипты, которым TypeScript недоступен.
  */
 
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
 export const MIGRATIONS = [
   /* 1 — исходная схема */ `
     CREATE TABLE settings (
@@ -698,6 +702,15 @@ export const MIGRATIONS = [
     ALTER TABLE orders ADD COLUMN total_manual INTEGER NOT NULL DEFAULT 0;
   `,
   weightFromSpecs,
+  `
+    CREATE TABLE rate_hits (
+      key TEXT NOT NULL,
+      at  INTEGER NOT NULL
+    );
+    CREATE INDEX rate_hits_by_key ON rate_hits(key, at);
+    CREATE INDEX rate_hits_by_time ON rate_hits(at);
+  `,
+  frameImagesToFiles,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
@@ -723,6 +736,24 @@ function composedSku(sku, storage, frameType) {
     return FRAME_NUMBER.test(number) ? [number, storage, frameType].filter(Boolean).join("-") : sku;
   }
   return storage && !sku.endsWith(`-${storage}`) ? `${sku}-${storage}` : sku;
+}
+
+function frameImagesToFiles(db) {
+  db.exec("ALTER TABLE frame_types ADD COLUMN frame_image_file TEXT");
+  const dir = path.join(path.dirname(db.name), "frame-images");
+  const rows = db
+    .prepare("SELECT category_id, type, frame_image FROM frame_types WHERE frame_image IS NOT NULL")
+    .all();
+  if (rows.length) fs.mkdirSync(dir, { recursive: true });
+  const update = db.prepare(
+    "UPDATE frame_types SET frame_image_file = ?, frame_image = NULL WHERE category_id = ? AND type = ?",
+  );
+  for (const row of rows) {
+    const name = `${crypto.createHash("sha256").update(row.frame_image).digest("hex")}.img`;
+    const file = path.join(dir, name);
+    if (!fs.existsSync(file)) fs.writeFileSync(file, row.frame_image);
+    update.run(name, row.category_id, row.type);
+  }
 }
 
 function specWeightKg(value) {

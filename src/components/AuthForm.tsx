@@ -16,8 +16,8 @@ interface Answer {
   sent?: boolean;
   retryIn?: number;
   error?: string;
-  registered?: boolean;
-  unknown?: boolean;
+  signedIn?: boolean;
+  needsRegistration?: boolean;
 }
 
 async function post(body: Record<string, unknown>): Promise<Answer> {
@@ -80,13 +80,17 @@ export function AuthForm({ initialMode = "login" }: { initialMode?: Mode }) {
         setRetryAt(Date.now() + answer.retryIn * 1000);
         setNow(Date.now());
       }
+      if (answer.signedIn) {
+        await loadAccount(true);
+        router.push("/account/");
+        router.refresh();
+        return;
+      }
       if (answer.sent) {
         setStep("code");
         return;
       }
       setError(answer.error ?? "Не получилось отправить код");
-      if (answer.registered) setMode("login");
-      if (answer.unknown) setMode("register");
     } finally {
       setBusy(false);
     }
@@ -97,6 +101,13 @@ export function AuthForm({ initialMode = "login" }: { initialMode?: Mode }) {
     setBusy(true);
     try {
       const answer = await post({ action: "verify", phone, code });
+      if (answer.needsRegistration) {
+        setMode("register");
+        setStep("form");
+        setCode("");
+        setError(answer.error ?? "Номер подтверждён. Заполните данные для регистрации");
+        return;
+      }
       if (!answer.ok) {
         setError(answer.error ?? "Неверный код");
         return;

@@ -4,7 +4,7 @@ import { categoryPaths } from "@/lib/catalog";
 import { FrameBusyError } from "@/lib/frame-lock";
 import { fillFrameProduct, type FramePart } from "@/lib/frame-products";
 import { revalidateProduct } from "@/lib/revalidate";
-import { getProductRaw } from "@/lib/store";
+import { getProductRaw } from "@/lib/product-store";
 
 export const dynamic = "force-dynamic";
 

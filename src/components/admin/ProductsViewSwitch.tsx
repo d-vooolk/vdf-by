@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 
-import { setProductsViewAction } from "@/app/admin/actions";
+import { setProductsViewAction } from "@/app/admin/product-actions";
 import { SpinnerIcon } from "@/components/icons";
 import { PRODUCTS_VIEWS, type ProductsView } from "@/lib/admin-prefs";
 

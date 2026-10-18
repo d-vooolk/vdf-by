@@ -110,6 +110,11 @@ echo "==> Обновляю справочник автомобилей"
 # тысяч строк — дешевле, чем помнить про отдельную команду после деплоя.
 run npm run import-cars -- --logos
 
+echo "==> Копия базы перед сборкой"
+if docker ps --format '{{.Names}}' | grep -qx vdf; then
+  bash deploy/backup.sh || echo "    Копия не сделана — смотрите вывод выше"
+fi
+
 current_slot="$(cat var/dist-slot 2>/dev/null || echo .next)"
 if [ "$current_slot" = ".next-a" ]; then build_slot=".next-b"; else build_slot=".next-a"; fi
 
@@ -135,6 +140,13 @@ SHELL=/bin/bash
 30 1 * * * root curl -s -X POST --max-time 300 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/rates/ -o $APP/var/rates.log
 CRON
 chmod 644 /etc/cron.d/vdf-rates
+
+echo "==> Ежедневная копия базы"
+cat > /etc/cron.d/vdf-backup <<CRON
+SHELL=/bin/bash
+40 3 * * * root bash $APP/deploy/backup.sh >> $APP/var/backup.log 2>&1
+CRON
+chmod 644 /etc/cron.d/vdf-backup
 
 echo "==> Досылка заказов сотрудников в CRM"
 cat > /etc/cron.d/vdf-crm <<CRON

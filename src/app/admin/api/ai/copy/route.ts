@@ -3,7 +3,8 @@ import { AiError, aiConfigured } from "@/lib/ai";
 import { categoryPaths, invalidateCatalog } from "@/lib/catalog";
 import { copyQueue, recordCopy, writeProductCopy } from "@/lib/product-copy";
 import { revalidateProduct } from "@/lib/revalidate";
-import { getCategoryRaw, getProductRaw, setProductDescription } from "@/lib/store";
+import { getCategoryRaw } from "@/lib/category-store";
+import { getProductRaw, setProductDescription } from "@/lib/product-store";
 
 export const dynamic = "force-dynamic";
 

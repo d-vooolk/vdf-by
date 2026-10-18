@@ -9,7 +9,8 @@ import { getSite } from "@/lib/catalog";
 import { getDb } from "@/lib/db";
 import type { Product } from "@/lib/schema";
 import { toSlug } from "@/lib/slug.mjs";
-import { getProductRaw, listBrands, listCategoriesBrief, nextSku } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
+import { getProductRaw, listBrands, nextSku } from "@/lib/product-store";
 import { allProductImages } from "@/lib/variant";
 
 export const metadata = { title: "Новый товар" };

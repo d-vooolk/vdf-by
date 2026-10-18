@@ -48,7 +48,6 @@ export default function robots(): MetadataRoute.Robots {
           "Clean-param": [
             TRACKING_PARAMS.join("&"),
             "sort",
-            "page",
             ...(options.length ? [`${options.join("&")} /product/`] : []),
           ],
         },

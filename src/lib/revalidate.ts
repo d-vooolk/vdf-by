@@ -24,7 +24,6 @@ const SHARED = [
   "/sitemap.xml",
   "/robots.txt",
   "/variants.json", // прайс, по которому корзина сверяет цены
-  "/search-index.json", // индекс поиска
   "/car-tree.json",
   "/feed.xml", // фид для Google Merchant Center
   "/yml.xml", // фид для Яндекса, Onliner и Kufar

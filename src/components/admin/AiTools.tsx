@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { aiFaqAction, saveAiPromptAction } from "@/app/admin/actions";
+import { aiFaqAction, saveAiPromptAction } from "@/app/admin/ai-actions";
 import { AlertIcon, SpinnerIcon } from "@/components/icons";
 import type { AiProductInput, AiTask } from "@/lib/ai";
 import type { FaqItem } from "@/lib/schema";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getRatesAction } from "@/app/admin/actions";
+import { getRatesAction } from "@/app/admin/price-actions";
 import { NumberInput } from "@/components/admin/form-parts";
 import {
   convertToByn,

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { copyFrameTypeAction, deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/actions";
+import { copyFrameTypeAction, deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/frame-type-actions";
 import { AlertIcon, CheckIcon, TrashIcon } from "@/components/icons";
 import { buildFrameSku, normalizeFrameType } from "@/lib/frame-sku";
 import { storageSkuPart } from "@/lib/sku";

@@ -131,7 +131,7 @@ export default async function OrderPage({ params }: PageProps) {
           total={order.total}
           totalManual={order.totalManual}
           currencySymbol={site.currencySymbol}
-          stockTaken={order.status === "done"}
+          stockTaken={order.status !== "cancelled"}
         />
 
         {/* ---------------------------- Клиент --------------------------- */}

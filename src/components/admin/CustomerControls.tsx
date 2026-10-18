@@ -3,12 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import {
-  deleteCustomerAction,
-  setCustomerNoteAction,
-  setCustomerStaffAction,
-  setWholesaleStatusAction,
-} from "@/app/admin/actions";
+import { deleteCustomerAction, setCustomerNoteAction, setCustomerStaffAction, setWholesaleStatusAction } from "@/app/admin/customer-actions";
 
 export function CustomerControls({
   id,

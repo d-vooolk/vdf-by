@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { getDb } from "./db";
+import { clearHits, isLimited, recordHit } from "./rate-limit";
 // Формат хеша описан один раз в password.mjs — оттуда же его берёт
 // scripts/admin.mjs, который заводит администратора на сервере.
 import { hashPassword, verifyPassword } from "./password.mjs";
@@ -67,24 +68,12 @@ export function setPassword(login: string, password: string): boolean {
 /* Защита от подбора пароля                                            */
 /* ------------------------------------------------------------------ */
 
-const attempts = new Map<string, number[]>();
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const ATTEMPT_LIMIT = 10;
+const IP_ATTEMPT_LIMIT = 30;
 
-function tooManyAttempts(key: string): boolean {
-  const now = Date.now();
-  const recent = (attempts.get(key) ?? []).filter(
-    (time) => now - time < ATTEMPT_WINDOW_MS,
-  );
-  attempts.set(key, recent);
-  return recent.length >= ATTEMPT_LIMIT;
-}
-
-function recordAttempt(key: string): void {
-  const recent = attempts.get(key) ?? [];
-  recent.push(Date.now());
-  attempts.set(key, recent);
-}
+const loginKey = (ip: string, login: string) => `admin-login:${ip}:${login}`;
+const ipKey = (ip: string) => `admin-login-ip:${ip}`;
 
 /* ------------------------------------------------------------------ */
 /* Сессии                                                              */
@@ -113,10 +102,14 @@ export async function login(
   login: string,
   password: string,
   userAgent: string,
+  ip: string,
 ): Promise<LoginResult> {
   const key = login.trim().toLowerCase();
 
-  if (tooManyAttempts(key)) {
+  if (
+    isLimited(loginKey(ip, key), ATTEMPT_LIMIT, ATTEMPT_WINDOW_MS) ||
+    isLimited(ipKey(ip), IP_ATTEMPT_LIMIT, ATTEMPT_WINDOW_MS)
+  ) {
     return {
       ok: false,
       error: "Слишком много попыток. Подождите 15 минут.",
@@ -136,11 +129,12 @@ export async function login(
   const valid = verifyPassword(password, user?.password_hash ?? DUMMY_HASH);
 
   if (!user || !valid) {
-    recordAttempt(key);
+    recordHit(loginKey(ip, key));
+    recordHit(ipKey(ip));
     return { ok: false, error: "Неверный логин или пароль" };
   }
 
-  attempts.delete(key);
+  clearHits(loginKey(ip, key));
 
   const token = crypto.randomBytes(32).toString("base64url");
   const expiresAt = Date.now() + SESSION_MS;

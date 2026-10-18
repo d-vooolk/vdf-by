@@ -7,7 +7,11 @@ import { flushSync } from "react-dom";
 
 import { CloseIcon, SearchIcon, SpinnerIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
-import { searchProducts, type SearchEntry } from "@/lib/search";
+import type { SearchEntry } from "@/lib/search";
+
+type SearchHit = Pick<SearchEntry, "s" | "t" | "c" | "p" | "a" | "i">;
+
+const SEARCH_DELAY_MS = 200;
 
 /**
  * Поиск по каталогу с подсказками.
@@ -19,7 +23,7 @@ import { searchProducts, type SearchEntry } from "@/lib/search";
 
 export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
   const [query, setQuery] = useState("");
-  const [index, setIndex] = useState<SearchEntry[] | null>(null);
+  const [hits, setHits] = useState<{ query: string; total: number; items: SearchHit[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -30,20 +34,29 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
 
-  const loadIndex = () => {
-    if (index || loading) return;
-    setLoading(true);
-    fetch("/search-index.json")
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data: SearchEntry[]) => setIndex(data))
-      // Если индекс не подгрузился, поиск просто не даёт подсказок —
-      // страница каталога с фильтрами остаётся рабочей.
-      .catch(() => setIndex([]))
-      .finally(() => setLoading(false));
-  };
+  const trimmed = query.trim();
 
-  const matches = index ? searchProducts(index, query, Infinity) : [];
-  const results = matches.slice(0, 8);
+  useEffect(() => {
+    if (trimmed.length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setLoading(true);
+      fetch(`/api/search/?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : { total: 0, items: [] }))
+        .then((data: { total: number; items: SearchHit[] }) => setHits({ query: trimmed, ...data }))
+        .catch(() => undefined)
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, SEARCH_DELAY_MS);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [trimmed]);
+
+  const current = trimmed.length >= 2 && hits?.query === trimmed ? hits : null;
+  const results = current?.items ?? [];
   const searchUrl = `/poisk/?q=${encodeURIComponent(query.trim())}`;
 
   const close = () => {
@@ -132,10 +145,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
             aria-controls={listId}
             aria-autocomplete="list"
             autoComplete="off"
-            onFocus={() => {
-              loadIndex();
-              setOpen(true);
-            }}
+            onFocus={() => setOpen(true)}
             onChange={(event) => {
               setQuery(event.target.value);
               setActive(-1);
@@ -179,8 +189,8 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
         >
           {results.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-brand-400">
-              {index === null
-                ? "Загружаем каталог…"
+              {!current
+                ? "Ищем…"
                 : "Ничего не нашли. Попробуйте короче — например «H7» или «линзы»."}
             </p>
           ) : (
@@ -229,7 +239,7 @@ export function SearchBox({ currencySymbol }: { currencySymbol: string }) {
                   onClick={close}
                   className="block px-3 py-3 text-center text-sm font-medium text-brand-700 hover:bg-brand-50"
                 >
-                  {matches.length > results.length ? "Все результаты по разделам · Enter" : "Открыть страницу поиска · Enter"}
+                  {(current?.total ?? 0) > results.length ? `Все результаты (${current?.total}) по разделам · Enter` : "Открыть страницу поиска · Enter"}
                 </Link>
               </li>
             </ul>

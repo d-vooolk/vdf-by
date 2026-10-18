@@ -4,11 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import {
-  addToFrameTypeAction,
-  removeFromFrameTypeAction,
-  setProductCarsAction,
-} from "@/app/admin/actions";
+import { setProductCarsAction } from "@/app/admin/car-actions";
+import { addToFrameTypeAction, removeFromFrameTypeAction } from "@/app/admin/frame-type-actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { AlertIcon, PlusIcon } from "@/components/icons";
 import { years, type ProductCar } from "@/lib/car-types";

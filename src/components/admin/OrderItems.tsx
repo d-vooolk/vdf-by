@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
-import { searchOrderVariantsAction, setOrderTotalAction, updateOrderItemsAction } from "@/app/admin/actions";
+import { searchOrderVariantsAction, setOrderTotalAction, updateOrderItemsAction } from "@/app/admin/order-actions";
 import { NumberInput, Problems } from "@/components/admin/form-parts";
 import { MinusIcon, PencilIcon, PlusIcon, SearchIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";

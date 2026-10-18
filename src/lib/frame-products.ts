@@ -16,7 +16,7 @@ import {
 import { relinkInput } from "./linked-prices";
 import { freeIdentity } from "./product-identity";
 import type { FaqItem, Product } from "./schema";
-import { saveProduct } from "./store";
+import { saveProduct } from "./product-store";
 import { isSupplierBrand, stripSupplierBrand, stripSupplierSpecs } from "./supplier-brand.mjs";
 
 const UNIT = "комплект";

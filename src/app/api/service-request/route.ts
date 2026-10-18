@@ -1,4 +1,6 @@
-import { getProductRaw } from "@/lib/store";
+import { getProductRaw } from "@/lib/product-store";
+import { clientIp } from "@/lib/client-ip";
+import { isLimited, recordHit } from "@/lib/rate-limit";
 import { formatPhone, normalizePhone } from "@/lib/phone";
 import { createServiceRequest, markServiceRequestSent } from "@/lib/service";
 import { escapeTelegram, sendTelegram } from "@/lib/telegram";
@@ -7,30 +9,13 @@ export const dynamic = "force-dynamic";
 
 const WINDOW_MS = 10 * 60 * 1000;
 const LIMIT = 5;
-const recent = new Map<string, number[]>();
 
 const text = (value: unknown, limit: number) =>
   typeof value === "string" ? value.trim().slice(0, limit) : "";
 
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
-
-function tooMany(ip: string): boolean {
-  const now = Date.now();
-  const times = (recent.get(ip) ?? []).filter((time) => now - time < WINDOW_MS);
-  recent.set(ip, times);
-  if (recent.size > 5000) {
-    for (const [key, list] of recent) if (!list.some((time) => now - time < WINDOW_MS)) recent.delete(key);
-  }
-  return times.length >= LIMIT;
-}
-
 export async function POST(request: Request) {
   const ip = clientIp(request);
-  if (tooMany(ip)) {
+  if (isLimited(`service:${ip}`, LIMIT, WINDOW_MS)) {
     return Response.json({ error: "Слишком много заявок. Позвоните, пожалуйста" }, { status: 429 });
   }
 
@@ -53,7 +38,7 @@ export async function POST(request: Request) {
   const product = typeof body.productId === "string" ? getProductRaw(body.productId.slice(0, 120)) : null;
   const productUrl = product ? `/product/${product.slug}/` : "";
 
-  recent.get(ip)?.push(Date.now());
+  recordHit(`service:${ip}`);
 
   const id = createServiceRequest({
     name,

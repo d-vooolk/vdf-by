@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { categoryUrl, getCategories } from "@/lib/catalog";
-import { listCategoriesBrief } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
 
 export const metadata = { title: "Категории" };
 

@@ -1,5 +1,5 @@
 import { SettingsForm, type SettingsPart } from "@/components/admin/SettingsForm";
-import { getSiteRaw } from "@/lib/store";
+import { getSiteRaw } from "@/lib/site-store";
 
 export function SiteSettingsPage({ part }: { part: SettingsPart }) {
   const site = getSiteRaw();

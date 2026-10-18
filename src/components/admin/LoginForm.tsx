@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 
-import { loginAction, type FormState } from "@/app/admin/actions";
+import { loginAction } from "@/app/admin/auth-actions";
+import { type FormState } from "@/app/admin/form-state";
 import { AlertIcon, SpinnerIcon } from "@/components/icons";
 
 const EMPTY: FormState = { ok: false, problems: [], at: 0 };

@@ -8,7 +8,7 @@ import { buildFrameSku } from "./frame-sku";
 import { getFrameType } from "./frame-types";
 import { largestVariantUrl } from "./image-types";
 import { getImage } from "./images";
-import { getProductRaw } from "./store";
+import { getProductRaw } from "./product-store";
 
 const FRAME_SET_TITLE = "Комплект переходных рамок";
 const MAX_LOGOS = 2;

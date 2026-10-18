@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { logoutAction } from "@/app/admin/actions";
+import { logoutAction } from "@/app/admin/auth-actions";
 import { ChevronDownIcon, GridIcon, MoonIcon, SunIcon } from "@/components/icons";
 import { ADMIN_THEME_COOKIE, writeAdminCookie, type AdminTheme } from "@/lib/admin-prefs";
 

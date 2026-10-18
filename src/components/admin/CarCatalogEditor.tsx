@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
-import { deleteCarEntryAction, saveCarEntryAction } from "@/app/admin/actions";
+import { deleteCarEntryAction, saveCarEntryAction } from "@/app/admin/car-actions";
 import { Field, Problems } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { CarEntry, CarLevel } from "@/lib/car-types";

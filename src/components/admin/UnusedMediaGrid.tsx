@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { deleteUnusedImagesAction } from "@/app/admin/actions";
+import { deleteUnusedImagesAction } from "@/app/admin/media-actions";
 import { Problems } from "@/components/admin/form-parts";
 import type { MediaItem } from "@/components/admin/ImagePicker";
 import { CheckIcon, SpinnerIcon, TrashIcon } from "@/components/icons";

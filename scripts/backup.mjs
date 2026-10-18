@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import zlib from "node:zlib";
 
 import Database from "better-sqlite3";
 
@@ -10,8 +12,11 @@ import { env } from "../src/lib/env.mjs";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
 const BACKUP_DIR = env("BACKUP_DIR", path.join(ROOT, "var", "backups"));
-const BACKUP_NAME = /^shop-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(-\d+)?\.db$/;
+const BACKUP_NAME = /^shop-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(-\d+)?\.db(\.gz)?$/;
+const ONE_OFF_NAME = /^shop[.-]before.*\.db(-wal|-shm)?$/;
 const DEFAULT_KEEP = 30;
+const DEFAULT_ONE_OFF_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function arg(name) {
   const index = process.argv.indexOf(`--${name}`);
@@ -47,6 +52,8 @@ function megabytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
+const gzip = process.argv.includes("--gzip");
+const oneOffDays = Number(arg("one-off-days") ?? DEFAULT_ONE_OFF_DAYS);
 const keepArg = arg("keep");
 const keep = keepArg === undefined ? DEFAULT_KEEP : Number(keepArg);
 if (!Number.isInteger(keep) || keep < 0) {
@@ -83,8 +90,16 @@ if (integrity !== "ok") {
   fail(`Копия ${target} создана, но проверка целостности не прошла: ${integrity}`);
 }
 
-const shown = path.relative(ROOT, target).startsWith("..") ? target : path.relative(ROOT, target);
-console.log(`Копия базы: ${shown} (${megabytes(fs.statSync(target).size)})`);
+let saved = target;
+if (gzip) {
+  saved = `${target}.gz`;
+  await pipeline(fs.createReadStream(target), zlib.createGzip({ level: 9 }), fs.createWriteStream(saved));
+  fs.rmSync(target, { force: true });
+}
+
+const shown = path.relative(ROOT, saved).startsWith("..") ? saved : path.relative(ROOT, saved);
+console.log(`Копия базы: ${shown} (${megabytes(fs.statSync(saved).size)})`);
+console.log(`Файл: ${shown}`);
 console.log(`Целостность: ok; ${tables.join(", ")}`);
 
 if (keep > 0) {
@@ -103,4 +118,18 @@ if (keep > 0) {
   if (stale.length) {
     console.log(`Удалены старые копии (оставлено ${keep} последних): ${stale.length}`);
   }
+}
+
+if (Number.isFinite(oneOffDays) && oneOffDays > 0) {
+  const cutoff = Date.now() - oneOffDays * DAY_MS;
+  let removed = 0;
+  for (const dir of [BACKUP_DIR, path.dirname(DB_PATH)]) {
+    for (const name of fs.readdirSync(dir)) {
+      const file = path.join(dir, name);
+      if (!ONE_OFF_NAME.test(name) || fs.statSync(file).mtimeMs > cutoff) continue;
+      fs.rmSync(file, { force: true });
+      removed += 1;
+    }
+  }
+  if (removed) console.log(`Удалены разовые копии старше ${oneOffDays} дн.: ${removed}`);
 }

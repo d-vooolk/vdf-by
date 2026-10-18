@@ -136,7 +136,7 @@ export function issueCode(
       `INSERT INTO sms_codes (phone, purpose, code_hash, payload, ip, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(phone, purpose, hashSecret(`${phone}:${code}`), JSON.stringify(payload ?? {}), ip, now, now + CODE_TTL_MS);
+    .run(phone, purpose, hashSecret(`${phone}:${code}`), JSON.stringify(payload), ip, now, now + CODE_TTL_MS);
   getDb().prepare("DELETE FROM sms_codes WHERE created_at < ?").run(now - 30 * 24 * HOUR_MS);
   return { id: Number(result.lastInsertRowid), code };
 }
@@ -149,7 +149,31 @@ export function markCodeSent(id: number, error: string | null): void {
 
 export type VerifyResult =
   | { ok: true; customer: Customer; created: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; needsRegistration?: boolean };
+
+const VERIFIED_PHONE_MS = 15 * 60 * 1000;
+
+export function phoneRecentlyVerified(phone: string): boolean {
+  const row = getDb()
+    .prepare(
+      `SELECT 1 FROM sms_codes
+        WHERE phone = ? AND used = 1 AND purpose = 'register' AND payload = 'null' AND created_at > ?
+        LIMIT 1`,
+    )
+    .get(phone, Date.now() - VERIFIED_PHONE_MS);
+  return Boolean(row);
+}
+
+export function createCustomer(phone: string, payload: Registration): Customer | null {
+  const now = Date.now();
+  const result = getDb()
+    .prepare(
+      `INSERT INTO customers (phone, name, kind, address, wholesale_status, consent_at, created_at, last_login_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(phone, payload.name, payload.kind, payload.address, payload.kind === "wholesale" ? "pending" : "none", now, now, now);
+  return getCustomerById(Number(result.lastInsertRowid));
+}
 
 export function verifyCode(phone: string, code: string): VerifyResult {
   const db = getDb();
@@ -172,14 +196,16 @@ export function verifyCode(phone: string, code: string): VerifyResult {
 
   if (!row || row.used) return { ok: false, error: "Запросите код ещё раз" };
   if (row.expires_at < Date.now()) return { ok: false, error: "Код устарел — запросите новый" };
-  if (row.attempts >= MAX_ATTEMPTS) {
+  const counted = db
+    .prepare("UPDATE sms_codes SET attempts = attempts + 1 WHERE id = ? AND attempts < ?")
+    .run(row.id, MAX_ATTEMPTS);
+  if (counted.changes === 0) {
     return { ok: false, error: "Слишком много неверных попыток — запросите новый код" };
   }
 
   const expected = Buffer.from(row.code_hash, "hex");
   const actual = Buffer.from(hashSecret(`${phone}:${code.trim()}`), "hex");
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-    db.prepare("UPDATE sms_codes SET attempts = attempts + 1 WHERE id = ?").run(row.id);
     const left = MAX_ATTEMPTS - row.attempts - 1;
     return { ok: false, error: left > 0 ? `Неверный код. Осталось попыток: ${left}` : "Неверный код — запросите новый" };
   }
@@ -192,24 +218,15 @@ export function verifyCode(phone: string, code: string): VerifyResult {
       return { ok: true, customer: { ...existing, lastLoginAt: Date.now() }, created: false };
     }
     if (row.purpose !== "register") return { ok: false, error: "Номер не зарегистрирован" };
-    const payload = JSON.parse(row.payload) as Registration;
-    const now = Date.now();
-    const result = db
-      .prepare(
-        `INSERT INTO customers (phone, name, kind, address, wholesale_status, consent_at, created_at, last_login_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        phone,
-        payload.name,
-        payload.kind,
-        payload.address,
-        payload.kind === "wholesale" ? "pending" : "none",
-        now,
-        now,
-        now,
-      );
-    const customer = getCustomerById(Number(result.lastInsertRowid));
+    const payload = JSON.parse(row.payload) as Partial<Registration> | null;
+    if (!payload?.name || !payload.kind) {
+      return {
+        ok: false,
+        needsRegistration: true,
+        error: "Номер подтверждён. Заполните данные, чтобы создать кабинет",
+      };
+    }
+    const customer = createCustomer(phone, payload as Registration);
     if (!customer) return { ok: false, error: "Не удалось создать кабинет" };
     return { ok: true, customer, created: true };
   })();

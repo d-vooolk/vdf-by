@@ -3,12 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import {
-  deleteOrderAction,
-  requestReviewAction,
-  setOrderNoteAction,
-  setOrderStatusAction,
-} from "@/app/admin/actions";
+import { deleteOrderAction, requestReviewAction, setOrderNoteAction, setOrderStatusAction } from "@/app/admin/order-actions";
 import { Problems } from "@/components/admin/form-parts";
 import { CheckIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-types";
@@ -89,8 +84,8 @@ export function OrderControls({
       <Problems items={problems} />
 
       <p className="mb-2 text-xs text-brand-400">
-        «Выполнен» списывает заказанное количество с остатков на складе. Если потом сменить
-        статус, списанное вернётся на склад.
+        Заказанное количество списывается со склада при оформлении заказа. «Отменён» и удаление
+        заказа возвращают его на склад.
       </p>
 
       <div className="mb-4 flex flex-wrap gap-1.5">

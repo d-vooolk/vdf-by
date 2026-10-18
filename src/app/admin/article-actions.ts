@@ -18,7 +18,7 @@ import { thumbsFor } from "@/lib/admin-thumbs";
 import { requireAdmin } from "@/lib/auth";
 import { categoryPaths, getProductBySlug } from "@/lib/catalog";
 import { revalidateArticle } from "@/lib/revalidate";
-import { listProducts } from "@/lib/store";
+import { listProducts } from "@/lib/product-store";
 
 export type ArticleActionResult =
   | { ok: true; id: number; slug: string }

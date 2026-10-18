@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { saveProductRowAction, type ProductRowChanges } from "@/app/admin/actions";
+import { saveProductRowAction, type ProductRowChanges } from "@/app/admin/product-actions";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { CheckIcon } from "@/components/icons";
 import type { ProductsView } from "@/lib/admin-prefs";
 import { FOREIGN_CURRENCIES, type MoneySource } from "@/lib/currency";
-import type { ProductBrief } from "@/lib/store";
+import { type ProductBrief } from "@/lib/product-store";
 
 /**
  * Строка списка товаров.

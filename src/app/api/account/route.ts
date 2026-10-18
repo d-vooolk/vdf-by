@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { clientIp } from "@/lib/client-ip";
 
 import { getSite } from "@/lib/catalog";
 import {
@@ -9,10 +10,12 @@ import {
 } from "@/lib/customer-auth";
 import {
   canSendCode,
+  createCustomer,
   findCustomerByPhone,
   isWholesale,
   issueCode,
   markCodeSent,
+  phoneRecentlyVerified,
   updateCustomerProfile,
   verifyCode,
   type Customer,
@@ -28,12 +31,6 @@ export const dynamic = "force-dynamic";
 
 const text = (value: unknown, limit: number) =>
   typeof value === "string" ? value.trim().slice(0, limit) : "";
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
 
 function publicCustomer(customer: Customer) {
   return {
@@ -166,30 +163,33 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (findCustomerByPhone(phone)) {
-      return Response.json(
-        { error: "Этот номер уже зарегистрирован — войдите по коду", registered: true },
-        { status: 409 },
-      );
+    if (findCustomerByPhone(phone)) return deliverCode(phone, "login", ip, null);
+    if (phoneRecentlyVerified(phone)) {
+      const customer = createCustomer(phone, { name, kind, address });
+      if (!customer) return Response.json({ error: "Не удалось создать кабинет" }, { status: 500 });
+      await signInCustomer(customer.id);
+      if (customer.wholesaleStatus === "pending") await notifyWholesaleRequest(customer);
+      return Response.json({ ok: true, signedIn: true, customer: publicCustomer(customer) });
     }
     return deliverCode(phone, "register", ip, { name, kind, address });
   }
 
   if (action === "login") {
-    if (!findCustomerByPhone(phone)) {
-      return Response.json(
-        { error: "Номер не зарегистрирован — сначала зарегистрируйтесь", unknown: true },
-        { status: 404 },
-      );
-    }
-    return deliverCode(phone, "login", ip, null);
+    return findCustomerByPhone(phone)
+      ? deliverCode(phone, "login", ip, null)
+      : deliverCode(phone, "register", ip, null);
   }
 
   if (action === "verify") {
     const code = text(body.code, 10).replace(/\D/g, "");
     if (code.length !== 6) return Response.json({ error: "Код — шесть цифр" }, { status: 400 });
     const result = verifyCode(phone, code);
-    if (!result.ok) return Response.json({ error: result.error }, { status: 400 });
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error, needsRegistration: result.needsRegistration },
+        { status: result.needsRegistration ? 200 : 400 },
+      );
+    }
     await signInCustomer(result.customer.id);
     if (result.created && result.customer.wholesaleStatus === "pending") {
       await notifyWholesaleRequest(result.customer);

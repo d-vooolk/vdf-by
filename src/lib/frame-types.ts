@@ -1,7 +1,11 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
 import type { ProductCar } from "./car-types";
 import { parseComposerSettings, type ComposerSettings } from "./composer";
 import type { MoneySource } from "./currency";
-import { bumpCatalogVersion, getDb } from "./db";
+import { bumpCatalogVersion, FRAME_IMAGE_DIR, getDb } from "./db";
 import { frameCategories, isFrameCategory, type FrameCategory } from "./frame-category";
 import { buildFrameSku, isFrameType, normalizeFrameType, splitFrameSku } from "./frame-sku";
 import { moneySourceSchema, type Product, type Spec } from "./schema";
@@ -13,7 +17,7 @@ import {
 } from "./frame-membership";
 import { setGroupStock } from "./shared-stock";
 import { buildProductSku, productSkuBase } from "./sku";
-import { nextSku } from "./store";
+import { nextSku } from "./product-store";
 import { stockedByQty } from "./variant";
 
 export interface FrameTypeValues {
@@ -93,7 +97,7 @@ interface TypeRow {
 }
 
 const TYPE_COLUMNS = `type, name, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
-  price_source, cost_source, wholesale_source, typeof(frame_image) <> 'null' AS has_frame_image, composer`;
+  price_source, cost_source, wholesale_source, frame_image_file IS NOT NULL AS has_frame_image, composer`;
 
 const EMPTY_VALUES: FrameTypeValues = {
   costPrice: null,
@@ -660,10 +664,10 @@ export function copyFrameType(
       `INSERT INTO frame_types
          (category_id, type, name, storage_code, brief, specs, title_template,
           cost_price, price, wholesale_price, stock_qty, in_stock,
-          price_source, cost_source, wholesale_source, frame_image, composer, updated_at)
+          price_source, cost_source, wholesale_source, frame_image_file, composer, updated_at)
        SELECT category_id, @type, @name, @storageCode, @brief, @specs, @titleTemplate,
               cost_price, price, wholesale_price, stock_qty, in_stock,
-              price_source, cost_source, wholesale_source, frame_image, composer, @now
+              price_source, cost_source, wholesale_source, frame_image_file, composer, @now
          FROM frame_types
         WHERE category_id = @categoryId AND type = @sourceType`,
     ).run({
@@ -794,9 +798,21 @@ export function setFrameTypeStock(
 
 export function readFrameImage(categoryId: string, type: string): Buffer | null {
   const row = getDb()
-    .prepare("SELECT frame_image AS image FROM frame_types WHERE category_id = ? AND type = ?")
-    .get(categoryId, type) as { image: Buffer | null } | undefined;
-  return row?.image ?? null;
+    .prepare("SELECT frame_image_file AS file FROM frame_types WHERE category_id = ? AND type = ?")
+    .get(categoryId, type) as { file: string | null } | undefined;
+  if (!row?.file) return null;
+  const file = path.join(FRAME_IMAGE_DIR, path.basename(row.file));
+  return fs.existsSync(file) ? fs.readFileSync(file) : null;
+}
+
+function storeFrameImage(image: Buffer): string {
+  const name = `${crypto.createHash("sha256").update(image).digest("hex")}.img`;
+  const file = path.join(FRAME_IMAGE_DIR, name);
+  if (!fs.existsSync(file)) {
+    fs.mkdirSync(FRAME_IMAGE_DIR, { recursive: true });
+    fs.writeFileSync(file, image);
+  }
+  return name;
 }
 
 export function saveFrameComposer(
@@ -808,10 +824,10 @@ export function saveFrameComposer(
   ensureTypeRow(categoryId, type);
   getDb()
     .prepare(
-      `UPDATE frame_types SET frame_image = ?, composer = ?, updated_at = ?
+      `UPDATE frame_types SET frame_image_file = ?, composer = ?, updated_at = ?
         WHERE category_id = ? AND type = ?`,
     )
-    .run(image, JSON.stringify(settings), Date.now(), categoryId, type);
+    .run(storeFrameImage(image), JSON.stringify(settings), Date.now(), categoryId, type);
 }
 
 export function frameComposerSettings(categoryId: string, type: string): ComposerSettings | null {

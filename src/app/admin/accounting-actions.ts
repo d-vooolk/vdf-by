@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import type { FormState } from "@/app/admin/actions";
+import type { FormState } from "@/app/admin/form-state";
 import { addWriteoff, deleteWriteoff } from "@/lib/accounting";
 import { requireAdmin } from "@/lib/auth";
 import { syncCrm } from "@/lib/crm-sync";

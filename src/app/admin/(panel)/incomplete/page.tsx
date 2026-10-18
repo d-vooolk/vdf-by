@@ -9,7 +9,7 @@ import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { GAPS, isGap, listIncompleteProducts, SEO_GAPS, type Gap } from "@/lib/incomplete";
 import { COPY_TARGET_SCORE, copyQueue } from "@/lib/product-copy";
-import { listCategoriesBrief } from "@/lib/store";
+import { listCategoriesBrief } from "@/lib/category-store";
 
 export const metadata: Metadata = { title: "Незаполненные карточки" };
 

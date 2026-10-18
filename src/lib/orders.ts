@@ -8,7 +8,7 @@ import {
 } from "./order-types";
 import { orderLineFromCatalog } from "./order-catalog";
 import { describeShortage, stockShortages } from "./prices";
-import { returnToStock, takeFromStock, type StockMove } from "./store";
+import { returnToStock, takeFromStock, type StockMove } from "./stock-store";
 import { variantKey } from "./variant";
 
 /**
@@ -124,8 +124,10 @@ export interface NewOrder {
  * Вызывается до отправки в Telegram — специально: если мессенджер недоступен,
  * заказ уже лежит в базе и виден в админке, а не потерян.
  */
-export function createOrder(order: NewOrder): number {
-  const result = getDb()
+export function createOrder(order: NewOrder): { id: number; moved: StockMove[] } {
+  const db = getDb();
+  return db.transaction(() => {
+  const result = db
     .prepare(
       `INSERT INTO orders
          (created_at, status, name, phone, phone_digits, email, consent_at, comment,
@@ -160,7 +162,11 @@ export function createOrder(order: NewOrder): number {
       referer: order.referer,
     });
 
-  return Number(result.lastInsertRowid);
+  const id = Number(result.lastInsertRowid);
+  const moved = takeFromStock(orderedQuantities(order.items));
+  db.prepare("UPDATE orders SET stock_moves = ? WHERE id = ?").run(JSON.stringify(moved), id);
+  return { id, moved };
+  })();
 }
 
 export function markTelegramSent(id: number): void {
@@ -248,10 +254,11 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
       : null;
     let changed: StockMove[] = [];
 
-    if (status === "done" && moves === null) {
+    const reserved = status !== "cancelled";
+    if (reserved && moves === null) {
       moves = takeFromStock(orderedQuantities(JSON.parse(row.items) as OrderItem[]));
       changed = moves;
-    } else if (status !== "done" && moves !== null) {
+    } else if (!reserved && moves !== null) {
       changed = returnToStock(moves);
       moves = null;
     }
@@ -407,14 +414,16 @@ export function setOrderNote(id: number, note: string): void {
     .run(note.slice(0, 2000), id);
 }
 
-export function deleteOrder(id: number): void {
+export function deleteOrder(id: number): StockMove[] {
   const db = getDb();
-  db.transaction(() => {
-    const row = db.prepare("SELECT status, staff FROM orders WHERE id = ?").get(id) as
-      | { status: string; staff: number }
+  return db.transaction(() => {
+    const row = db.prepare("SELECT status, staff, stock_moves FROM orders WHERE id = ?").get(id) as
+      | { status: string; staff: number; stock_moves: string | null }
       | undefined;
     if (row?.staff === 1 && row.status === "done") queueCrmSync(id, false);
+    const returned = row?.stock_moves ? returnToStock(JSON.parse(row.stock_moves) as StockMove[]) : [];
     db.prepare("DELETE FROM orders WHERE id = ?").run(id);
+    return returned;
   })();
 }
 

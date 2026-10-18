@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
-import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/actions";
+import { deleteCategoryAction, saveCategoryAction } from "@/app/admin/category-actions";
 import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
 import { cleanCollections, CollectionsEditor } from "@/components/admin/CollectionsEditor";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { checkSmsAction, saveSmsSettingsAction, sendTestSmsAction } from "@/app/admin/actions";
+import { checkSmsAction, saveSmsSettingsAction, sendTestSmsAction } from "@/app/admin/settings-actions";
 import { EditableCard, EditableField, EditableSwitch, type SaveResult } from "@/components/admin/Editable";
 import { AlertIcon, CheckIcon, SpinnerIcon } from "@/components/icons";
 import type { SmsConnection } from "@/lib/sms";

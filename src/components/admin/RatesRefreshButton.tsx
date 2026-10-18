@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { refreshRatesAction } from "@/app/admin/actions";
+import { refreshRatesAction } from "@/app/admin/price-actions";
 import { SpinnerIcon } from "@/components/icons";
 
 export function RatesRefreshButton() {

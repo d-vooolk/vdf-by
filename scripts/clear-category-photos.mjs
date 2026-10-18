@@ -87,7 +87,7 @@ for (const row of products) {
 const frameTypes = db
   .prepare(
     `SELECT COUNT(*) AS n FROM frame_types
-      WHERE category_id IN ${inCategories} AND (frame_image IS NOT NULL OR composer IS NOT NULL)`,
+      WHERE category_id IN ${inCategories} AND (frame_image_file IS NOT NULL OR composer IS NOT NULL)`,
   )
   .get(...categoryIds).n;
 
@@ -172,7 +172,7 @@ db.transaction(() => {
     `DELETE FROM frame_renders WHERE product_id IN (SELECT id FROM products WHERE category_id IN ${inCategories})`,
   ).run(...categoryIds);
   db.prepare(
-    `UPDATE frame_types SET frame_image = NULL, composer = NULL, updated_at = ? WHERE category_id IN ${inCategories}`,
+    `UPDATE frame_types SET frame_image_file = NULL, composer = NULL, updated_at = ? WHERE category_id IN ${inCategories}`,
   ).run(now, ...categoryIds);
   const drop = db.prepare("DELETE FROM images WHERE path = ?");
   for (const entry of removable) drop.run(entry.path);

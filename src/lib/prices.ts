@@ -1,4 +1,5 @@
-import { getProducts } from "./catalog";
+import { getProductById, getProducts } from "./catalog";
+import type { Product } from "./schema";
 import { stockGroupOf } from "./shared-stock";
 import {
   allSelections,
@@ -39,17 +40,34 @@ export function buildPriceList(): PriceList {
   for (const product of getProducts()) {
     for (const selection of product.optionGroups.length ? allSelections(product) : [{}]) {
       const variant = resolveVariant(product, selection);
-      prices[variant.key] = {
-        price: variant.price,
-        inStock: variant.inStock,
-        stock: variantStockQty(product, variant),
-        ...(variant.weight ? { weight: variant.weight } : {}),
-        category: product.categoryId,
-      };
+      prices[variant.key] = priceOf(product, variant);
     }
   }
 
   return prices;
+}
+
+function priceOf(product: Product, variant: ReturnType<typeof resolveVariant>): VariantPrice {
+  return {
+    price: variant.price,
+    inStock: variant.inStock,
+    stock: variantStockQty(product, variant),
+    ...(variant.weight ? { weight: variant.weight } : {}),
+    category: product.categoryId,
+  };
+}
+
+export function variantPrice(key: string): VariantPrice | undefined {
+  const [productId, ...parts] = key.split("|");
+  const product = getProductById(productId);
+  if (!product) return undefined;
+  const selection: Selection = Object.fromEntries(parts.map((part) => part.split(":") as [string, string]));
+  const complete =
+    Object.keys(selection).length === product.optionGroups.length &&
+    product.optionGroups.every((group) => group.values.some((value) => value.id === selection[group.id]));
+  if (!complete) return undefined;
+  const variant = resolveVariant(product, selection);
+  return variant.key === key ? priceOf(product, variant) : undefined;
 }
 
 export interface StockedLine {

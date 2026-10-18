@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { saveCarTextAction } from "@/app/admin/actions";
+import { saveCarTextAction } from "@/app/admin/car-actions";
 import { SpinnerIcon } from "@/components/icons";
 
 export interface CarTextEntry {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { setPlannedFrameCarsAction } from "@/app/admin/actions";
+import { setPlannedFrameCarsAction } from "@/app/admin/frame-type-actions";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { PlusIcon, SpinnerIcon } from "@/components/icons";
 import { years, type ProductCar } from "@/lib/car-types";

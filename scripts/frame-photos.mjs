@@ -21,9 +21,11 @@ if (!fs.existsSync(DB_PATH)) {
 }
 
 const db = openDatabase(Database, DB_PATH);
+const FRAME_IMAGE_DIR = path.join(path.dirname(DB_PATH), "frame-images");
 const types = db
-  .prepare("SELECT category_id AS categoryId, type, frame_image AS frame FROM frame_types WHERE frame_image IS NOT NULL")
-  .all();
+  .prepare("SELECT category_id AS categoryId, type, frame_image_file AS file FROM frame_types WHERE frame_image_file IS NOT NULL")
+  .all()
+  .map((row) => ({ ...row, frame: fs.readFileSync(path.join(FRAME_IMAGE_DIR, row.file)) }));
 const members = db.prepare("SELECT product_id AS id FROM frame_type_products WHERE category_id = ? AND type = ?");
 const readProduct = db.prepare("SELECT data FROM products WHERE id = ?");
 const writeProduct = db.prepare("UPDATE products SET data = ?, updated_at = ? WHERE id = ?");
