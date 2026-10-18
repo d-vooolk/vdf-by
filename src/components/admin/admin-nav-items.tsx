@@ -79,11 +79,37 @@ export const isGroup = (item: NavLink | NavGroup): item is NavGroup => "links" i
 
 export const NAV_LINKS: NavLink[] = NAV.flatMap((item) => (isGroup(item) ? item.links : [item]));
 
+const MOBILE_LABELS: Record<string, string> = { "/admin/": "Сводка" };
+
+const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
+  { label: "Главное", hrefs: ["/admin/"] },
+  { label: "Продажи", hrefs: ["/admin/orders/", "/admin/service-requests/", "/admin/customers/", "/admin/accounting/"] },
+  {
+    label: "Товары",
+    hrefs: ["/admin/products/", "/admin/categories/", "/admin/frame-types/", "/admin/incomplete/", "/admin/out-of-stock/"],
+  },
+  { label: "Контент", hrefs: ["/admin/articles/", "/admin/composer/", "/admin/ai/"] },
+  { label: "Справочник", hrefs: ["/admin/cars/", "/admin/vdf-prices/", "/admin/unused-photos/"] },
+  { label: "Система", hrefs: ["/admin/settings/"] },
+];
+
+function mobileLink(href: string): NavLink[] {
+  const link = NAV_LINKS.find((item) => item.href === href);
+  return link ? [{ ...link, label: MOBILE_LABELS[href] ?? link.label }] : [];
+}
+
+export const MOBILE_GROUPS: NavGroup[] = MOBILE_SECTIONS.map((section) => ({
+  label: section.label,
+  links: section.hrefs.flatMap(mobileLink),
+}));
+
+export const MOBILE_LINKS: NavLink[] = MOBILE_GROUPS.flatMap((group) => group.links);
+
 export function bottomNavLinks(chosen: string[] | null): NavLink[] {
   const wanted = chosen?.length ? chosen : DEFAULT_BOTTOM_NAV;
-  const picked = NAV_LINKS.filter((link) => wanted.includes(link.href));
+  const picked = MOBILE_LINKS.filter((link) => wanted.includes(link.href));
   const links = picked.length
     ? picked
-    : NAV_LINKS.filter((link) => DEFAULT_BOTTOM_NAV.includes(link.href));
+    : MOBILE_LINKS.filter((link) => DEFAULT_BOTTOM_NAV.includes(link.href));
   return links.slice(0, BOTTOM_NAV_MAX);
 }

@@ -8,7 +8,7 @@ import { logoutAction } from "@/app/admin/actions";
 import { ChevronDownIcon, GridIcon, MoonIcon, SunIcon } from "@/components/icons";
 import { ADMIN_THEME_COOKIE, writeAdminCookie, type AdminTheme } from "@/lib/admin-prefs";
 
-import { bottomNavLinks, isGroup, NAV, NAV_LINKS, type NavGroup, type NavLink } from "./admin-nav-items";
+import { bottomNavLinks, isGroup, MOBILE_GROUPS, NAV, type NavGroup, type NavLink } from "./admin-nav-items";
 
 /**
  * Шапка админки: разделы, счётчик новых заказов, выход.
@@ -89,7 +89,12 @@ export function AdminNav({
   );
 
   const bottomLinks = bottomNavLinks(bottomNav);
-  const moreLinks = NAV_LINKS.filter((link) => !bottomLinks.includes(link));
+  const bottomHrefs = new Set(bottomLinks.map((link) => link.href));
+  const moreGroups = MOBILE_GROUPS.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => !bottomHrefs.has(link.href)),
+  })).filter((group) => group.links.length);
+  const moreLinks = moreGroups.flatMap((group) => group.links);
   const moreActive = moreLinks.some((link) => isActive(link.href, link.exact));
   const moreCount = moreLinks.reduce((sum, link) => sum + badgeCount(link.badge), 0);
 
@@ -203,26 +208,35 @@ export function AdminNav({
           open ? "translate-y-0" : "translate-y-[calc(100%+5rem)]"
         }`}
       >
-        <nav className="grid gap-0.5">
-          {moreLinks.map((link) => {
-            const active = isActive(link.href, link.exact);
-            const count = badgeCount(link.badge);
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-12 items-center gap-3.5 rounded-xl px-3 text-base ${
-                  active ? "bg-brand-100 font-semibold text-brand-900" : "text-brand-700"
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0 text-brand-500" />
-                <span className="flex-1">{link.label}</span>
-                {count > 0 && <span className="badge tnum bg-amber-400 text-amber-950">{count}</span>}
-              </Link>
-            );
-          })}
+        <nav className="space-y-4">
+          {moreGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-3 pb-1.5 text-[11px] font-bold tracking-[0.1em] text-brand-400 uppercase">
+                {group.label}
+              </p>
+              <div className="grid gap-0.5">
+                {group.links.map((link) => {
+                  const active = isActive(link.href, link.exact);
+                  const count = badgeCount(link.badge);
+                  const Icon = link.icon;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex min-h-12 items-center gap-3.5 rounded-xl px-3 text-base ${
+                        active ? "bg-brand-100 font-semibold text-brand-900" : "text-brand-700"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 shrink-0 text-brand-500" />
+                      <span className="flex-1">{link.label}</span>
+                      {count > 0 && <span className="badge tnum bg-amber-400 text-amber-950">{count}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="mt-3 border-t border-brand-100 px-3 pt-3">{account}</div>
       </div>

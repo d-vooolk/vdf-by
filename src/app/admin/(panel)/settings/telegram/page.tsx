@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { TelegramSettingsForm } from "@/components/admin/TelegramSettingsForm";
 import { maskToken } from "@/lib/sms";
 import { getTelegramSettings } from "@/lib/telegram";
@@ -12,7 +11,7 @@ export default function TelegramSettingsPage() {
 
   return (
     <>
-      <SettingsTabs active="telegram" />
+      
       <div className="max-w-3xl space-y-5">
         <div>
           <h1 className="text-xl font-semibold text-brand-900">Telegram</h1>

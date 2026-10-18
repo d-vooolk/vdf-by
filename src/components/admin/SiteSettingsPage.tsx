@@ -1,5 +1,4 @@
 import { SettingsForm, type SettingsPart } from "@/components/admin/SettingsForm";
-import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { getSiteRaw } from "@/lib/store";
 
 export function SiteSettingsPage({ part }: { part: SettingsPart }) {
@@ -14,10 +13,5 @@ export function SiteSettingsPage({ part }: { part: SettingsPart }) {
     );
   }
 
-  return (
-    <>
-      <SettingsTabs active={part} />
-      <SettingsForm key={part} site={site} part={part} />
-    </>
-  );
+  return <SettingsForm key={part} site={site} part={part} />;
 }

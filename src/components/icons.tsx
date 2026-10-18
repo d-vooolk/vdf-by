@@ -352,3 +352,23 @@ export const MoonIcon = (props: IconProps) => (
     <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
   </Icon>
 );
+
+export const SendIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M21 3 3 10.5l7 2.5 2.5 7z" />
+    <path d="m10 13 4.5-4.5" />
+  </Icon>
+);
+
+export const ChatIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 5h16v11H9l-5 4z" />
+    <path d="M8 9.5h8M8 12.5h5" />
+  </Icon>
+);
+
+export const SparkleListIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m5 7 1.5 1.5L9 6M5 13l1.5 1.5L9 12M5 19l1.5 1.5L9 18M12 7h8M12 13h8M12 19h8" />
+  </Icon>
+);

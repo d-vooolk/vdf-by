@@ -1,16 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
 import { saveSiteAction } from "@/app/admin/actions";
-import {
-  Field,
-  NumberInput,
-  Problems,
-  Section,
-} from "@/components/admin/form-parts";
-import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import { EditableCard, EditableField, type SaveResult } from "@/components/admin/Editable";
+import { NumberInput, Section } from "@/components/admin/form-parts";
 import { deliveryArea, type DeliveryArea } from "@/lib/delivery";
 import type { DeliveryMethod, Site } from "@/lib/schema";
 
@@ -35,264 +30,251 @@ const PART_TITLES: Record<SettingsPart, string> = {
   features: "Преимущества",
 };
 
+type Feature = { title: string; text: string };
+
+type TextKey =
+  | "name"
+  | "legalName"
+  | "tagline"
+  | "description"
+  | "phone"
+  | "phoneHref"
+  | "email"
+  | "workHours"
+  | "telegram"
+  | "viber"
+  | "whatsapp"
+  | "instagram"
+  | "warranty";
+
+const EMPTY_METHOD: DeliveryMethod = { id: "", name: "", price: 0, requiresAddress: true };
+const EMPTY_FEATURE: Feature = { title: "", text: "" };
+
+function ListEditor<T>({
+  items,
+  empty,
+  addLabel,
+  view,
+  editor,
+  onChange,
+  canDelete = () => true,
+  deleteConfirm,
+}: {
+  items: T[];
+  empty: T;
+  addLabel: string;
+  view: (item: T) => React.ReactNode;
+  editor: (draft: T, change: (next: T) => void) => React.ReactNode;
+  onChange: (items: T[]) => Promise<SaveResult>;
+  canDelete?: (items: T[]) => boolean;
+  deleteConfirm: (item: T) => string;
+}) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <div className="space-y-2">
+      {items.map((item, index) => (
+        <EditableCard
+          key={`${index}-${JSON.stringify(item)}`}
+          value={item}
+          view={view}
+          editor={editor}
+          onSave={(next) => onChange(items.map((entry, i) => (i === index ? next : entry)))}
+          onDelete={canDelete(items) ? () => onChange(items.filter((_, i) => i !== index)) : undefined}
+          deleteConfirm={deleteConfirm(item)}
+        />
+      ))}
+      {adding ? (
+        <EditableCard
+          value={empty}
+          startEditing
+          view={() => null}
+          editor={editor}
+          onSave={async (next) => {
+            const problems = await onChange([...items, next]);
+            if (!problems.length) setAdding(false);
+            return problems;
+          }}
+          onCancelNew={() => setAdding(false)}
+        />
+      ) : (
+        <button type="button" onClick={() => setAdding(true)} className="btn-secondary py-2 text-sm">
+          {addLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SettingsForm({ site: initial, part }: { site: Site; part: SettingsPart }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [draft, setDraft] = useState<Site>(initial);
-  const [problems, setProblems] = useState<string[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [site, setSite] = useState<Site>(initial);
 
-  const patch = (changes: Partial<Site>) => {
-    setDraft((current) => ({ ...current, ...changes }));
-    setSaved(false);
+  const commit = async (changes: Partial<Site>): Promise<SaveResult> => {
+    const next = { ...site, ...changes };
+    const result = await saveSiteAction(next);
+    if (!result.ok) return result.problems;
+    setSite(next);
+    router.refresh();
+    return [];
   };
 
-  const save = () => {
-    setProblems([]);
-    startTransition(async () => {
-      const result = await saveSiteAction(draft);
-      if (!result.ok) {
-        setProblems(result.problems);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        return;
-      }
-      setSaved(true);
-      router.refresh();
-    });
-  };
+  const text = (
+    key: TextKey,
+    label: string,
+    options: { hint?: string; placeholder?: string; multiline?: boolean; mono?: boolean; type?: "text" | "email" } = {},
+  ) => (
+    <EditableField
+      label={label}
+      value={site[key] ?? ""}
+      onSave={(value) => commit({ [key]: value } as Partial<Site>)}
+      {...options}
+    />
+  );
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5">
       <h1 className="text-xl font-semibold text-brand-900">{PART_TITLES[part]}</h1>
 
-      <Problems items={problems} />
-
-      {saved && (
-        <p className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Сохранено. Сайт обновлён целиком — телефон и меню стоят на каждой
-          странице.
-        </p>
-      )}
-
-      {/* --------------------------- Магазин --------------------------- */}
       {part === "shop" && (
         <Section title="Магазин">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Название" required>
-              <input
-                value={draft.name}
-                onChange={(event) => patch({ name: event.target.value })}
-                className="field"
-              />
-            </Field>
-            <Field label="Юридическое название" required hint="Для разметки и подвала">
-              <input
-                value={draft.legalName}
-                onChange={(event) => patch({ legalName: event.target.value })}
-                className="field"
-              />
-            </Field>
+          <div>
+            {text("name", "Название")}
+            {text("legalName", "Юридическое название", { hint: "Для разметки и подвала" })}
+            {text("tagline", "Короткий слоган", { hint: "Идёт в заголовок вкладки" })}
+            {text("description", "Описание сайта", { hint: "Показывается в результатах поиска", multiline: true })}
           </div>
-
-          <Field label="Короткий слоган" required hint="Идёт в заголовок вкладки">
-            <input
-              value={draft.tagline}
-              onChange={(event) => patch({ tagline: event.target.value })}
-              className="field"
-            />
-          </Field>
-
-          <Field label="Описание сайта" required hint="Показывается в результатах поиска">
-            <textarea
-              value={draft.description}
-              onChange={(event) => patch({ description: event.target.value })}
-              rows={3}
-              className="field resize-y"
-            />
-          </Field>
         </Section>
       )}
 
-      {/* --------------------------- Контакты -------------------------- */}
       {part === "contacts" && (
         <Section title="Контакты">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Телефон" required hint="Как показывать: +375 29 123-45-67">
-              <input
-                value={draft.phone}
-                onChange={(event) => patch({ phone: event.target.value })}
-                className="field tnum"
-              />
-            </Field>
-            <Field label="Телефон для ссылки" required hint="Только цифры и плюс: +375291234567">
-              <input
-                value={draft.phoneHref}
-                onChange={(event) => patch({ phoneHref: event.target.value })}
-                className="field tnum"
-              />
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Почта" required>
-              <input
-                type="email"
-                value={draft.email}
-                onChange={(event) => patch({ email: event.target.value })}
-                className="field"
-              />
-            </Field>
-            <Field label="Часы работы" hint="Пн–Пт 10:00–19:00, Сб 10:00–16:00">
-              <input
-                value={draft.workHours}
-                onChange={(event) => patch({ workHours: event.target.value })}
-                className="field"
-              />
-            </Field>
-          </div>
-
-          {/* Мессенджеры и соцсети. Отсюда их берут все блоки связи сразу:
-              панель справа на каждой странице, кнопки на карточках товаров и
-              подвал. Пустое поле — канала на сайте просто не будет.
-              Формат вольный: ссылка, @имя или номер телефона — привести к
-              рабочему адресу умеет src/lib/contacts.ts. */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Telegram" hint="Ссылка или @имя: https://t.me/autosvetby">
-              <input
-                value={draft.telegram}
-                onChange={(event) => patch({ telegram: event.target.value })}
-                className="field"
-                placeholder="https://t.me/autosvetby"
-              />
-            </Field>
-            <Field label="Viber" hint="Номер телефона — ссылку соберём сами">
-              <input
-                value={draft.viber}
-                onChange={(event) => patch({ viber: event.target.value })}
-                className="field"
-                placeholder="+375291234567"
-              />
-            </Field>
-            <Field label="WhatsApp" hint="Номер телефона или ссылка wa.me">
-              <input
-                value={draft.whatsapp}
-                onChange={(event) => patch({ whatsapp: event.target.value })}
-                className="field"
-                placeholder="+375291234567"
-              />
-            </Field>
-            <Field label="Instagram" hint="Ссылка или @имя">
-              <input
-                value={draft.instagram}
-                onChange={(event) => patch({ instagram: event.target.value })}
-                className="field"
-                placeholder="https://instagram.com/autosvetby"
-              />
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Улица и дом" >
-              <input
-                value={draft.address.street}
-                onChange={(event) =>
-                  patch({ address: { ...draft.address, street: event.target.value } })
-                }
-                className="field"
-              />
-            </Field>
-            <Field label="Город">
-              <input
-                value={draft.address.city}
-                onChange={(event) =>
-                  patch({ address: { ...draft.address, city: event.target.value } })
-                }
-                className="field"
-              />
-            </Field>
+          <div>
+            {text("phone", "Телефон", { hint: "Как показывать: +375 29 123-45-67", mono: true })}
+            {text("phoneHref", "Телефон для ссылки", { hint: "Только цифры и плюс: +375291234567", mono: true })}
+            {text("email", "Почта", { type: "email" })}
+            {text("workHours", "Часы работы", { hint: "Пн–Пт 10:00–19:00, Сб 10:00–16:00" })}
+            {/* Мессенджеры и соцсети. Отсюда их берут все блоки связи сразу:
+                панель справа на каждой странице, кнопки на карточках товаров и
+                подвал. Пустое поле — канала на сайте просто не будет.
+                Формат вольный: ссылка, @имя или номер телефона — привести к
+                рабочему адресу умеет src/lib/contacts.ts. */}
+            {text("telegram", "Telegram", {
+              hint: "Ссылка или @имя: https://t.me/autosvetby",
+              placeholder: "https://t.me/autosvetby",
+            })}
+            {text("viber", "Viber", { hint: "Номер телефона — ссылку соберём сами", placeholder: "+375291234567" })}
+            {text("whatsapp", "WhatsApp", { hint: "Номер телефона или ссылка wa.me", placeholder: "+375291234567" })}
+            {text("instagram", "Instagram", {
+              hint: "Ссылка или @имя",
+              placeholder: "https://instagram.com/autosvetby",
+            })}
+            <EditableField
+              label="Улица и дом"
+              value={site.address.street}
+              onSave={(street) => commit({ address: { ...site.address, street } })}
+            />
+            <EditableField
+              label="Город"
+              value={site.address.city}
+              onSave={(city) => commit({ address: { ...site.address, city } })}
+            />
           </div>
         </Section>
       )}
 
-      {/* --------------------------- Доставка -------------------------- */}
       {part === "delivery" && (
         <>
           <Section
             title="Доставка"
             note="Эти способы покупатель видит в корзине. Стоимость берётся отсюда, а не из браузера — подменить её в запросе нельзя."
           >
-            <DeliveryEditor
-              value={draft.delivery.methods}
-              onChange={(methods) => patch({ delivery: { methods } })}
-              currencySymbol={draft.currencySymbol}
+            <ListEditor
+              items={site.delivery.methods}
+              empty={EMPTY_METHOD}
+              addLabel="+ Способ доставки"
+              view={(method) => <DeliveryView method={method} currencySymbol={site.currencySymbol} />}
+              editor={(draft, change) => (
+                <DeliveryFields method={draft} onChange={change} currencySymbol={site.currencySymbol} />
+              )}
+              onChange={(methods) => commit({ delivery: { methods } })}
+              canDelete={(methods) => methods.length > 1}
+              deleteConfirm={(method) => `Удалить способ «${method.name || "без названия"}»?`}
             />
           </Section>
 
-          {/* ---------------------------- Оплата --------------------------- */}
           <Section title="Оплата" note="Список под кнопкой оформления заказа.">
-            <StringListEditor
-              value={draft.payment}
-              onChange={(payment) => patch({ payment })}
-              placeholder="Наличными при получении"
+            <ListEditor
+              items={site.payment}
+              empty=""
               addLabel="+ Способ оплаты"
+              view={(payment) => <p className="text-sm text-brand-900">{payment || "без названия"}</p>}
+              editor={(draft, change) => (
+                <input
+                  value={draft}
+                  onChange={(event) => change(event.target.value)}
+                  placeholder="Наличными при получении"
+                  autoFocus
+                  className="field py-2 text-sm"
+                />
+              )}
+              onChange={(payment) => commit({ payment })}
+              deleteConfirm={(payment) => `Удалить «${payment}»?`}
             />
 
-            <Field label="Гарантия" hint="Одна фраза для страницы доставки">
-              <input
-                value={draft.warranty}
-                onChange={(event) => patch({ warranty: event.target.value })}
-                className="field"
+            <div>
+              {text("warranty", "Гарантия", { hint: "Одна фраза для страницы доставки" })}
+              <EditableField
+                label="Возврат в течение, дней"
+                hint="Попадает и на страницу доставки, и в разметку товара для Google. Должно совпадать с тем, что вы реально обещаете. 0 — не заявлять возврат"
+                value={String(site.returnDays ?? 0)}
+                inputMode="numeric"
+                mono
+                onSave={(value) => {
+                  const returnDays = Number.parseInt(value.trim() || "0", 10);
+                  return Number.isFinite(returnDays) && returnDays >= 0
+                    ? commit({ returnDays })
+                    : Promise.resolve(["Укажите целое число дней"]);
+                }}
               />
-            </Field>
-
-            <Field
-              label="Возврат в течение, дней"
-              hint="Попадает и на страницу доставки, и в разметку товара для Google. Должно совпадать с тем, что вы реально обещаете. 0 — не заявлять возврат"
-            >
-              <NumberInput
-                integer
-                value={draft.returnDays}
-                onChange={(returnDays) => patch({ returnDays: returnDays ?? 0 })}
-                placeholder="14"
-                className="field tnum w-32"
-              />
-            </Field>
+            </div>
           </Section>
         </>
       )}
 
-      {/* -------------------------- Преимущества ----------------------- */}
       {part === "features" && (
-        <Section
-          title="Преимущества"
-          note="Блок на главной: заголовок и одна-две фразы к нему."
-        >
-          <FeaturesEditor
-            value={draft.features}
-            onChange={(features) => patch({ features })}
+        <Section title="Преимущества" note="Блок на главной: заголовок и одна-две фразы к нему.">
+          <ListEditor
+            items={site.features}
+            empty={EMPTY_FEATURE}
+            addLabel="+ Преимущество"
+            view={(feature) => (
+              <div>
+                <p className="text-sm font-semibold text-brand-900">{feature.title || "без заголовка"}</p>
+                {feature.text && <p className="mt-0.5 text-sm text-brand-600">{feature.text}</p>}
+              </div>
+            )}
+            editor={(draft, change) => (
+              <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+                <input
+                  value={draft.title}
+                  onChange={(event) => change({ ...draft, title: event.target.value })}
+                  placeholder="Своя установка"
+                  autoFocus
+                  className="field py-2 text-sm"
+                />
+                <input
+                  value={draft.text}
+                  onChange={(event) => change({ ...draft, text: event.target.value })}
+                  placeholder="Поставим линзы в тот же день"
+                  className="field py-2 text-sm"
+                />
+              </div>
+            )}
+            onChange={(features) => commit({ features })}
+            deleteConfirm={(feature) => `Удалить «${feature.title}»?`}
           />
         </Section>
       )}
-
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-brand-100 bg-white/95 backdrop-blur">
-        <div className="container-page flex items-center py-3">
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="btn-primary ml-auto py-2 text-sm"
-          >
-            {pending ? (
-              <>
-                <SpinnerIcon className="h-4 w-4 animate-spin" />
-                Сохраняем…
-              </>
-            ) : (
-              "Сохранить настройки"
-            )}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -301,268 +283,159 @@ export function SettingsForm({ site: initial, part }: { site: Site; part: Settin
 /* Способы доставки                                                    */
 /* ------------------------------------------------------------------ */
 
-function DeliveryEditor({
-  value,
+function money(value: number, currencySymbol: string): string {
+  return `${value.toLocaleString("ru-RU")} ${currencySymbol}`;
+}
+
+function term(method: DeliveryMethod): string {
+  const { daysMin, daysMax } = method;
+  if (daysMin === undefined && daysMax === undefined) return "";
+  if (daysMin === 0 && !daysMax) return "в день заказа";
+  if (daysMin !== undefined && daysMax !== undefined && daysMax !== daysMin) return `${daysMin}–${daysMax} дн.`;
+  return `${daysMax ?? daysMin} дн.`;
+}
+
+function DeliveryView({ method, currencySymbol }: { method: DeliveryMethod; currencySymbol: string }) {
+  const area = method.requiresAddress
+    ? deliveryArea(method) === "country"
+      ? "по всей Беларуси"
+      : "по городу"
+    : "самовывоз";
+  const facts = [
+    method.price ? money(method.price, currencySymbol) : "бесплатно",
+    method.freeFrom ? `бесплатно от ${money(method.freeFrom, currencySymbol)}` : "",
+    term(method),
+    area,
+  ].filter(Boolean);
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-semibold text-brand-900">
+        {method.name || "без названия"}{" "}
+        <span className="tnum text-xs font-normal text-brand-400">{method.id}</span>
+      </p>
+      <p className="tnum text-sm text-brand-600">{facts.join(" · ")}</p>
+      {method.note && <p className="text-xs text-brand-500">{method.note}</p>}
+    </div>
+  );
+}
+
+function DeliveryFields({
+  method,
   onChange,
   currencySymbol,
 }: {
-  value: DeliveryMethod[];
-  onChange: (value: DeliveryMethod[]) => void;
+  method: DeliveryMethod;
+  onChange: (method: DeliveryMethod) => void;
   currencySymbol: string;
 }) {
-  const update = (index: number, patch: Partial<DeliveryMethod>) =>
-    onChange(value.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  const update = (patch: Partial<DeliveryMethod>) => onChange({ ...method, ...patch });
 
   return (
     <div className="space-y-3">
-      {value.map((method, index) => (
-        <div key={index} className="rounded-card border border-brand-100 p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label mb-1 text-xs">Название</span>
-              <input
-                value={method.name}
-                onChange={(event) => update(index, { name: event.target.value })}
-                className="field py-2 text-sm"
-                placeholder="Доставка по Минску"
-              />
-            </label>
-
-            <label className="block">
-              <span className="label mb-1 text-xs">Код</span>
-              <input
-                value={method.id}
-                onChange={(event) => update(index, { id: event.target.value })}
-                className="field py-2 text-sm"
-                placeholder="minsk"
-              />
-            </label>
-          </div>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label mb-1 text-xs">
-                Стоимость, {currencySymbol}
-              </span>
-              <NumberInput
-                value={method.price}
-                onChange={(price) => update(index, { price: price ?? 0 })}
-                placeholder="0"
-                className="field tnum py-2 text-sm"
-              />
-            </label>
-
-            <label className="block">
-              <span className="label mb-1 text-xs">
-                Бесплатно от, {currencySymbol}
-              </span>
-              <NumberInput
-                value={method.freeFrom ?? null}
-                onChange={(freeFrom) => update(index, { freeFrom })}
-                placeholder="не бывает"
-                className="field tnum py-2 text-sm"
-              />
-            </label>
-          </div>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label mb-1 text-xs">Срок от, дней</span>
-              <NumberInput
-                integer
-                value={method.daysMin ?? null}
-                onChange={(daysMin) => update(index, { daysMin: daysMin ?? undefined })}
-                placeholder="0 — в день заказа"
-                className="field tnum py-2 text-sm"
-              />
-            </label>
-
-            <label className="block">
-              <span className="label mb-1 text-xs">Срок до, дней</span>
-              <NumberInput
-                integer
-                value={method.daysMax ?? null}
-                onChange={(daysMax) => update(index, { daysMax: daysMax ?? undefined })}
-                placeholder="не указан"
-                className="field tnum py-2 text-sm"
-              />
-            </label>
-          </div>
-
-          <label className="mt-3 block">
-            <span className="label mb-1 text-xs">Пояснение</span>
-            <input
-              value={method.note ?? ""}
-              onChange={(event) => update(index, { note: event.target.value })}
-              className="field py-2 text-sm"
-              placeholder="Привезём в течение дня"
-            />
-          </label>
-
-          {method.requiresAddress && (
-            <label className="mt-3 block">
-              <span className="label mb-1 text-xs">Куда возит</span>
-              <select
-                value={deliveryArea(method)}
-                onChange={(event) =>
-                  update(index, { area: event.target.value as DeliveryArea })
-                }
-                className="field py-2 text-sm"
-              >
-                <option value="city">Только по городу</option>
-                <option value="country">По всей Беларуси</option>
-              </select>
-              <span className="mt-1 block text-xs text-brand-400">
-                В разметку товаров для Google и в фид попадает только доставка
-                по всей стране.
-              </span>
-            </label>
-          )}
-
-          <div className="mt-3 flex items-center justify-between">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={method.requiresAddress}
-                onChange={(event) =>
-                  update(index, { requiresAddress: event.target.checked })
-                }
-                className="h-4 w-4 rounded border-brand-200 text-brand-700 focus:ring-brand-600"
-              />
-              <span className="text-sm text-brand-600">
-                Спрашивать адрес
-                <span className="block text-xs text-brand-400">
-                  Для самовывоза выключите
-                </span>
-              </span>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => onChange(value.filter((_, i) => i !== index))}
-              disabled={value.length <= 1}
-              title={
-                value.length <= 1
-                  ? "Хотя бы один способ должен остаться"
-                  : "Удалить способ"
-              }
-              className="btn-ghost px-2 py-2 text-red-700 disabled:text-brand-300"
-            >
-              <TrashIcon className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={() =>
-          onChange([
-            ...value,
-            { id: "", name: "", price: 0, requiresAddress: true },
-          ])
-        }
-        className="btn-secondary py-2 text-sm"
-      >
-        + Способ доставки
-      </button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function StringListEditor({
-  value,
-  onChange,
-  placeholder,
-  addLabel,
-}: {
-  value: string[];
-  onChange: (value: string[]) => void;
-  placeholder: string;
-  addLabel: string;
-}) {
-  return (
-    <div className="space-y-2">
-      {value.map((item, index) => (
-        <div key={index} className="flex gap-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="label mb-1 text-xs">Название</span>
           <input
-            value={item}
-            onChange={(event) =>
-              onChange(
-                value.map((entry, i) => (i === index ? event.target.value : entry)),
-              )
-            }
-            placeholder={placeholder}
-            className="field flex-1 py-2 text-sm"
+            value={method.name}
+            onChange={(event) => update({ name: event.target.value })}
+            className="field py-2 text-sm"
+            placeholder="Доставка по Минску"
           />
-          <button
-            type="button"
-            onClick={() => onChange(value.filter((_, i) => i !== index))}
-            className="btn-ghost px-2 py-2 text-red-700"
+        </label>
+        <label className="block">
+          <span className="label mb-1 text-xs">Код</span>
+          <input
+            value={method.id}
+            onChange={(event) => update({ id: event.target.value })}
+            className="field py-2 text-sm"
+            placeholder="minsk"
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="label mb-1 text-xs">Стоимость, {currencySymbol}</span>
+          <NumberInput
+            value={method.price}
+            onChange={(price) => update({ price: price ?? 0 })}
+            placeholder="0"
+            className="field tnum py-2 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="label mb-1 text-xs">Бесплатно от, {currencySymbol}</span>
+          <NumberInput
+            value={method.freeFrom ?? null}
+            onChange={(freeFrom) => update({ freeFrom })}
+            placeholder="не бывает"
+            className="field tnum py-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="label mb-1 text-xs">Срок от, дней</span>
+          <NumberInput
+            integer
+            value={method.daysMin ?? null}
+            onChange={(daysMin) => update({ daysMin: daysMin ?? undefined })}
+            placeholder="0 — в день заказа"
+            className="field tnum py-2 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="label mb-1 text-xs">Срок до, дней</span>
+          <NumberInput
+            integer
+            value={method.daysMax ?? null}
+            onChange={(daysMax) => update({ daysMax: daysMax ?? undefined })}
+            placeholder="не указан"
+            className="field tnum py-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="label mb-1 text-xs">Пояснение</span>
+        <input
+          value={method.note ?? ""}
+          onChange={(event) => update({ note: event.target.value })}
+          className="field py-2 text-sm"
+          placeholder="Привезём в течение дня"
+        />
+      </label>
+
+      {method.requiresAddress && (
+        <label className="block">
+          <span className="label mb-1 text-xs">Куда возит</span>
+          <select
+            value={deliveryArea(method)}
+            onChange={(event) => update({ area: event.target.value as DeliveryArea })}
+            className="field py-2 text-sm"
           >
-            <TrashIcon className="h-4 w-4" />
-          </button>
-        </div>
-      ))}
+            <option value="city">Только по городу</option>
+            <option value="country">По всей Беларуси</option>
+          </select>
+          <span className="mt-1 block text-xs text-brand-400">
+            В разметку товаров для Google и в фид попадает только доставка по всей стране.
+          </span>
+        </label>
+      )}
 
-      <button
-        type="button"
-        onClick={() => onChange([...value, ""])}
-        className="btn-secondary py-2 text-sm"
-      >
-        {addLabel}
-      </button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function FeaturesEditor({
-  value,
-  onChange,
-}: {
-  value: Array<{ title: string; text: string }>;
-  onChange: (value: Array<{ title: string; text: string }>) => void;
-}) {
-  const update = (index: number, patch: Partial<{ title: string; text: string }>) =>
-    onChange(value.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-
-  return (
-    <div className="space-y-2">
-      {value.map((feature, index) => (
-        <div key={index} className="flex gap-2">
-          <input
-            value={feature.title}
-            onChange={(event) => update(index, { title: event.target.value })}
-            placeholder="Своя установка"
-            className="field w-1/3 py-2 text-sm"
-          />
-          <input
-            value={feature.text}
-            onChange={(event) => update(index, { text: event.target.value })}
-            placeholder="Поставим линзы в тот же день"
-            className="field flex-1 py-2 text-sm"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(value.filter((_, i) => i !== index))}
-            className="btn-ghost px-2 py-2 text-red-700"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => onChange([...value, { title: "", text: "" }])}
-        className="btn-secondary py-2 text-sm"
-      >
-        + Преимущество
-      </button>
+      <label className="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          checked={method.requiresAddress}
+          onChange={(event) => update({ requiresAddress: event.target.checked })}
+          className="h-4 w-4 rounded border-brand-200 text-brand-700 focus:ring-brand-600"
+        />
+        <span className="text-sm text-brand-600">
+          Спрашивать адрес
+          <span className="block text-xs text-brand-400">Для самовывоза выключите</span>
+        </span>
+      </label>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { SettingsTabs } from "@/components/admin/SettingsTabs";
 import { SmsSettingsForm } from "@/components/admin/SmsSettingsForm";
 import { formatPhone } from "@/lib/phone";
 import {
@@ -34,7 +33,7 @@ export default function SmsSettingsPage() {
 
   return (
     <>
-      <SettingsTabs active="sms" />
+      
       <div className="space-y-5">
         <h1 className="text-xl font-semibold text-brand-900">SMS</h1>
 

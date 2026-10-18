@@ -12,7 +12,7 @@ import {
   type AdminTheme,
 } from "@/lib/admin-prefs";
 
-import { bottomNavLinks, NAV_LINKS } from "./admin-nav-items";
+import { bottomNavLinks, MOBILE_LINKS } from "./admin-nav-items";
 
 export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bottomNav: string[] | null }) {
   const router = useRouter();
@@ -36,7 +36,7 @@ export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bot
 
   const toggle = (href: string, on: boolean) => {
     const next = on ? [...selected, href] : selected.filter((path) => path !== href);
-    applyNav(NAV_LINKS.map((link) => link.href).filter((path) => next.includes(path)));
+    applyNav(MOBILE_LINKS.map((link) => link.href).filter((path) => next.includes(path)));
   };
 
   return (
@@ -78,7 +78,7 @@ export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bot
           )}
         </div>
         <ul className="grid gap-1 sm:grid-cols-2">
-          {NAV_LINKS.map((link) => {
+          {MOBILE_LINKS.map((link) => {
             const checked = selected.includes(link.href);
             const Icon = link.icon;
             return (
