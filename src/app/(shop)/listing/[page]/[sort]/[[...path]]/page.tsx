@@ -13,6 +13,7 @@ import {
   resolveCollection,
   resolveSubcategory,
 } from "@/lib/catalog";
+import { listingProducts } from "@/lib/frame-listing";
 import {
   isSortKey,
   listingHref,
@@ -60,7 +61,7 @@ function resolveScope(path: string[]): Scope | null {
   return {
     category,
     basePath: categoryUrl(category),
-    total: getProductsInCategory(category.id).length,
+    total: listingProducts(category, getProductsInCategory(category.id)).length,
   };
 }
 

@@ -50,6 +50,7 @@ export interface Order {
   deliveryCost: number;
   subtotal: number;
   total: number;
+  totalManual: boolean;
   currency: string;
   items: OrderItem[];
   /** Расхождения с прайсом, замеченные при приёме заявки. */

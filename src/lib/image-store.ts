@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 
 import sharp from "./sharp";
@@ -14,28 +15,35 @@ export interface StoredImage {
   renamed: boolean;
 }
 
+function thumbOf(entry: ImageEntry): string {
+  return entry.sources.webp?.[0]?.url ?? entry.fallback;
+}
+
+function contentPath(source: Buffer, safePath: string): string {
+  const digest = createHash("sha256").update(source).digest("hex").slice(0, 10);
+  const extension = path.extname(safePath);
+  return `${safePath.slice(0, -extension.length)}-${digest}${extension}`;
+}
+
 export async function storeImage({
   source,
   folder,
   filename,
+  keepName = false,
 }: {
   source: Buffer;
   folder: string;
   filename: string;
+  keepName?: boolean;
 }): Promise<StoredImage | null> {
   // Имя приходит из браузера, поэтому приводится к безопасному виду —
   // «../../» в пути здесь вполне может оказаться.
-  let relativePath = safeImagePath(folder, filename);
+  const safePath = safeImagePath(folder, filename);
+  const relativePath = keepName ? safePath : contentPath(source, safePath);
 
-  // Одинаковые имена — обычное дело: с телефона все снимки называются
-  // IMG_0001. Молча затирать чужое фото нельзя, поэтому добавляем суффикс.
-  const renamed = Boolean(getImage(relativePath));
-  if (renamed) {
-    const extension = path.extname(relativePath);
-    const base = relativePath.slice(0, -extension.length);
-    let counter = 2;
-    while (getImage(`${base}-${counter}${extension}`)) counter += 1;
-    relativePath = `${base}-${counter}${extension}`;
+  const existing = getImage(relativePath);
+  if (existing) {
+    return { path: relativePath, thumb: thumbOf(existing), w: existing.w, h: existing.h, renamed: false };
   }
 
   const result = await processImage({
@@ -51,10 +59,9 @@ export async function storeImage({
 
   return {
     path: relativePath,
-    // Миниатюра для интерфейса: самая узкая версия webp.
-    thumb: entry.sources.webp?.[0]?.url ?? entry.fallback,
+    thumb: thumbOf(entry),
     w: entry.w,
     h: entry.h,
-    renamed,
+    renamed: relativePath !== safePath,
   };
 }

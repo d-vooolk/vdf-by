@@ -40,6 +40,7 @@ interface OrderRow {
   delivery_cost: number;
   subtotal: number;
   total: number;
+  total_manual: number;
   currency: string;
   items: string;
   notes: string;
@@ -70,6 +71,7 @@ function toOrder(row: OrderRow): Order {
     deliveryCost: row.delivery_cost,
     subtotal: row.subtotal,
     total: row.total,
+    totalManual: row.total_manual === 1,
     currency: row.currency,
     items: JSON.parse(row.items) as OrderItem[],
     notes: JSON.parse(row.notes) as string[],
@@ -85,7 +87,7 @@ function toOrder(row: OrderRow): Order {
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
-  delivery_id, delivery_name, address, delivery_cost, subtotal, total,
+  delivery_id, delivery_name, address, delivery_cost, subtotal, total, total_manual,
   currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
   wholesale, edited_at, review_sms_at`;
 
@@ -294,7 +296,7 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
   return db.transaction((): OrderEditResult => {
     const row = db
       .prepare(
-        "SELECT status, staff, wholesale, items, delivery_cost, stock_moves FROM orders WHERE id = ?",
+        "SELECT status, staff, wholesale, items, delivery_cost, stock_moves, total, total_manual FROM orders WHERE id = ?",
       )
       .get(id) as
       | {
@@ -304,6 +306,8 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
           items: string;
           delivery_cost: number;
           stock_moves: string | null;
+          total: number;
+          total_manual: number;
         }
       | undefined;
     if (!row) return { ok: false, problems: ["Заказ не найден"] };
@@ -359,7 +363,7 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
     ).run(
       JSON.stringify(items),
       subtotal,
-      Math.round((subtotal + row.delivery_cost) * 100) / 100,
+      row.total_manual === 1 ? row.total : roundMoney(subtotal + row.delivery_cost),
       moves === null ? null : JSON.stringify(moves),
       Date.now(),
       id,
@@ -367,6 +371,30 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
     if (row.staff === 1 && row.status === "done") queueCrmSync(id, true);
     return { ok: true, changed };
   })();
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function setOrderTotal(id: number, total: number | null): { ok: true } | { ok: false; problems: string[] } {
+  const db = getDb();
+  const row = db.prepare("SELECT status, staff, subtotal, delivery_cost FROM orders WHERE id = ?").get(id) as
+    | { status: string; staff: number; subtotal: number; delivery_cost: number }
+    | undefined;
+  if (!row) return { ok: false, problems: ["Заказ не найден"] };
+  if (total !== null && !(Number.isFinite(total) && total >= 0 && total < 100_000_000)) {
+    return { ok: false, problems: ["Сумма должна быть числом не меньше нуля"] };
+  }
+  const manual = total !== null;
+  db.prepare("UPDATE orders SET total = ?, total_manual = ?, edited_at = ? WHERE id = ?").run(
+    manual ? roundMoney(total) : roundMoney(row.subtotal + row.delivery_cost),
+    manual ? 1 : 0,
+    Date.now(),
+    id,
+  );
+  if (row.staff === 1 && row.status === "done") queueCrmSync(id, true);
+  return { ok: true };
 }
 
 export function markReviewRequested(id: number): void {

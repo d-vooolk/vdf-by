@@ -38,6 +38,7 @@ import {
   markReviewRequested,
   setOrderNote,
   setOrderStatus,
+  setOrderTotal,
   updateOrderItems,
   type OrderLineInput,
 } from "@/lib/orders";
@@ -661,6 +662,15 @@ export async function setOrderNoteAction(
 ): Promise<FormState> {
   await requireAdmin();
   setOrderNote(id, String(note ?? "").trim());
+  return ok();
+}
+
+export async function setOrderTotalAction(id: number, total: number | null): Promise<FormState> {
+  await requireAdmin();
+  const result = setOrderTotal(Number(id), total === null ? null : Number(total));
+  if (!result.ok) return fail(result.problems);
+  after(syncCrm);
+  revalidatePath("/admin", "layout");
   return ok();
 }
 

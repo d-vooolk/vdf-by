@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
-import { searchOrderVariantsAction, updateOrderItemsAction } from "@/app/admin/actions";
-import { Problems } from "@/components/admin/form-parts";
-import { MinusIcon, PlusIcon, SearchIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
+import { searchOrderVariantsAction, setOrderTotalAction, updateOrderItemsAction } from "@/app/admin/actions";
+import { NumberInput, Problems } from "@/components/admin/form-parts";
+import { MinusIcon, PencilIcon, PlusIcon, SearchIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
 import type { OrderVariantOption } from "@/lib/order-catalog";
 import type { OrderItem } from "@/lib/order-types";
@@ -18,6 +18,7 @@ interface OrderItemsProps {
   deliveryName: string;
   deliveryCost: number;
   total: number;
+  totalManual: boolean;
   currencySymbol: string;
   stockTaken: boolean;
 }
@@ -47,6 +48,7 @@ export function OrderItems({
   deliveryName,
   deliveryCost,
   total,
+  totalManual,
   currencySymbol,
   stockTaken,
 }: OrderItemsProps) {
@@ -182,7 +184,15 @@ export function OrderItems({
           deliveryCost={deliveryCost}
           total={total}
           price={price}
-        />
+        >
+          <TotalEditor
+            orderId={orderId}
+            total={total}
+            computed={subtotal + deliveryCost}
+            manual={totalManual}
+            price={price}
+          />
+        </Totals>
       </section>
     );
   }
@@ -337,9 +347,14 @@ export function OrderItems({
         subtotal={draftSubtotal}
         deliveryName={deliveryName}
         deliveryCost={deliveryCost}
-        total={draftSubtotal + deliveryCost}
+        total={totalManual ? total : draftSubtotal + deliveryCost}
         price={price}
       />
+      {totalManual && (
+        <p className="px-4 pb-3 text-xs text-brand-500">
+          Итоговая сумма задана вручную и после сохранения состава не изменится.
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2 border-t border-brand-100 px-4 py-3">
         <button
@@ -376,12 +391,14 @@ function Totals({
   deliveryCost,
   total,
   price,
+  children,
 }: {
   subtotal: number;
   deliveryName: string;
   deliveryCost: number;
   total: number;
   price: (value: number) => string;
+  children?: React.ReactNode;
 }) {
   return (
     <dl className="space-y-2 border-t border-brand-100 px-4 py-3 text-sm">
@@ -395,10 +412,116 @@ function Totals({
           {deliveryCost === 0 ? "бесплатно" : price(deliveryCost)}
         </dd>
       </div>
-      <div className="flex justify-between border-t border-brand-100 pt-2">
-        <dt className="font-bold text-brand-900">Итого</dt>
-        <dd className="tnum text-lg font-semibold text-brand-900">{price(total)}</dd>
-      </div>
+      {children ?? (
+        <div className="flex justify-between border-t border-brand-100 pt-2">
+          <dt className="font-bold text-brand-900">Итого</dt>
+          <dd className="tnum text-lg font-semibold text-brand-900">{price(total)}</dd>
+        </div>
+      )}
     </dl>
+  );
+}
+
+function TotalEditor({
+  orderId,
+  total,
+  computed,
+  manual,
+  price,
+}: {
+  orderId: number;
+  total: number;
+  computed: number;
+  manual: boolean;
+  price: (value: number) => string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<number | null>(total);
+  const [problems, setProblems] = useState<string[]>([]);
+
+  const submit = (next: number | null) =>
+    startTransition(async () => {
+      setProblems([]);
+      const result = await setOrderTotalAction(orderId, next);
+      if (result.problems.length) {
+        setProblems(result.problems);
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    });
+
+  if (editing) {
+    return (
+      <div className="space-y-2 border-t border-brand-100 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <dt className="font-bold text-brand-900">Итого</dt>
+          <dd className="flex items-center gap-2">
+            <NumberInput value={value} onChange={setValue} className="field tnum w-32 py-1.5 text-right" />
+            <button
+              type="button"
+              onClick={() => value !== null && submit(value)}
+              disabled={pending || value === null}
+              className="btn-primary px-3 py-1.5 text-xs"
+            >
+              {pending ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setValue(total);
+                setProblems([]);
+              }}
+              disabled={pending}
+              className="btn-ghost px-2 py-1.5 text-xs"
+            >
+              Отмена
+            </button>
+          </dd>
+        </div>
+        <p className="text-xs text-brand-400">По составу и доставке: {price(computed)}</p>
+        <Problems items={problems} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 border-t border-brand-100 pt-2">
+      <div className="flex items-center justify-between gap-2">
+        <dt className="font-bold text-brand-900">Итого</dt>
+        <dd className="flex items-center gap-1">
+          <span className="tnum text-lg font-semibold text-brand-900">{price(total)}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setValue(total);
+              setEditing(true);
+            }}
+            title="Изменить итоговую сумму"
+            aria-label="Изменить итоговую сумму"
+            className="btn-ghost p-1.5 text-brand-500 hover:text-brand-900"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </button>
+        </dd>
+      </div>
+      {manual && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-brand-500">
+          <span>Изменена вручную, по составу {price(computed)}</span>
+          <button
+            type="button"
+            onClick={() => submit(null)}
+            disabled={pending}
+            className="font-medium text-brand-700 underline hover:text-brand-900"
+          >
+            Вернуть расчётную
+          </button>
+        </div>
+      )}
+      <Problems items={problems} />
+    </div>
   );
 }

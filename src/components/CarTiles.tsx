@@ -97,17 +97,19 @@ export function MarkChips({
   marks,
   base = CARS_ROOT,
   priorityCount = 0,
+  shown,
 }: {
   marks: FitMark[];
   base?: string;
   priorityCount?: number;
+  shown?: Set<string>;
 }) {
   if (!marks.length) return null;
 
   return (
     <ul className="flex flex-wrap gap-2">
       {marks.map((mark, position) => (
-        <li key={mark.id}>
+        <li key={mark.id} className={shown && !shown.has(mark.id) ? "group-data-[collapsed=true]:hidden" : undefined}>
           <Link
             href={markUrl(mark.slug, base)}
             className="group card card-link flex items-center gap-2 py-1.5 pr-3 pl-2"

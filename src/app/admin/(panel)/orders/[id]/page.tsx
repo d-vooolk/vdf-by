@@ -129,6 +129,7 @@ export default async function OrderPage({ params }: PageProps) {
           deliveryName={order.deliveryName}
           deliveryCost={order.deliveryCost}
           total={order.total}
+          totalManual={order.totalManual}
           currencySymbol={site.currencySymbol}
           stockTaken={order.status === "done"}
         />

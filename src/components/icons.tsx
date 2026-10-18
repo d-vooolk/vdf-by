@@ -86,6 +86,12 @@ export const TrashIcon = (props: IconProps) => (
   </Icon>
 );
 
+export const PencilIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4" />
+  </Icon>
+);
+
 export const CopyIcon = (props: IconProps) => (
   <Icon {...props}>
     <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -248,5 +254,101 @@ export const PrinterIcon = (props: IconProps) => (
     <path d="M6 9V3h12v6" />
     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
     <path d="M6 14h12v7H6z" />
+  </Icon>
+);
+
+export const HomeIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" />
+  </Icon>
+);
+
+export const ChartIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Icon>
+);
+
+export const FolderIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </Icon>
+);
+
+export const ListIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
+  </Icon>
+);
+
+export const WrenchIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3 6.3-6.3a4 4 0 0 1-5-5L13 5z" />
+    <path d="M3 21l6-6" />
+  </Icon>
+);
+
+export const WalletIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M3 7a2 2 0 0 1 2-2h13v4" />
+    <path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2z" />
+    <path d="M16 14.5h.01" />
+  </Icon>
+);
+
+export const DocumentIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" />
+    <path d="M14 3v5h5M8 13h8M8 17h5" />
+  </Icon>
+);
+
+export const CarIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M5 16V11l2-5h10l2 5v5" />
+    <path d="M3 16h18v3H3zM6 19v1.5M18 19v1.5M7 13h.01M17 13h.01" />
+  </Icon>
+);
+
+export const PhotoIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="m21 16-5-5-9 8" />
+  </Icon>
+);
+
+export const SparkIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" />
+  </Icon>
+);
+
+export const GearIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+  </Icon>
+);
+
+export const GridIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+    <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+  </Icon>
+);
+
+export const SunIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </Icon>
+);
+
+export const MoonIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
   </Icon>
 );

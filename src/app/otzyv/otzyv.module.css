@@ -1,10 +1,10 @@
 .page {
   --yellow: #c8b48e;
   --yellow-glow: rgb(200 180 142 / 0.5);
-  --bg: #16281f;
+  --bg: #1a2b20;
   --card: #1e362d;
   --line: rgb(255 255 255 / 0.08);
-  --muted: #b9c2bb;
+  --muted: color-mix(in srgb, #f3ede2 72%, #1e362d);
 
   position: relative;
   isolation: isolate;
@@ -62,7 +62,7 @@
   padding: 12px 16px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgb(22 40 31 / 0.6);
+  background: rgb(26 43 32 / 0.6);
   backdrop-filter: blur(10px);
 }
 

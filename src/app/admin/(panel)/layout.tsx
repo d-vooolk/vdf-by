@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { AdminNav } from "@/components/admin/AdminNav";
+import { ADMIN_THEME_COOKIE, BOTTOM_NAV_COOKIE, parseAdminTheme, parseBottomNav } from "@/lib/admin-prefs";
 import { countOpenServiceRequests } from "@/lib/service";
 import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
 import { countPendingWholesale } from "@/lib/customers";
 import { orderStats } from "@/lib/orders";
+
+import "../admin-theme.css";
 
 /**
  * Оболочка панели управления.
@@ -29,17 +33,21 @@ export default async function PanelLayout({
   const admin = await requireAdmin();
   const site = getSite();
   const { newCount } = orderStats();
+  const store = await cookies();
+  const theme = parseAdminTheme(store.get(ADMIN_THEME_COOKIE)?.value);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-brand-50 lg:flex-row">
+    <div data-admin-theme={theme} className="admin-panel flex min-h-dvh flex-col bg-brand-50 lg:flex-row">
       <AdminNav
         siteName={site.name}
         login={admin.login}
         newOrders={newCount}
         pendingWholesale={countPendingWholesale()}
         openService={countOpenServiceRequests()}
+        theme={theme}
+        bottomNav={parseBottomNav(store.get(BOTTOM_NAV_COOKIE)?.value)}
       />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main className="admin-main min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mx-auto w-full max-w-[1400px]">{children}</div>
       </main>
     </div>

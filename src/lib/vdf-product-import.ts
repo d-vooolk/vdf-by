@@ -5,7 +5,7 @@ import { categoryPaths, getCategoryById, invalidateCatalog } from "./catalog";
 import type { MoneySource } from "./currency";
 import { getDb } from "./db";
 import { downloadDonorImages } from "./donor-images";
-import { carCatalog, matchVdfCars } from "./frame-cars";
+import { carCatalog, matchFrameCars } from "./frame-cars";
 import { isFrameCategory } from "./frame-category";
 import { setFrameMembership } from "./frame-membership";
 import { splitFrameSku } from "./frame-sku";
@@ -467,8 +467,10 @@ export async function importNext(id: number): Promise<ImportLogEntry | null> {
     if (frameType) setFrameMembership(productId, { categoryId: job.category_id, type: frameType });
 
     if (isCarFitmentCategory(job.category_id)) {
-      const matches = matchVdfCars(carSources(main), carCatalog());
-      const generationIds = [...new Set(matches.flatMap((match) => match.generationIds))];
+      const generationIds = matchFrameCars(
+        { title: main.title, mark: main.mark, model: main.model, cars: carSources(main) },
+        carCatalog(),
+      );
       if (generationIds.length) {
         setProductCars(productId, generationIds);
         await fetchCarImages(generationIds);

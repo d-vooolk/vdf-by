@@ -1,0 +1,214 @@
+:root:has([data-admin-theme]) {
+  --a-bg: #f3f6f6;
+  --a-surface: #ffffff;
+  --a-ink: #1a2b20;
+  --a-green: #1e362d;
+  --a-green-light: #2f4a3d;
+  --a-brass: #c8b48e;
+  --a-brass-edge: #b8a586;
+  --a-bronze: #7a6a56;
+  --a-ivory: #f3ede2;
+  --a-cta: var(--a-green);
+  --a-cta-hover: var(--a-ink);
+  --a-cta-ink: var(--a-ivory);
+  --a-warn: var(--a-bronze);
+  --a-ok: var(--a-green);
+  --a-nav-bg: var(--a-green);
+  --a-nav-ink: color-mix(in srgb, var(--a-ivory) 60%, var(--a-green));
+  --a-nav-active: var(--a-brass);
+
+  --color-brand-50: color-mix(in srgb, var(--a-ink) 3%, var(--a-bg));
+  --color-brand-100: color-mix(in srgb, var(--a-ink) 10%, var(--a-surface));
+  --color-brand-200: color-mix(in srgb, var(--a-ink) 19%, var(--a-surface));
+  --color-brand-300: color-mix(in srgb, var(--a-ink) 40%, var(--a-surface));
+  --color-brand-400: color-mix(in srgb, var(--a-ink) 55%, var(--a-surface));
+  --color-brand-500: color-mix(in srgb, var(--a-ink) 66%, var(--a-surface));
+  --color-brand-600: color-mix(in srgb, var(--a-ink) 78%, var(--a-surface));
+  --color-brand-700: var(--a-green);
+  --color-brand-800: color-mix(in srgb, var(--a-ink) 94%, var(--a-surface));
+  --color-brand-900: var(--a-ink);
+  --color-white: var(--a-surface);
+  --color-accent-100: color-mix(in srgb, var(--a-green) 14%, var(--a-surface));
+  --color-accent-300: var(--a-green-light);
+  --color-accent-400: var(--a-green);
+  --color-accent-500: var(--a-ink);
+  --color-accent-600: var(--a-ink);
+  --color-accent-glow: rgb(30 54 45 / 0.22);
+
+  --color-amber-50: color-mix(in srgb, var(--a-brass) 14%, var(--a-surface));
+  --color-amber-100: color-mix(in srgb, var(--a-brass) 26%, var(--a-surface));
+  --color-amber-200: color-mix(in srgb, var(--a-brass) 45%, var(--a-surface));
+  --color-amber-300: var(--a-brass-edge);
+  --color-amber-400: var(--a-bronze);
+  --color-amber-600: var(--a-bronze);
+  --color-amber-700: color-mix(in srgb, var(--a-warn) 85%, var(--a-ink));
+  --color-amber-800: color-mix(in srgb, var(--a-warn) 70%, var(--a-ink));
+  --color-amber-900: color-mix(in srgb, var(--a-warn) 55%, var(--a-ink));
+  --color-amber-950: var(--a-ivory);
+  --color-green-50: color-mix(in srgb, var(--a-ok) 7%, var(--a-surface));
+  --color-green-100: color-mix(in srgb, var(--a-ok) 14%, var(--a-surface));
+  --color-green-200: color-mix(in srgb, var(--a-ok) 25%, var(--a-surface));
+  --color-green-300: color-mix(in srgb, var(--a-ok) 40%, var(--a-surface));
+  --color-green-600: var(--a-green-light);
+  --color-green-700: var(--a-ok);
+  --color-green-800: color-mix(in srgb, var(--a-ok) 80%, var(--a-ink));
+  --color-green-900: var(--a-ink);
+  --color-emerald-100: var(--color-green-100);
+  --color-emerald-700: var(--color-green-700);
+  --color-emerald-800: var(--color-green-800);
+  --color-sky-100: var(--color-green-100);
+  --color-sky-800: var(--color-green-800);
+  --color-sky-900: var(--color-green-900);
+  --color-blue-100: var(--color-green-100);
+  --color-blue-900: var(--color-green-900);
+  --color-violet-100: var(--color-amber-100);
+  --color-violet-900: var(--color-amber-900);
+}
+
+:root:has([data-admin-theme]) body {
+  background: var(--color-brand-50);
+}
+
+:root:has([data-admin-theme]) :is(.btn-primary, .btn-accent) {
+  background: var(--a-cta);
+  color: var(--a-cta-ink);
+  text-shadow: none;
+  box-shadow: none;
+}
+
+:root:has([data-admin-theme]) :is(.btn-primary, .btn-accent):hover {
+  background: var(--a-cta-hover);
+}
+
+:root:has([data-admin-theme]) ::selection {
+  background: var(--a-brass);
+  color: var(--a-ink);
+}
+
+@media (max-width: 1023.98px) {
+  :root:has([data-admin-theme="dark"]) {
+    --a-bg: #1a2b20;
+    --a-surface: #1e362d;
+    --a-ink: #f4f2ee;
+    --a-cta: var(--a-brass);
+    --a-cta-hover: var(--a-brass-edge);
+    --a-cta-ink: #1a2b20;
+    --a-warn: var(--a-brass);
+    --a-ok: var(--a-brass-edge);
+    --a-nav-bg: #1a2b20;
+    --a-nav-ink: color-mix(in srgb, var(--a-ivory) 55%, #1a2b20);
+
+    --color-brand-50: var(--a-bg);
+    --color-brand-100: color-mix(in srgb, var(--a-ink) 9%, var(--a-surface));
+    --color-brand-200: color-mix(in srgb, var(--a-ink) 18%, var(--a-surface));
+    --color-brand-300: color-mix(in srgb, var(--a-ink) 36%, var(--a-surface));
+    --color-brand-400: color-mix(in srgb, var(--a-ink) 50%, var(--a-surface));
+    --color-brand-500: color-mix(in srgb, var(--a-ink) 62%, var(--a-surface));
+    --color-brand-600: color-mix(in srgb, var(--a-ink) 76%, var(--a-surface));
+    --color-brand-700: var(--a-brass);
+    --color-brand-800: color-mix(in srgb, var(--a-ink) 92%, var(--a-surface));
+    --color-accent-100: color-mix(in srgb, var(--a-brass) 18%, var(--a-surface));
+    --color-accent-300: var(--a-brass-edge);
+    --color-accent-400: var(--a-brass);
+    --color-accent-500: var(--a-brass-edge);
+    --color-accent-600: var(--a-bronze);
+    --color-accent-glow: rgb(200 180 142 / 0.25);
+
+    --color-amber-50: color-mix(in srgb, var(--a-brass) 10%, var(--a-surface));
+    --color-amber-100: color-mix(in srgb, var(--a-brass) 18%, var(--a-surface));
+    --color-amber-200: color-mix(in srgb, var(--a-brass) 30%, var(--a-surface));
+    --color-amber-300: var(--a-bronze);
+    --color-amber-400: var(--a-brass);
+    --color-amber-700: var(--a-brass);
+    --color-amber-800: color-mix(in srgb, var(--a-brass) 60%, var(--a-ivory));
+    --color-amber-900: var(--a-ivory);
+    --color-amber-950: #1a2b20;
+    --color-green-50: color-mix(in srgb, var(--a-ink) 5%, var(--a-surface));
+    --color-green-100: color-mix(in srgb, var(--a-ink) 9%, var(--a-surface));
+    --color-green-200: color-mix(in srgb, var(--a-ink) 15%, var(--a-surface));
+    --color-green-300: var(--a-green-light);
+    --color-green-600: var(--a-brass-edge);
+    --color-green-700: var(--a-brass-edge);
+    --color-green-800: color-mix(in srgb, var(--a-brass-edge) 60%, var(--a-ivory));
+    --color-green-900: var(--a-ivory);
+
+    --color-red-50: color-mix(in srgb, oklch(0.577 0.245 27.325) 14%, var(--a-surface));
+    --color-red-100: color-mix(in srgb, oklch(0.577 0.245 27.325) 20%, var(--a-surface));
+    --color-red-200: color-mix(in srgb, oklch(0.577 0.245 27.325) 32%, var(--a-surface));
+    --color-red-300: color-mix(in srgb, oklch(0.577 0.245 27.325) 48%, var(--a-surface));
+    --color-red-400: oklch(0.704 0.191 22.216);
+    --color-red-600: oklch(0.808 0.114 19.571);
+    --color-red-700: oklch(0.808 0.114 19.571);
+    --color-red-800: oklch(0.885 0.062 18.334);
+    --color-red-900: oklch(0.936 0.032 17.717);
+    color-scheme: dark;
+  }
+}
+
+.admin-bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  height: calc(3.75rem + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--a-nav-bg);
+  border-top: 1px solid rgb(184 165 134 / 0.25);
+  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.25);
+}
+
+.admin-bottom-item {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--a-nav-ink);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  transition: color 0.15s ease;
+}
+
+.admin-bottom-item.is-active {
+  color: var(--a-nav-active);
+}
+
+.admin-bottom-item.is-active svg {
+  filter: drop-shadow(0 0 6px rgb(200 180 142 / 0.45));
+}
+
+.admin-bottom-badge {
+  position: absolute;
+  top: -6px;
+  left: calc(100% - 8px);
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--a-brass);
+  color: #1a2b20;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.admin-more-sheet {
+  bottom: calc(3.75rem + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1023.98px) {
+  .admin-main {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-bottom-nav {
+    display: none;
+  }
+}

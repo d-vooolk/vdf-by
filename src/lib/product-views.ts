@@ -49,3 +49,14 @@ export function newestProductIds(limit: number): string[] {
       .all(limit) as Array<{ id: string }>
   ).map((row) => row.id);
 }
+
+export function productViewCounts(days = POPULAR_DAYS): Map<string, number> {
+  const rows = getDb()
+    .prepare(
+      `SELECT product_id AS id, SUM(views) AS views FROM product_views
+        WHERE day >= ?
+        GROUP BY product_id`,
+    )
+    .all(dayKey(Date.now() - days * DAY_MS)) as Array<{ id: string; views: number }>;
+  return new Map(rows.map((row) => [row.id, row.views]));
+}

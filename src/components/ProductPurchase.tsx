@@ -293,7 +293,7 @@ export function ProductPurchase({
         {/* Ни серой подложки, ни рамки, ни внутреннего отступа: вместе они
             читались как паспарту вокруг снимка, а не как фото товара. */}
         {activeVideo ? (
-          <div className="relative aspect-square max-h-[min(26rem,48vh)] w-full overflow-hidden rounded-card bg-brand-900">
+          <div className="relative aspect-square w-full overflow-hidden rounded-card bg-brand-900">
             <video
               key={activeVideo.src}
               src={`/video/${activeVideo.src}`}
@@ -309,13 +309,13 @@ export function ProductPurchase({
         <button
           type="button"
           onClick={() => mainEntry && setLightbox(true)}
-          className="relative block aspect-square max-h-[min(26rem,48vh)] w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
+          className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-card bg-white"
           aria-label="Открыть фото на весь экран"
         >
           <Picture
             entry={mainEntry}
             alt={altText}
-            sizes="(max-width: 1024px) min(100vw, 26rem), 480px"
+            sizes="(max-width: 1024px) 100vw, 480px"
             priority
             className="h-full w-full object-contain"
           />

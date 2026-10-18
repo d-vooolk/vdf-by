@@ -13,26 +13,26 @@
      для текста и тёмных поверхностей. Контраст brand-700 на белом — 15:1,
      с запасом проходит AA даже для мелкого шрифта.
      Яркое выделение осталось ровно одно, и оно ниже — accent. */
-  --color-brand-50: #f5f6f3;
-  --color-brand-100: #eaebe7;
-  --color-brand-200: #d4d6d0;
-  --color-brand-300: #9fa29a;
-  --color-brand-400: #6e716a;
-  --color-brand-500: #53564f;
-  --color-brand-600: #393b36;
-  --color-brand-700: #242622;
-  --color-brand-800: #1a1b18;
-  --color-brand-900: #111210;
+  --color-brand-50: color-mix(in srgb, #1a2b20 4%, #f3f6f6);
+  --color-brand-100: color-mix(in srgb, #1a2b20 10%, #ffffff);
+  --color-brand-200: color-mix(in srgb, #1a2b20 19%, #ffffff);
+  --color-brand-300: color-mix(in srgb, #1a2b20 40%, #ffffff);
+  --color-brand-400: color-mix(in srgb, #1a2b20 55%, #ffffff);
+  --color-brand-500: color-mix(in srgb, #1a2b20 66%, #ffffff);
+  --color-brand-600: color-mix(in srgb, #1a2b20 78%, #ffffff);
+  --color-brand-700: #1e362d;
+  --color-brand-800: color-mix(in srgb, #1a2b20 94%, #ffffff);
+  --color-brand-900: #1a2b20;
 
   /* Акцент — лаймовый, как в Prime CRM. Единственный яркий цвет на сайте:
      главная кнопка, плашки, подсветка. Только для заливки и свечения, не для
      текста: на белом не проходит AA. */
-  --color-accent-100: #f0fad2;
-  --color-accent-300: #c4f03a;
-  --color-accent-400: #a2db00;
-  --color-accent-500: #8fc400;
-  --color-accent-600: #6f9900;
-  --color-accent-glow: rgb(162 219 0 / 0.45);
+  --color-accent-100: color-mix(in srgb, #1e362d 14%, #ffffff);
+  --color-accent-300: #2f4a3d;
+  --color-accent-400: #1e362d;
+  --color-accent-500: #1a2b20;
+  --color-accent-600: #1a2b20;
+  --color-accent-glow: rgb(200 180 142 / 0.45);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
@@ -221,7 +221,7 @@
     background:
       radial-gradient(
         60rem 28rem at 78% -12%,
-        rgb(162 219 0 / 0.16),
+        rgb(200 180 142 / 0.16),
         transparent 60%
       ),
       radial-gradient(
@@ -261,8 +261,8 @@
     border-radius: 9999px;
     background: radial-gradient(
       circle,
-      rgb(162 219 0 / 0.55),
-      rgb(162 219 0 / 0.12) 45%,
+      rgb(200 180 142 / 0.55),
+      rgb(200 180 142 / 0.12) 45%,
       transparent 70%
     );
     filter: blur(2.5rem);
@@ -314,7 +314,7 @@
     border-radius: 9999px;
     background: repeating-conic-gradient(
       from 0deg,
-      rgb(162 219 0 / 0.2) 0deg 4deg,
+      rgb(200 180 142 / 0.2) 0deg 4deg,
       transparent 4deg 22deg
     );
     mask-image: radial-gradient(circle, black 30%, transparent 70%);
@@ -336,10 +336,10 @@
       ),
       radial-gradient(
         circle at 50% 52%,
-        #fbfff0 0%,
-        #def79a 22%,
-        #a2db00 40%,
-        rgb(162 219 0 / 0.25) 56%,
+        #ffffff 0%,
+        #f3ede2 22%,
+        #c8b48e 40%,
+        rgb(200 180 142 / 0.25) 56%,
         transparent 70%
       ),
       radial-gradient(circle at 50% 50%, #ffffff, #f0f1ee 55%, #c2c5bd 100%);

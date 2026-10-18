@@ -47,6 +47,7 @@ async function ensureFramePhoto(categoryId: string, type: string, frame: Buffer)
     source: await framePhotoJpeg(sharp, frame),
     folder: path.posix.dirname(imagePath),
     filename: path.posix.basename(imagePath),
+    keepName: true,
   });
   return stored?.path ?? null;
 }

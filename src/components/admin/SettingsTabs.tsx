@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin/settings/features/", label: "Преимущества", id: "features" },
   { href: "/admin/settings/telegram/", label: "Telegram", id: "telegram" },
   { href: "/admin/settings/sms/", label: "SMS", id: "sms" },
+  { href: "/admin/settings/view/", label: "Вид админки", id: "view" },
 ] as const;
 
 export type SettingsTab = (typeof TABS)[number]["id"];

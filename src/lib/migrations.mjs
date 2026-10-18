@@ -694,6 +694,9 @@ export const MIGRATIONS = [
     ALTER TABLE orders ADD COLUMN edited_at INTEGER;
     ALTER TABLE orders ADD COLUMN review_sms_at INTEGER;
   `,
+  `
+    ALTER TABLE orders ADD COLUMN total_manual INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

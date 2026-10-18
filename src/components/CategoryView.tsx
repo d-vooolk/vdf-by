@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MarkChips } from "@/components/CarTiles";
+import { CategoryCarSearch } from "@/components/CategoryCarSearch";
+import { ExpandableMarks } from "@/components/ExpandableMarks";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { Faq } from "@/components/Faq";
 import { JsonLd } from "@/components/JsonLd";
@@ -11,8 +13,9 @@ import { WorkshopNote } from "@/components/WorkshopNote";
 import { WorkshopPhotos } from "@/components/WorkshopPhotos";
 import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
-import { carsRoot } from "@/lib/car-types";
+import { carsRoot, type FitMark } from "@/lib/car-types";
 import { getCarTree } from "@/lib/cars";
+import { listingProducts } from "@/lib/frame-listing";
 import Link from "next/link";
 
 import {
@@ -57,6 +60,17 @@ import { workshopPhotosFor } from "@/lib/workshop-photos";
  * /product/…, так что склейки в поиске это не создаёт.
  */
 
+const MARKS_SHOWN = 16;
+
+function popularMarks(marks: FitMark[]): Set<string> {
+  return new Set(
+    [...marks]
+      .sort((a, b) => b.productCount - a.productCount)
+      .slice(0, MARKS_SHOWN)
+      .map((mark) => mark.id),
+  );
+}
+
 function stockLine(
   total: number,
   available: number,
@@ -77,7 +91,7 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
   const marks = category.carFitment ? getCarTree(category.id) : [];
   const cheapest = cheapestPrice(products);
   const available = products.filter(hasAnyInStock).length;
-  const page = clampPage(products.length, listing.page);
+  const page = clampPage(listingProducts(category, products).length, listing.page);
 
   const description =
     category.seoDescription ??
@@ -94,7 +108,8 @@ export function categoryMetadata(category: Category, listing: ListingState): Met
       "Доставка по Минску и Беларуси, оплата при получении",
     );
 
-  const later = page > 1 ? laterPageMeta(category.name, page, products.length) : null;
+  const later =
+    page > 1 ? laterPageMeta(category.name, page, listingProducts(category, products).length) : null;
 
   return buildMetadata({
     title: later?.title ?? category.seoTitle ?? `${category.name} купить в Минске`,
@@ -181,7 +196,9 @@ export function CategoryView({
 
   // Товары подразделов входят в выдачу родителя: у самого родителя их нет,
   // и без них его страница была бы пустой в разметке ItemList.
-  const products = collection ? getProductsInCollection(category, collection) : getProductsInCategory(category.id);
+  const products = collection
+    ? getProductsInCollection(category, collection)
+    : listingProducts(category, getProductsInCategory(category.id));
   const marks = category.carFitment && !collection ? getCarTree(category.id) : [];
   const shown = listingPage(products, listing);
   const excerpt = collection ? collection.excerpt : category.excerpt;
@@ -237,13 +254,24 @@ export function CategoryView({
             Подбор по автомобилю
           </h2>
           <p className="mb-4 max-w-2xl text-sm text-brand-500">
-            Выберите марку — дальше модель и поколение. В подборе останется
-            только то, что встаёт на вашу машину без доработок.
+            Введите марку или модель либо выберите марку из списка — дальше
+            модель и поколение. В подборе останется только то, что встаёт на
+            вашу машину без доработок.
           </p>
-          <MarkChips
-            marks={marks}
-            base={carsRoot(category.slug)}
-          />
+          <div className="mb-4">
+            <CategoryCarSearch
+              categorySlug={category.slug}
+              base={carsRoot(category.slug)}
+              placeholder={`Поиск по авто: например, Camry 2015`}
+            />
+          </div>
+          <ExpandableMarks hidden={Math.max(0, marks.length - MARKS_SHOWN)}>
+            <MarkChips
+              marks={marks}
+              base={carsRoot(category.slug)}
+              shown={popularMarks(marks)}
+            />
+          </ExpandableMarks>
         </nav>
       )}
 

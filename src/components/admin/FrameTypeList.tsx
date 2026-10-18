@@ -32,6 +32,7 @@ interface FrameTypeListProps {
 
 const QUERY_LENGTH = 10;
 const URL_SYNC_DELAY = 400;
+const PAGE_SIZE = 60;
 
 function listHref(categoryId: string, query: string, stockOnly: boolean): string {
   const params = new URLSearchParams({ category: categoryId });
@@ -60,6 +61,8 @@ export function FrameTypeList({
   const query = useDeferredValue(normalizeQuery(input));
   const stale = query !== normalizeQuery(input);
   const urlTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const sentinel = useRef<HTMLDivElement>(null);
 
   const shown = useMemo(
     () =>
@@ -69,7 +72,23 @@ export function FrameTypeList({
     [rows, query],
   );
 
+  const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
+  const hasMore = visible.length < shown.length;
+
   useEffect(() => () => clearTimeout(urlTimer.current), []);
+
+  useEffect(() => {
+    const target = sentinel.current;
+    if (!target || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setLimit((current) => current + PAGE_SIZE);
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, visible.length]);
 
   const remember = (nextInput: string) => {
     clearTimeout(urlTimer.current);
@@ -86,6 +105,7 @@ export function FrameTypeList({
 
   const changeQuery = (value: string) => {
     setInput(value);
+    setLimit(PAGE_SIZE);
     remember(value);
   };
 
@@ -175,7 +195,14 @@ export function FrameTypeList({
         </p>
       ) : (
         <div className={`transition-opacity ${stale || switching ? "opacity-60" : ""}`}>
-          <FrameTypeRows rows={shown} categoryId={categoryId} />
+          <FrameTypeRows rows={visible} categoryId={categoryId} />
+          {hasMore && (
+            <div ref={sentinel} className="flex items-center justify-center gap-3 py-6 text-sm text-brand-500">
+              <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="btn-ghost text-sm">
+                Показать ещё · <span className="tnum">{visible.length} из {shown.length}</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -196,7 +223,7 @@ const FrameTypeRows = memo(function FrameTypeRows({
         {rows.map((row) => (
           <li
             key={row.type}
-            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 [contain-intrinsic-size:auto_4.5rem] [content-visibility:auto] sm:gap-x-4"
+            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 sm:gap-x-4"
           >
             <Link
               href={`/admin/frame-types/${row.type}/${categoryQuery}`}

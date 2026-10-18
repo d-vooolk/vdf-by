@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { logoutAction } from "@/app/admin/actions";
-import { ChevronDownIcon, CloseIcon, MenuIcon } from "@/components/icons";
+import { ChevronDownIcon, GridIcon, MoonIcon, SunIcon } from "@/components/icons";
+import { ADMIN_THEME_COOKIE, writeAdminCookie, type AdminTheme } from "@/lib/admin-prefs";
+
+import { bottomNavLinks, isGroup, NAV, NAV_LINKS, type NavGroup, type NavLink } from "./admin-nav-items";
 
 /**
  * Шапка админки: разделы, счётчик новых заказов, выход.
@@ -14,76 +17,44 @@ import { ChevronDownIcon, CloseIcon, MenuIcon } from "@/components/icons";
  * телефоне — данные приходят готовыми из макета.
  */
 
-interface NavLink {
-  href: string;
-  label: string;
-  exact?: boolean;
-  badge?: "orders" | "customers" | "service";
-}
-
-interface NavGroup {
-  label: string;
-  links: NavLink[];
-}
-
-const NAV: Array<NavLink | NavGroup> = [
-  {
-    label: "Сводка",
-    links: [
-      { href: "/admin/", label: "Общая", exact: true },
-      { href: "/admin/traffic/", label: "Посещаемость" },
-      { href: "/admin/seo/", label: "SEO" },
-    ],
-  },
-  {
-    label: "Товары",
-    links: [
-      { href: "/admin/products/", label: "Все товары" },
-      { href: "/admin/categories/", label: "Категории" },
-      { href: "/admin/incomplete/", label: "Незаполненные" },
-      { href: "/admin/out-of-stock/", label: "Нет в наличии" },
-      { href: "/admin/frame-types/", label: "Типы рамок" },
-    ],
-  },
-  { href: "/admin/orders/", label: "Заказы", badge: "orders" },
-  { href: "/admin/service-requests/", label: "Установка", badge: "service" },
-  { href: "/admin/customers/", label: "Покупатели", badge: "customers" },
-  { href: "/admin/accounting/", label: "Бухгалтерия" },
-  { href: "/admin/articles/", label: "Статьи" },
-  {
-    label: "Импорт",
-    links: [
-      { href: "/admin/vdf-catalog/", label: "Каталог VDF" },
-      { href: "/admin/vdf-prices/", label: "Курсы и цены" },
-    ],
-  },
-  {
-    label: "Справочник",
-    links: [
-      { href: "/admin/cars/", label: "Автомобили" },
-      { href: "/admin/media/", label: "Фото" },
-      { href: "/admin/unused-photos/", label: "Неиспользуемые фото" },
-      { href: "/admin/ai/", label: "Нейросеть для текста" },
-      { href: "/admin/composer/", label: "Генератор картинок" },
-    ],
-  },
-  { href: "/admin/settings/", label: "Настройки" },
-];
-
-const isGroup = (item: NavLink | NavGroup): item is NavGroup => "links" in item;
-
 interface AdminNavProps {
   siteName: string;
   login: string;
   newOrders: number;
   pendingWholesale: number;
   openService: number;
+  theme: AdminTheme;
+  bottomNav: string[] | null;
 }
 
-export function AdminNav({ siteName, login, newOrders, pendingWholesale, openService }: AdminNavProps) {
+export function AdminNav({
+  siteName,
+  login,
+  newOrders,
+  pendingWholesale,
+  openService,
+  theme,
+  bottomNav,
+}: AdminNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [openedAt, setOpenedAt] = useState(pathname);
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
+
+  if (openedAt !== pathname) {
+    setOpenedAt(pathname);
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href.replace(/\/$/, "") || pathname === href
@@ -98,6 +69,18 @@ export function AdminNav({ siteName, login, newOrders, pendingWholesale, openSer
           ? openService
           : 0;
 
+  const switchTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    writeAdminCookie(ADMIN_THEME_COOKIE, next);
+    document.querySelector("[data-admin-theme]")?.setAttribute("data-admin-theme", next);
+    router.refresh();
+  };
+
+  const bottomLinks = bottomNavLinks(bottomNav);
+  const moreLinks = NAV_LINKS.filter((link) => !bottomLinks.includes(link));
+  const moreActive = moreLinks.some((link) => isActive(link.href, link.exact));
+  const moreCount = moreLinks.reduce((sum, link) => sum + badgeCount(link.badge), 0);
+
   const renderLink = (link: NavLink, nested: boolean) => {
     const active = isActive(link.href, link.exact);
     const count = badgeCount(link.badge);
@@ -105,7 +88,6 @@ export function AdminNav({ siteName, login, newOrders, pendingWholesale, openSer
       <Link
         key={link.href}
         href={link.href}
-        onClick={() => setOpen(false)}
         aria-current={active ? "page" : undefined}
         className={`flex items-center gap-2 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${
           nested ? "pl-7" : "pl-3"
@@ -184,32 +166,95 @@ export function AdminNav({ siteName, login, newOrders, pendingWholesale, openSer
       </aside>
 
       <header className="sticky top-0 z-40 border-b border-brand-100 bg-white/95 backdrop-blur lg:hidden">
-        <div className="flex h-14 items-center gap-3 px-4">
-          <Link href="/admin/" className="shrink-0 text-sm font-semibold text-brand-900">
+        <div className="flex h-12 items-center gap-3 px-4">
+          <Link href="/admin/" className="min-w-0 truncate text-sm font-semibold text-brand-900">
             {siteName}
           </Link>
           <button
             type="button"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-            aria-label={open ? "Закрыть меню" : "Открыть меню"}
-            className="btn-ghost ml-auto px-2 py-1.5"
+            onClick={switchTheme}
+            aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+            title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+            className="btn-ghost ml-auto p-2"
           >
-            {open ? (
-              <CloseIcon className="h-5 w-5" />
-            ) : (
-              <MenuIcon className="h-5 w-5" />
-            )}
+            {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
           </button>
         </div>
-
-        {open && (
-          <div className="space-y-3 border-t border-brand-100 px-4 py-3">
-            <nav className="grid gap-1">{links}</nav>
-            {account}
-          </div>
-        )}
       </header>
+
+      <div
+        aria-hidden="true"
+        onClick={() => setOpen(false)}
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      />
+      <div
+        aria-hidden={!open}
+        inert={!open}
+        className={`admin-more-sheet fixed inset-x-0 z-40 max-h-[70dvh] overflow-y-auto rounded-t-3xl border-t border-brand-100 bg-white px-3 pt-3 pb-4 shadow-pop transition-transform duration-300 lg:hidden ${
+          open ? "translate-y-0" : "translate-y-[calc(100%+5rem)]"
+        }`}
+      >
+        <nav className="grid gap-0.5">
+          {moreLinks.map((link) => {
+            const active = isActive(link.href, link.exact);
+            const count = badgeCount(link.badge);
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-12 items-center gap-3.5 rounded-xl px-3 text-base ${
+                  active ? "bg-brand-100 font-semibold text-brand-900" : "text-brand-700"
+                }`}
+              >
+                <Icon className="h-5 w-5 shrink-0 text-brand-500" />
+                <span className="flex-1">{link.label}</span>
+                {count > 0 && <span className="badge tnum bg-amber-400 text-amber-950">{count}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-3 border-t border-brand-100 px-3 pt-3">{account}</div>
+      </div>
+
+      <nav aria-label="Основные разделы" className="admin-bottom-nav lg:hidden">
+        {bottomLinks.map((link) => {
+          const active = isActive(link.href, link.exact) && !open;
+          const count = badgeCount(link.badge);
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={active ? "page" : undefined}
+              className={`admin-bottom-item ${active ? "is-active" : ""}`}
+            >
+              <span className="relative">
+                <Icon className="h-[22px] w-[22px]" />
+                {count > 0 && <span className="admin-bottom-badge tnum">{count}</span>}
+              </span>
+              <span className="max-w-full truncate px-0.5">{link.label}</span>
+            </Link>
+          );
+        })}
+        {moreLinks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            className={`admin-bottom-item ${moreActive || open ? "is-active" : ""}`}
+          >
+            <span className="relative">
+              <GridIcon className="h-[22px] w-[22px]" />
+              {moreCount > 0 && !open && <span className="admin-bottom-badge tnum">{moreCount}</span>}
+            </span>
+            <span>Ещё</span>
+          </button>
+        )}
+      </nav>
     </>
   );
 }

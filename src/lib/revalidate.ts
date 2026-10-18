@@ -42,6 +42,13 @@ const CAR_TEMPLATES = [
   "/catalog/[category]/[branch]/[model]/[generation]",
 ];
 
+function carTreePaths(paths: Iterable<string>): string[] {
+  return [...paths].flatMap((path) => {
+    const match = path.match(/^\/catalog\/([^/]+)\/?$/);
+    return match ? [`/car-tree/${match[1]}`] : [];
+  });
+}
+
 function revalidateAll(paths: Iterable<string>): void {
   for (const path of paths) revalidatePath(path);
 }
@@ -94,6 +101,7 @@ export function revalidateProduct(
   // родителя тоже пересобираются — там поменялись состав и счётчик.
   for (const path of previous?.categoryPaths ?? []) paths.add(trim(path));
   for (const path of previous?.carPaths ?? []) paths.add(trim(path));
+  for (const path of carTreePaths([...categoryPaths, ...(previous?.categoryPaths ?? [])])) paths.add(path);
 
   revalidateAll(paths);
   revalidatePath(LISTING_TEMPLATE, "page");
@@ -117,6 +125,7 @@ export function revalidateCategory(
 ): void {
   const all = new Set(SHARED);
   for (const path of [...paths, ...previousPaths]) all.add(trim(path));
+  for (const path of carTreePaths([...paths, ...previousPaths])) all.add(path);
 
   // Название и порядок раздела стоят в меню, а оно в общем макете —
   // страницы товаров тоже надо пересобрать.

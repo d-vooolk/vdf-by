@@ -7,13 +7,6 @@ export interface ParsedCar {
   yearTo: number | null;
 }
 
-export interface CarMatch {
-  source: string;
-  generationIds: string[];
-  names: string[];
-  approximate: boolean;
-}
-
 interface GenerationRow {
   id: string;
   name: string;
@@ -147,32 +140,86 @@ function pickGenerations(car: ParsedCar, model: ModelRow): GenerationRow[] {
   return candidates;
 }
 
-export function matchVdfCars(sources: string[], catalog: MarkRow[] = loadCatalog()): CarMatch[] {
-  return sources.map((source) => {
-    const car = parseVdfCar(source);
-    if (!car) return { source, generationIds: [], names: [], approximate: false };
-    const head = MARK_ALIASES.reduce(
-      (text, [pattern, replacement]) => text.replace(pattern, replacement),
-      normalize(car.head),
-    );
-    const mark = longestPrefix(catalog, head);
-    if (!mark) return { source, generationIds: [], names: [], approximate: false };
-    const rest = head.slice(normalize(mark.name).length).trim();
-    const model = longestPrefix(mark.models, rest);
-    if (!model) return { source, generationIds: [], names: [], approximate: false };
-    const generations = pickGenerations(car, model);
-    return {
-      source,
-      approximate: normalize(model.name) !== rest,
-      generationIds: generations.map((generation) => generation.id),
-      names: generations.map(
-        (generation) =>
-          `${mark.name} ${model.name} ${generation.name} ${generation.yearFrom ?? ""}–${generation.yearTo ?? ""}`,
-      ),
-    };
-  });
-}
-
 export function carCatalog(): MarkRow[] {
   return loadCatalog();
+}
+
+export interface FrameCarSource {
+  title: string;
+  mark: string;
+  model: string;
+  cars: string[];
+}
+
+interface ResolvedCar {
+  mark: MarkRow;
+  model: ModelRow;
+  generations: GenerationRow[];
+}
+
+function resolveCar(source: string, catalog: MarkRow[]): ResolvedCar | null {
+  const car = parseVdfCar(source);
+  if (!car) return null;
+  const head = MARK_ALIASES.reduce(
+    (text, [pattern, replacement]) => text.replace(pattern, replacement),
+    normalize(car.head),
+  );
+  const mark = longestPrefix(catalog, head);
+  if (!mark) return null;
+  const model = longestPrefix(mark.models, head.slice(normalize(mark.name).length).trim());
+  if (!model) return null;
+  return { mark, model, generations: pickGenerations(car, model) };
+}
+
+const TITLE_YEARS = /((?:19|20)\d\d)\s*[—–-]\s*((?:19|20)\d\d)?/;
+
+export function titleCarSource({ title, mark, model }: FrameCarSource): string | null {
+  if (!mark || !model) return null;
+  const text = normalize(title);
+  const name = normalize(`${mark} ${model}`);
+  const at = ` ${text} `.indexOf(` ${name} `);
+  const years = title.match(TITLE_YEARS);
+  if (at < 0 || !years) return null;
+  const tail = text.slice(at + name.length).trim();
+  const yearsAt = tail.search(/\b(?:19|20)\d\d\b/);
+  const hint = yearsAt > 0 ? tail.slice(0, yearsAt).trim() : "";
+  return `${mark} ${model} (${hint ? `${hint} ` : ""}(${years[1]}—${years[2] ?? ""}))`;
+}
+
+function titleYears(title: string): ParsedCar | null {
+  const years = title.match(TITLE_YEARS);
+  if (!years) return null;
+  return {
+    head: "",
+    label: "",
+    yearFrom: Number(years[1]),
+    yearTo: years[2] ? Number(years[2]) : new Date().getFullYear(),
+  };
+}
+
+export function modelFitsTitle(modelName: string, expectedModel: string, title: string): boolean {
+  const model = normalize(modelName);
+  const expected = normalize(expectedModel);
+  if (model === expected || startsWithWords(model, expected)) return true;
+  return ` ${normalize(title)} `.includes(` ${model} `) && !startsWithWords(expected, model);
+}
+
+export function matchFrameCars(source: FrameCarSource, catalog: MarkRow[] = loadCatalog()): string[] {
+  const titleSource = titleCarSource(source);
+  const expected = titleSource ? resolveCar(titleSource, catalog) : null;
+  const listed = source.cars
+    .map((car) => resolveCar(car, catalog))
+    .filter((car): car is ResolvedCar => car !== null);
+
+  const listedFits =
+    !expected || listed.some((car) => modelFitsTitle(car.model.name, expected.model.name, source.title));
+
+  const years = titleYears(source.title);
+  const kept = listedFits
+    ? listed.flatMap((car) =>
+        car.generations.filter((generation) => !years || overlapYears(years, generation) >= 0),
+      )
+    : [];
+  const generations = kept.length ? kept : (expected?.generations ?? []);
+  return [...new Set(generations.map((generation) => generation.id))];
 }

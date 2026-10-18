@@ -630,3 +630,21 @@
   bottom: -3%;
   height: 70%;
 }
+
+:root:has(.theme-heritage) {
+  --color-amber-50: color-mix(in srgb, #c8b48e 14%, #ffffff);
+  --color-amber-100: color-mix(in srgb, #c8b48e 26%, #ffffff);
+  --color-amber-300: #b8a586;
+  --color-amber-400: #b8a586;
+  --color-amber-600: #7a6a56;
+  --color-amber-700: #7a6a56;
+  --color-amber-800: color-mix(in srgb, #7a6a56 70%, #1a2b20);
+  --color-amber-900: color-mix(in srgb, #7a6a56 55%, #1a2b20);
+  --color-green-50: color-mix(in srgb, #1e362d 7%, #ffffff);
+  --color-green-100: color-mix(in srgb, #1e362d 14%, #ffffff);
+  --color-green-600: #2f4a3d;
+  --color-green-700: #1e362d;
+  --color-green-800: #1e362d;
+  --color-green-900: #1a2b20;
+  --color-red-500: #7a6a56;
+}

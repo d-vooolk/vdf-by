@@ -14,7 +14,7 @@ const GAP = 10;
 const HIGH = 0.44;
 const LOW = 0.6;
 const BAND_COLOR = "#1e362d";
-const BAND_COLOR_LIGHT = "#33503f";
+const BAND_COLOR_LIGHT = "#2f4a3d";
 const BAND_EDGE = "#b8a586";
 const BAND_TEXT = "#c8b48e";
 const TEXT_HEIGHT = 0.4;
@@ -205,7 +205,7 @@ async function productLayer(
   let image = await trimmed(product);
   if (mirror) image = image.flop();
   const { data, info } = await image
-    .resize(Math.round(boxWidth * factor), Math.round(boxHeight * factor), {
+    .resize(Math.min(CANVAS, Math.round(boxWidth * factor)), Math.min(CANVAS, Math.round(boxHeight * factor)), {
       fit: "inside",
       withoutEnlargement: false,
     })

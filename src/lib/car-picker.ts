@@ -18,9 +18,9 @@ export function pickerMarks(): PickerMarkHead[] {
 // Дерево для выбора машины уезжает в разметку главной, поэтому ключи
 // короткие, а годы посчитаны здесь: считать их в браузере значило бы
 // тащить туда же текущую дату и правила подписи.
-export function pickerTree(): PickerMark[] {
+export function pickerTree(categoryId?: string): PickerMark[] {
   const currentYear = new Date().getFullYear();
-  return getCarTree().map((mark) => ({
+  return getCarTree(categoryId).map((mark) => ({
     s: mark.slug,
     n: mark.name,
     m: mark.models.map((model) => ({
