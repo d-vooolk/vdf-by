@@ -45,19 +45,30 @@ export interface PickerMark extends PickerMarkHead {
   m: PickerModel[];
 }
 
-let treeRequest: Promise<PickerMark[]> | null = null;
+const treeRequests = new Map<string, Promise<PickerMark[]>>();
 
-function loadTree(): Promise<PickerMark[]> {
-  treeRequest ??= fetch("/car-tree.json")
+function loadTree(url: string): Promise<PickerMark[]> {
+  const cached = treeRequests.get(url);
+  if (cached) return cached;
+  const request = fetch(url)
     .then((response) => (response.ok ? (response.json() as Promise<PickerMark[]>) : []))
     .catch(() => {
-      treeRequest = null;
+      treeRequests.delete(url);
       return [];
     });
-  return treeRequest;
+  treeRequests.set(url, request);
+  return request;
 }
 
-export function CarPicker({ marks }: { marks: PickerMarkHead[] }) {
+export function CarPicker({
+  marks,
+  treeUrl = "/car-tree.json",
+  base,
+}: {
+  marks: PickerMarkHead[];
+  treeUrl?: string;
+  base?: string;
+}) {
   const router = useRouter();
   const [tree, setTree] = useState<PickerMark[] | null>(null);
   const [markSlug, setMarkSlug] = useState("");
@@ -65,7 +76,7 @@ export function CarPicker({ marks }: { marks: PickerMarkHead[] }) {
   const [generationSlug, setGenerationSlug] = useState("");
 
   const prefetchTree = () => {
-    if (!tree) void loadTree().then(setTree);
+    if (!tree) void loadTree(treeUrl).then(setTree);
   };
 
   const markHead = marks.find((item) => item.s === markSlug);
@@ -92,11 +103,11 @@ export function CarPicker({ marks }: { marks: PickerMarkHead[] }) {
 
   const target =
     mark && model && generation
-      ? generationUrl(mark.s, model.s, generation.s)
+      ? generationUrl(mark.s, model.s, generation.s, base)
       : mark && model
-        ? modelUrl(mark.s, model.s)
+        ? modelUrl(mark.s, model.s, base)
         : markHead
-          ? markUrl(markHead.s)
+          ? markUrl(markHead.s, base)
           : "";
 
   return (

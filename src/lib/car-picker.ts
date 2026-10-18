@@ -5,8 +5,8 @@ import { getCarTree } from "./cars";
 import { pickUrl } from "./image-types";
 import { getImage } from "./images";
 
-export function pickerMarks(): PickerMarkHead[] {
-  return getCarTree().map((mark) => ({
+export function pickerMarks(categoryId?: string): PickerMarkHead[] {
+  return getCarTree(categoryId).map((mark) => ({
     s: mark.slug,
     n: mark.name,
     // Ссылку на логотип считаем здесь: манифест картинок серверный, в

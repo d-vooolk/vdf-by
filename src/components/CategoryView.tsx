@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { MarkChips } from "@/components/CarTiles";
-import { CategoryCarSearch } from "@/components/CategoryCarSearch";
+import { CarPicker } from "@/components/CarPicker";
 import { ExpandableMarks } from "@/components/ExpandableMarks";
 import { CategoryGrid } from "@/components/CategoryTile";
 import { Faq } from "@/components/Faq";
@@ -14,6 +14,7 @@ import { WorkshopPhotos } from "@/components/WorkshopPhotos";
 import { articlesForCategory } from "@/lib/articles";
 import { ProductListing } from "@/components/ProductListing";
 import { carsRoot, type FitMark } from "@/lib/car-types";
+import { pickerMarks } from "@/lib/car-picker";
 import { getCarTree } from "@/lib/cars";
 import { listingProducts } from "@/lib/frame-listing";
 import Link from "next/link";
@@ -254,15 +255,14 @@ export function CategoryView({
             Подбор по автомобилю
           </h2>
           <p className="mb-4 max-w-2xl text-sm text-brand-500">
-            Введите марку или модель либо выберите марку из списка — дальше
-            модель и поколение. В подборе останется только то, что встаёт на
-            вашу машину без доработок.
+            Выберите марку — дальше модель и поколение. В подборе останется
+            только то, что встаёт на вашу машину без доработок.
           </p>
-          <div className="mb-4">
-            <CategoryCarSearch
-              categorySlug={category.slug}
+          <div className="card mb-5 p-4 sm:p-5">
+            <CarPicker
+              marks={pickerMarks(category.id)}
+              treeUrl={`/car-tree/${category.slug}/`}
               base={carsRoot(category.slug)}
-              placeholder={`Поиск по авто: например, Camry 2015`}
             />
           </div>
           <ExpandableMarks hidden={Math.max(0, marks.length - MARKS_SHOWN)}>
