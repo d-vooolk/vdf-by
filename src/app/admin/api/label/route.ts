@@ -1,8 +1,10 @@
 import { getAdmin } from "@/lib/auth";
 import { normalizeFrameType } from "@/lib/frame-sku";
-import { frameTypeLabel, productLabel, renderLabelHtml } from "@/lib/label";
+import { frameTypeLabel, productLabel, renderFrameNumberHtml, renderLabelHtml } from "@/lib/label";
 
 export const dynamic = "force-dynamic";
+
+const HTML_HEADERS = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
 
 export async function GET(request: Request) {
   if (!(await getAdmin())) return new Response("Нужно войти заново", { status: 401 });
@@ -15,7 +17,8 @@ export async function GET(request: Request) {
       ? frameTypeLabel(params.get("category") ?? "", normalizeFrameType(type))
       : null;
   if (!label) return new Response("Нечего печатать", { status: 404 });
-  return new Response(await renderLabelHtml(label), {
-    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
-  });
+  if (type && !productId && params.get("layout") === "number") {
+    return new Response(renderFrameNumberHtml(normalizeFrameType(type)), { headers: HTML_HEADERS });
+  }
+  return new Response(await renderLabelHtml(label), { headers: HTML_HEADERS });
 }

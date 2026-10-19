@@ -184,6 +184,40 @@ body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: ex
 .with-marks.with-cars .title { -webkit-line-clamp: 2; }
 `;
 
+const NUMBER_LABEL_CSS = `
+@page { size: 58mm 40mm; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 58mm; height: 40mm; background: #fff; color: #000; }
+body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.label { width: 58mm; height: 40mm; padding: 1.5mm; overflow: hidden; }
+.number {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; line-height: 1; white-space: nowrap; letter-spacing: -0.02em;
+}
+`;
+
+function frameNumberFontSize(text: string): number {
+  const usableWidthMm = 53;
+  const maxHeightMm = 34;
+  const glyphWidthEm = 0.6;
+  return Math.min(maxHeightMm, usableWidthMm / (glyphWidthEm * Math.max(text.length, 1)));
+}
+
+export function renderFrameNumberHtml(type: string): string {
+  const fontSize = frameNumberFontSize(type).toFixed(1);
+  return `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(type)}</title>
+<style>${NUMBER_LABEL_CSS}</style>
+</head>
+<body>
+<div class="label"><div class="number" style="font-size:${fontSize}mm">${escapeHtml(type)}</div></div>
+</body>
+</html>`;
+}
+
 export async function renderLabelHtml(label: LabelData): Promise<string> {
   const qr = await QRCode.toString(label.link, {
     type: "svg",
