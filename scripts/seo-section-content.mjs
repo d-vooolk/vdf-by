@@ -23,6 +23,7 @@ function arg(name, fallback) {
 }
 
 const apply = process.argv.includes("--apply");
+const overwriteTexts = process.argv.includes("--overwrite-texts");
 const port = arg("port", env("PORT", "3011"));
 const libraryDir = arg("library", "/var/www/prime-auto/var/uploads/library");
 const contentFile = arg("content", null);
@@ -55,6 +56,14 @@ const readSetting = db.prepare("SELECT value FROM settings WHERE key = ?");
 const writeSetting = db.prepare(
   `INSERT INTO settings (key, value) VALUES (?, ?)
    ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+);
+const findModel = db.prepare(
+  "SELECT mo.id, mo.name, m.name AS mark FROM car_models mo JOIN car_marks m ON m.id = mo.mark_id WHERE m.slug = ? AND mo.slug = ?",
+);
+const readCarText = db.prepare("SELECT text FROM car_texts WHERE category_id = ? AND model_id = ?");
+const writeCarText = db.prepare(
+  `INSERT INTO car_texts (category_id, model_id, text, updated_at) VALUES (?, ?, ?, ?)
+   ON CONFLICT (category_id, model_id) DO UPDATE SET text = excluded.text, updated_at = excluded.updated_at`,
 );
 const bump = db.prepare(
   `INSERT INTO settings (key, value) VALUES (?, '1')
@@ -130,6 +139,56 @@ function planWorkshopPhotos() {
   return JSON.stringify(sets) === before ? null : sets;
 }
 
+function readCarTexts(file) {
+  const texts = new Map();
+  let key = null;
+  for (const line of fs.readFileSync(path.resolve(ROOT, file), "utf8").replace(/\r\n?/g, "\n").split("\n")) {
+    const heading = line.match(/^##\s+(\S+)\s*$/);
+    if (heading) {
+      key = heading[1];
+      texts.set(key, []);
+    } else if (key) {
+      texts.get(key).push(line);
+    }
+  }
+  return [...texts].map(([entry, lines]) => [
+    entry,
+    lines
+      .join("\n")
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.replace(/\s*\n\s*/g, " ").trim())
+      .filter(Boolean)
+      .join("\n\n"),
+  ]);
+}
+
+function planCarTexts() {
+  if (!CONTENT.carTextsFile) return [];
+  const categoryId = readCategory.get(CONTENT.category.slug)?.id;
+  const plan = [];
+  for (const [entry, text] of readCarTexts(CONTENT.carTextsFile)) {
+    const [markSlug, modelSlug] = entry.split("/");
+    const model = findModel.get(markSlug, modelSlug);
+    if (!model) {
+      problems.push(`текст модели ${entry}: нет такой модели`);
+      continue;
+    }
+    if (!text) {
+      problems.push(`текст модели ${entry}: пустой`);
+      continue;
+    }
+    const existing = readCarText.get(categoryId, model.id)?.text;
+    if (existing === text) continue;
+    if (existing && !overwriteTexts) {
+      say(`текст ${model.mark} ${model.name}: уже есть другой, не трогаю — перезаписать можно с --overwrite-texts`);
+      continue;
+    }
+    say(`текст ${model.mark} ${model.name}: ${existing ? "заменить" : "добавить"}, ${text.length} знаков`);
+    plan.push({ categoryId, modelId: model.id, text });
+  }
+  return plan;
+}
+
 async function importLibraryPhotos() {
   const stored = [];
   for (const [target, source] of libraryPhotos) {
@@ -160,6 +219,7 @@ async function revalidate() {
 planLibraryPhotos();
 const category = planCategory();
 const workshopSets = planWorkshopPhotos();
+const carTexts = planCarTexts();
 
 if (problems.length) {
   console.log(`\nОшибки:\n${problems.map((line) => `- ${line}`).join("\n")}`);
@@ -168,7 +228,7 @@ if (problems.length) {
 
 if (!apply) {
   console.log(
-    `\nПроверка: раздел ${category ? "меняется" : "без изменений"}, фото мастерской ${workshopSets ? "меняются" : "без изменений"}, новых фото ${libraryPhotos.length}. Ничего не записано — запустите с --apply.`,
+    `\nПроверка: раздел ${category ? "меняется" : "без изменений"}, фото мастерской ${workshopSets ? "меняются" : "без изменений"}, новых фото ${libraryPhotos.length}, текстов моделей ${carTexts.length}. Ничего не записано — запустите с --apply.`,
   );
   process.exit(0);
 }
@@ -195,6 +255,7 @@ db.transaction(() => {
   }
   if (category) writeCategory.run(JSON.stringify(category.data), now, category.id);
   if (workshopSets) writeSetting.run("workshop_photos", JSON.stringify(workshopSets));
+  for (const entry of carTexts) writeCarText.run(entry.categoryId, entry.modelId, entry.text, now);
   bump.run("counter:catalog");
   if (photos.length) bump.run("counter:images");
 })();
@@ -203,4 +264,4 @@ await revalidate();
 
 const reportFile = path.join(ROOT, "var", `${label}-${now}.txt`);
 fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
-console.log(`\nГотово: раздел ${category ? "обновлён" : "без изменений"}, новых фото ${photos.length}. Отчёт: ${path.relative(ROOT, reportFile)}`);
+console.log(`\nГотово: раздел ${category ? "обновлён" : "без изменений"}, новых фото ${photos.length}, текстов моделей ${carTexts.length}. Отчёт: ${path.relative(ROOT, reportFile)}`);
