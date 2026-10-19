@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Faq } from "@/components/Faq";
 import { ProductCars } from "@/components/ProductCars";
 import { ProductCarSections } from "@/components/ProductCarSections";
+import { FrameLenses } from "@/components/FrameLenses";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
@@ -26,6 +27,7 @@ import { carsRoot } from "@/lib/car-types";
 import { getFrameTypeCars, getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { fitCheckMessage, getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
+import { lensesForFrames } from "@/lib/frame-lenses";
 import { frameMembershipOf, specsWithFrameType } from "@/lib/frame-membership";
 import { pickImages } from "@/lib/images";
 import { articlesForProduct } from "@/lib/articles";
@@ -282,6 +284,14 @@ export default async function ProductPage({ params }: PageProps) {
         )}
         <ProductCars cars={cars} base={carsRoot(category?.slug)} sameFrame={sameFrame} />
       </div>
+
+      {category?.frameTypes && (
+        <FrameLenses
+          lenses={lensesForFrames([product])}
+          title="Линзы для этой рамки"
+          currencySymbol={site.currencySymbol}
+        />
+      )}
 
       {category?.carFitment && (
         <ProductCarSections category={category} categoryHref={categoryUrl(category)} groups={carSections} />

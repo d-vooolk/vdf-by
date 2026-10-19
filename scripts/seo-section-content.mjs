@@ -117,6 +117,24 @@ function planCategory() {
     say(`раздел ${spec.slug}: ответ на «${question}» заменён`);
     item.a = answer;
   }
+  for (const [slug, fields] of Object.entries(spec.collections ?? {})) {
+    const collection = (data.collections ?? []).find((entry) => entry.slug === slug);
+    if (!collection) {
+      problems.push(`раздел ${spec.slug}: нет подборки ${slug}`);
+      continue;
+    }
+    if (fields.seoTitle && fields.seoTitle.length + BRAND_SUFFIX_LENGTH > TITLE_LIMIT) {
+      problems.push(`подборка ${slug}: title ${fields.seoTitle.length} знаков — не влезет с « — VDF.BY»`);
+    }
+    if (fields.seoDescription && fields.seoDescription.length > 165) {
+      problems.push(`подборка ${slug}: описание для поиска ${fields.seoDescription.length} знаков`);
+    }
+    for (const [field, value] of Object.entries(fields)) {
+      if (JSON.stringify(collection[field] ?? null) === JSON.stringify(value)) continue;
+      say(`подборка ${slug}: ${field} ${collection[field] === undefined ? "добавлено" : "заменено"}`);
+      collection[field] = value;
+    }
+  }
   for (const entry of spec.faqAppend ?? []) {
     if ((data.faq ?? []).some((item) => item.q.trim() === entry.q)) continue;
     data.faq = [...(data.faq ?? []), entry];

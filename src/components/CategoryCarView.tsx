@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GenerationList, ModelList } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { Faq } from "@/components/Faq";
+import { FrameLenses } from "@/components/FrameLenses";
 import { JsonLd } from "@/components/JsonLd";
 import { ListingFacts } from "@/components/ListingFacts";
 import { ProductCard } from "@/components/ProductCard";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/cars";
 import { carFaq, oemNumbers } from "@/lib/car-content";
 import { carTextParagraphs, getCarText } from "@/lib/car-texts";
+import { lensesForFrames } from "@/lib/frame-lenses";
 import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
@@ -295,6 +297,15 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
         </section>
       )}
 
+      {category.frameTypes && (
+        <FrameLenses
+          lenses={lensesForFrames(products)}
+          title={`Би-LED линзы для ${mark.name}`}
+          currencySymbol={site.currencySymbol}
+          several
+        />
+      )}
+
       <RelatedNav
         title={`Что ещё подходит к ${mark.name}`}
         related={related}
@@ -418,6 +429,15 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
             <p key={index}>{paragraph}</p>
           ))}
         </section>
+      )}
+
+      {category.frameTypes && (
+        <FrameLenses
+          lenses={lensesForFrames(products)}
+          title={`Би-LED линзы для ${title}`}
+          currencySymbol={site.currencySymbol}
+          several
+        />
       )}
 
       <RelatedNav
@@ -556,6 +576,15 @@ export function CategoryGenerationView({
             })}
           </ul>
         </nav>
+      )}
+
+      {category.frameTypes && (
+        <FrameLenses
+          lenses={lensesForFrames(products)}
+          title={`Би-LED линзы для ${title}`}
+          currencySymbol={site.currencySymbol}
+          several={products.length > 1}
+        />
       )}
 
       <RelatedNav
