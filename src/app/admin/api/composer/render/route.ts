@@ -2,6 +2,7 @@ import { getAdmin } from "@/lib/auth";
 import { getCarFrontPhoto, readCarFrontPhoto } from "@/lib/car-photos";
 import { isBackground } from "@/lib/composer";
 import { storeImage } from "@/lib/image-store";
+import { isMarket } from "@/lib/market-flags";
 import { composeInWorker } from "@/lib/ml";
 import { revalidateImages } from "@/lib/revalidate";
 
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
   }
 
   const background = form.get("background");
+  const market = form.get("market");
 
   try {
     const image = await composeInWorker({
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
       carShiftX: numberField(form, "carShiftX", 0.5),
       carZoom: numberField(form, "carZoom", 1),
       background: isBackground(background) ? background : "white",
+      market: isMarket(market) ? market : "",
     });
 
     if (form.get("save") !== "1") {

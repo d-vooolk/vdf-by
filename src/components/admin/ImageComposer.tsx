@@ -16,6 +16,7 @@ import {
 } from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
 import type { Background, ComposerSettings } from "@/lib/composer";
+import { flagSvg, MARKETS, type Market } from "@/lib/market-flags";
 import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
@@ -75,6 +76,8 @@ interface ImageComposerProps {
   productHeading?: string;
   uploadLabel?: string;
   labelNote?: string;
+  initialMarket?: Market | "";
+  showMarket?: boolean;
   actions?: (state: ComposerState) => ReactNode;
 }
 
@@ -90,6 +93,7 @@ interface RenderSettings {
   carShiftX: number;
   carZoom: number;
   background: Background;
+  market: Market | "";
 }
 
 const BACKGROUND_OPTIONS: Array<{ value: Background; label: string; swatch: string }> = [
@@ -153,6 +157,7 @@ function renderForm(settings: RenderSettings): FormData {
   form.set("carShiftX", String(settings.carShiftX));
   form.set("carZoom", String(settings.carZoom));
   form.set("background", settings.background);
+  form.set("market", settings.market);
   return form;
 }
 
@@ -166,6 +171,8 @@ export function ImageComposer({
   productHeading = "Товар",
   uploadLabel = "Загрузить фото товара",
   labelNote,
+  initialMarket = "",
+  showMarket = true,
   actions,
 }: ImageComposerProps) {
   const [marks, setMarks] = useState<AdminMark[] | null>(null);
@@ -195,6 +202,7 @@ export function ImageComposer({
   const [carShiftX, setCarShiftX] = useState(initialSettings?.carShiftX ?? 0.5);
   const [carZoom, setCarZoom] = useState(initialSettings?.carZoom ?? 1);
   const [background, setBackground] = useState<Background>(initialSettings?.background ?? "white");
+  const [market, setMarket] = useState<Market | "">(showMarket ? initialMarket : "");
 
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -277,7 +285,7 @@ export function ImageComposer({
       setRendering(true);
       setError("");
       try {
-        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background });
+        const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background, market });
         const response = await fetch("/admin/api/composer/render/", { method: "POST", body: form });
         if (!response.ok) throw new Error(await readError(response));
         const blob = await response.blob();
@@ -304,6 +312,7 @@ export function ImageComposer({
     carShiftX,
     carZoom,
     background,
+    market,
   ]);
 
   const runCutout = async (image: Blob) => {
@@ -437,7 +446,7 @@ export function ImageComposer({
     setSaving(true);
     setError("");
     try {
-      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background });
+      const form = renderForm({ product, generationId, label, mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background, market });
       form.set("save", "1");
       form.set("filename", filename);
       if (folder) form.set("folder", folder);
@@ -624,6 +633,31 @@ export function ImageComposer({
               />
             </div>
           </div>
+          {showMarket && (
+            <div>
+              <span className="label">Рынок — для какой страны эта модификация</span>
+              <Segmented
+                label="Рынок"
+                value={market}
+                onChange={setMarket}
+                options={[
+                  { value: "" as const, label: "Нет" },
+                  ...MARKETS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    icon: (
+                      <span
+                        aria-hidden
+                        className="inline-flex overflow-hidden rounded-[3px] ring-1 ring-brand-200"
+                        dangerouslySetInnerHTML={{ __html: flagSvg(option.value, 21, 14) }}
+                      />
+                    ),
+                  })),
+                ]}
+              />
+              <p className="mt-1 text-xs text-brand-400">Флажок ставится в правый верхний угол над фарой.</p>
+            </div>
+          )}
           <div className="flex flex-wrap gap-x-8 gap-y-2">
             <Switch
               checked={mirrorProduct}
@@ -713,7 +747,7 @@ export function ImageComposer({
         {actions ? (
           actions({
             product,
-            settings: { mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background },
+            settings: { mirrorProduct, mirrorCar, slope, productScale, carShift, carShiftX, carZoom, background, market },
             ready: Boolean(product && preview && !rendering && !cutting),
           })
         ) : (

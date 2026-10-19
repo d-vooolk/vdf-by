@@ -188,6 +188,7 @@ export function FrameTypeComposer({
         productHeading="Фото рамки"
         uploadLabel="Загрузить фото рамки"
         labelNote="Это надпись только для примера: у каждого товара она соберётся из его машины."
+        showMarket={false}
         actions={(state) => (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
