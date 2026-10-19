@@ -796,6 +796,29 @@ export function setFrameTypeStock(
   return { ok: true, productIds };
 }
 
+export function setFrameTypeStorageCode(
+  categoryId: string,
+  type: string,
+  code: string,
+): FrameTypeResult {
+  if (!isFrameCategory(categoryId)) return { ok: false, problems: ["Раздел рамок не найден"] };
+  const group = getFrameType(categoryId, type);
+  if (!group) return { ok: false, problems: [`Типа ${type} нет`] };
+  const trimmed = code.trim().slice(0, 60);
+  const storageCode = trimmed === "" && group.storageMixed ? undefined : trimmed;
+  const planned = plannedSkus(group.products, storageCode, group.type);
+  const db = getDb();
+  db.transaction(() => {
+    ensureTypeRow(categoryId, group.type);
+    db.prepare(
+      "UPDATE frame_types SET storage_code = ?, updated_at = ? WHERE category_id = ? AND type = ?",
+    ).run(storageCode ?? null, Date.now(), categoryId, group.type);
+    for (const [productId, sku] of planned) writeIdentity(productId, sku, storageCode);
+  })();
+  bumpCatalogVersion();
+  return { ok: true, productIds: [...planned.keys()] };
+}
+
 export function readFrameImage(categoryId: string, type: string): Buffer | null {
   const row = getDb()
     .prepare("SELECT frame_image_file AS file FROM frame_types WHERE category_id = ? AND type = ?")
