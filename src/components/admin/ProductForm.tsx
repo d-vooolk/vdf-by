@@ -680,6 +680,7 @@ export function ProductForm({
         {composerOpen && (
           <ComposerDialog
             initialGenerationId={newestCar(cars)?.generationId}
+            productTitle={draft.title}
             productImages={draft.images.map((path) => ({
               path,
               thumb: importedThumbs[path] ?? thumbs[path] ?? "",

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { CloseIcon } from "@/components/icons";
+import { marketFromTitle } from "@/lib/market-flags";
 
 import { ImageComposer, type ComposedImage, type ComposerProductImage } from "./ImageComposer";
 
@@ -12,9 +13,17 @@ interface ComposerDialogProps {
   folder: string;
   onSaved: (image: ComposedImage) => void;
   onClose: () => void;
+  productTitle?: string;
 }
 
-export function ComposerDialog({ initialGenerationId, productImages, folder, onSaved, onClose }: ComposerDialogProps) {
+export function ComposerDialog({
+  initialGenerationId,
+  productImages,
+  folder,
+  onSaved,
+  onClose,
+  productTitle = "",
+}: ComposerDialogProps) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -38,6 +47,7 @@ export function ComposerDialog({ initialGenerationId, productImages, folder, onS
             productImages={productImages}
             folder={folder}
             onSaved={onSaved}
+            initialMarket={marketFromTitle(productTitle)}
           />
         </div>
       </div>

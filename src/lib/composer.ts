@@ -2,6 +2,8 @@ import path from "node:path";
 
 import sharp, { type Sharp } from "sharp";
 
+import { flagMarkup, isMarket, type Market } from "./market-flags";
+
 export const CANVAS = 1600;
 
 const FONT_FILE = path.join(process.cwd(), "assets", "fonts", "Montserrat-ExtraBold.ttf");
@@ -28,6 +30,11 @@ const WATERMARK_SHADOW_OPACITY = 0.1;
 const WATERMARK_STEP_X = 680;
 const WATERMARK_STEP_Y = 380;
 const WATERMARK_ANGLE = -12;
+const FLAG_WIDTH = 210;
+const FLAG_HEIGHT = 140;
+const FLAG_INSET = 44;
+const FLAG_RADIUS = 14;
+const FLAG_BORDER = 6;
 
 export type Slope = "up" | "down";
 
@@ -55,6 +62,7 @@ export interface ComposeOptions {
   carShiftX: number;
   carZoom: number;
   background: Background;
+  market: Market | "";
 }
 
 export type ComposerSettings = Omit<ComposeOptions, "product" | "car" | "label">;
@@ -68,6 +76,7 @@ export const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
   carShiftX: 0.5,
   carZoom: 1,
   background: "white",
+  market: "",
 };
 
 function finiteOr(value: unknown, fallback: number): number {
@@ -87,6 +96,7 @@ export function parseComposerSettings(raw: unknown): ComposerSettings {
     carShiftX: finiteOr(value.carShiftX, defaults.carShiftX),
     carZoom: finiteOr(value.carZoom, defaults.carZoom),
     background: isBackground(value.background) ? value.background : defaults.background,
+    market: isMarket(value.market) ? value.market : defaults.market,
   };
 }
 
@@ -402,6 +412,24 @@ async function labelLayer(
   };
 }
 
+function flagLayer(market: Market | ""): Buffer | null {
+  if (!market) return null;
+  const outerWidth = FLAG_WIDTH + FLAG_BORDER * 2;
+  const outerHeight = FLAG_HEIGHT + FLAG_BORDER * 2;
+  const x = CANVAS - FLAG_INSET - outerWidth;
+  const y = FLAG_INSET;
+  return svg(
+    `<defs>` +
+      `<filter id="flagShadow" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>` +
+      `<clipPath id="flagClip"><rect x="${x + FLAG_BORDER}" y="${y + FLAG_BORDER}" width="${FLAG_WIDTH}" height="${FLAG_HEIGHT}" rx="${FLAG_RADIUS - FLAG_BORDER / 2}"/></clipPath>` +
+      `</defs>` +
+      `<rect x="${x}" y="${y + 8}" width="${outerWidth}" height="${outerHeight}" rx="${FLAG_RADIUS}" fill="#000" opacity="0.28" filter="url(#flagShadow)"/>` +
+      `<rect x="${x}" y="${y}" width="${outerWidth}" height="${outerHeight}" rx="${FLAG_RADIUS}" fill="#ffffff"/>` +
+      `<g clip-path="url(#flagClip)"><svg x="${x + FLAG_BORDER}" y="${y + FLAG_BORDER}" width="${FLAG_WIDTH}" height="${FLAG_HEIGHT}" viewBox="0 0 30 20" preserveAspectRatio="none">${flagMarkup(market)}</svg></g>` +
+      `<rect x="${x + FLAG_BORDER}" y="${y + FLAG_BORDER}" width="${FLAG_WIDTH}" height="${FLAG_HEIGHT}" rx="${FLAG_RADIUS - FLAG_BORDER / 2}" fill="none" stroke="#000" stroke-opacity="0.12" stroke-width="2"/>`,
+  );
+}
+
 export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
   const shape = layout(options.slope);
 
@@ -410,10 +438,12 @@ export async function composeProductImage(options: ComposeOptions): Promise<Buff
     labelLayer(options.label, shape),
   ]);
   const cards = await cardsLayer(options, shape, product);
+  const flag = flagLayer(options.market);
 
   return sharp({ create: { width: CANVAS, height: CANVAS, channels: 3, background: "#ffffff" } })
     .composite([
       { input: cards, top: 0, left: 0 },
+      ...(flag ? [{ input: flag, top: 0, left: 0 }] : []),
       { input: bandLayer(shape), top: 0, left: 0 },
       ...(label ? [label] : []),
     ])
