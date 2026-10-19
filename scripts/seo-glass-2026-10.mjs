@@ -4,14 +4,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
+import sharp from "sharp";
 
 import { env } from "../src/lib/env.mjs";
+import { processImage } from "../src/lib/image-pipeline.mjs";
 import { openDatabase } from "../src/lib/migrations.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONTENT_DIR = path.join(ROOT, "scripts", "seo-glass-2026-10");
 const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
 const BACKUP_DIR = env("BACKUP_DIR", path.join(ROOT, "var", "backups"));
+const IMG_DIR = path.join(ROOT, "public", "img");
 const CONTENT = JSON.parse(fs.readFileSync(path.join(CONTENT_DIR, "content.json"), "utf8"));
 
 function arg(name, fallback) {
@@ -22,6 +25,9 @@ function arg(name, fallback) {
 const apply = process.argv.includes("--apply");
 const overwrite = process.argv.includes("--overwrite");
 const port = arg("port", env("PORT", "3011"));
+const libraryDir = arg("library", "/var/www/prime-auto/var/uploads/library");
+
+sharp.cache(false);
 
 const db = openDatabase(Database, DB_PATH);
 const now = Date.now();
@@ -43,6 +49,10 @@ const insertArticle = db.prepare(
 );
 const updateArticle = db.prepare(
   "UPDATE articles SET title = ?, status = 'published', data = ?, updated_at = ?, published_at = COALESCE(published_at, ?) WHERE id = ?",
+);
+const insertImage = db.prepare(
+  `INSERT INTO images (path, w, h, blur, sources, fallback, bytes, created_at)
+   VALUES (@path, @w, @h, @blur, @sources, @fallback, @bytes, @createdAt)`,
 );
 const bump = db.prepare(
   `INSERT INTO settings (key, value) VALUES (?, '1')
@@ -75,8 +85,29 @@ function checkLink(href, where) {
   if (!ok) problems.push(`${where}: ссылка ${href} никуда не ведёт`);
 }
 
+const libraryPhotos = Object.entries(CONTENT.libraryPhotos ?? {}).filter(([target]) => !imageExists.get(target));
+
+function planLibraryPhotos() {
+  for (const [target, source] of libraryPhotos) {
+    const file = path.join(libraryDir, source);
+    if (!fs.existsSync(file)) problems.push(`фото ${target}: нет файла ${file}`);
+    else say(`фото ${target} ← библиотека ${source}`);
+  }
+}
+
+async function importLibraryPhotos() {
+  const stored = [];
+  for (const [target, source] of libraryPhotos) {
+    const result = await processImage({ source: path.join(libraryDir, source), relativePath: target, outDir: IMG_DIR, sharp });
+    if (!result) throw new Error(`не картинка: ${source}`);
+    stored.push({ path: target, ...result });
+  }
+  return stored;
+}
+
 function checkImage(image, where) {
-  if (!imageExists.get(image)) problems.push(`${where}: нет фото ${image}`);
+  const planned = libraryPhotos.some(([target]) => target === image);
+  if (!planned && !imageExists.get(image)) problems.push(`${where}: нет фото ${image}`);
 }
 
 function bodyImages(body) {
@@ -113,6 +144,10 @@ function planArticle(meta) {
   const existing = readArticle.get(meta.slug);
   if (existing && !overwrite) {
     say(`статья ${meta.slug}: уже есть (${existing.status}), не трогаю — перезаписать можно с --overwrite`);
+    return null;
+  }
+  if (existing && existing.data === JSON.stringify(data)) {
+    say(`статья ${meta.slug}: без изменений`);
     return null;
   }
   const words = body.split(/\s+/).length;
@@ -171,6 +206,7 @@ async function revalidate() {
   }
 }
 
+planLibraryPhotos();
 const category = planCategory();
 const articles = CONTENT.articles.map(planArticle).filter(Boolean);
 
@@ -180,7 +216,7 @@ if (problems.length) {
 }
 
 if (!apply) {
-  console.log(`\nПроверка: раздел ${category ? "меняется" : "без изменений"}, статей к записи ${articles.length}. Ничего не записано — запустите с --apply.`);
+  console.log(`\nПроверка: раздел ${category ? "меняется" : "без изменений"}, статей к записи ${articles.length}, новых фото ${libraryPhotos.length}. Ничего не записано — запустите с --apply.`);
   process.exit(0);
 }
 
@@ -189,7 +225,21 @@ const backupFile = path.join(BACKUP_DIR, `shop-before-seo-glass-${now}.db`);
 await db.backup(backupFile);
 say(`копия базы: ${path.relative(ROOT, backupFile)}`);
 
+const photos = await importLibraryPhotos();
+
 db.transaction(() => {
+  for (const photo of photos) {
+    insertImage.run({
+      path: photo.path,
+      w: photo.entry.w,
+      h: photo.entry.h,
+      blur: photo.entry.blur,
+      sources: JSON.stringify(photo.entry.sources),
+      fallback: photo.entry.fallback,
+      bytes: photo.bytes,
+      createdAt: now,
+    });
+  }
   if (category) writeCategory.run(JSON.stringify(category.data), now, category.id);
   articles.forEach((article, index) => {
     const publishedAt = now + index;
@@ -201,6 +251,7 @@ db.transaction(() => {
   });
   if (category) bump.run("counter:catalog");
   if (articles.length) bump.run("counter:articles");
+  if (photos.length) bump.run("counter:images");
 })();
 
 await revalidate();
