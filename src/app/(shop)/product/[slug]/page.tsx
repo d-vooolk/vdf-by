@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Faq } from "@/components/Faq";
 import { ProductCars } from "@/components/ProductCars";
+import { ProductCarSections } from "@/components/ProductCarSections";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { JsonLd } from "@/components/JsonLd";
 import { ProductCard } from "@/components/ProductCard";
@@ -20,6 +21,7 @@ import {
   hasSharedLead,
   hasTwinTitle,
 } from "@/lib/catalog";
+import { sectionsForProductCars } from "@/lib/car-branch";
 import { carsRoot } from "@/lib/car-types";
 import { getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { fitCheckMessage, getMessengers, productMessage } from "@/lib/contacts";
@@ -143,6 +145,7 @@ export default async function ProductPage({ params }: PageProps) {
     .filter((item) => !sameCarIds.has(item.id))
     .slice(0, 5);
   const cars = category?.carFitment ? getProductCars(product.id) : [];
+  const carSections = category?.carFitment ? sectionsForProductCars(category, cars) : [];
   const workshop = workshopLinkFor(category, product.title);
 
   // В клиентский компонент уходят записи манифеста только для фото этого
@@ -275,6 +278,10 @@ export default async function ProductPage({ params }: PageProps) {
         )}
         <ProductCars cars={cars} base={carsRoot(category?.slug)} />
       </div>
+
+      {category?.carFitment && (
+        <ProductCarSections category={category} categoryHref={categoryUrl(category)} groups={carSections} />
+      )}
 
       {sameCar.length > 0 && (
         <section className="mt-14 border-t border-brand-100 pt-10">
