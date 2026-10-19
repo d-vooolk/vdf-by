@@ -292,7 +292,22 @@ export function getProductsForSameCars(productId: string, limit: number): Produc
         .all(productId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
   );
-  return ids.size ? productsByIds(ids).slice(0, limit) : [];
+  return ids.size ? alternateCategories(productsByIds(ids)).slice(0, limit) : [];
+}
+
+function alternateCategories(products: Product[]): Product[] {
+  const queues = new Map<string, Product[]>();
+  for (const product of products) {
+    const queue = queues.get(product.categoryId);
+    if (queue) queue.push(product);
+    else queues.set(product.categoryId, [product]);
+  }
+  const result: Product[] = [];
+  const lists = [...queues.values()];
+  for (let index = 0; result.length < products.length; index += 1) {
+    for (const list of lists) if (index < list.length) result.push(list[index]);
+  }
+  return result;
 }
 
 export interface CarCategoryGroup {

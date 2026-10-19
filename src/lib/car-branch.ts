@@ -6,6 +6,7 @@ import {
   type FitGeneration,
   type FitMark,
   type FitModel,
+  type ProductCar,
 } from "./car-types";
 import {
   findGeneration,
@@ -155,6 +156,31 @@ function others(current: Category): Category[] {
   return fitmentCategories().filter(
     (category) => category.id !== current.id,
   );
+}
+
+export interface CarSections {
+  car: ProductCar;
+  related: RelatedCategory[];
+}
+
+export function sectionsForProductCars(
+  current: Category,
+  cars: ProductCar[],
+  limit = 4,
+): CarSections[] {
+  const result: CarSections[] = [];
+  for (const car of cars) {
+    if (result.length >= limit) break;
+    const related = others(current)
+      .map((category) => ({
+        category,
+        url: generationUrl(car.markSlug, car.modelSlug, car.generationSlug, carsRoot(category.slug)),
+        count: getProductsForGeneration(car.generationId, category.id).length,
+      }))
+      .filter((entry) => entry.count > 0);
+    if (related.length) result.push({ car, related });
+  }
+  return result;
 }
 
 export function categoriesForMark(

@@ -43,30 +43,101 @@ function failed(result) {
   return `> Не удалось получить данные: ${result.error}\n`;
 }
 
+const EMPTY_TOTALS = { clicks: 0, impressions: 0, ctr: 0, position: 0 };
+
+function totalsTable(current, before) {
+  const t = current ?? EMPTY_TOTALS;
+  const p = before ?? EMPTY_TOTALS;
+  return table(
+    ["Показатель", "Сейчас", "Было", "Изменение"],
+    [
+      ["Клики", number(t.clicks), number(p.clicks), change(t.clicks, p.clicks)],
+      ["Показы", number(t.impressions), number(p.impressions), change(t.impressions, p.impressions)],
+      ["CTR", percent(t.ctr, 2), percent(p.ctr, 2), ""],
+      ["Средняя позиция", number(t.position, 1), number(p.position, 1), ""],
+    ],
+  );
+}
+
+const PRODUCT_SECTIONS = [
+  [/^\/product\/steklo/, "стёкла фар — карточки"],
+  [/^\/product\/ramki/, "переходные рамки — карточки"],
+  [/^\/product\/svetovod/, "световоды — карточки"],
+];
+
+function sectionOf(url) {
+  const path = shortUrl(url).split("?")[0];
+  const catalog = path.match(/^\/catalog\/([^/]+)\//);
+  if (catalog) return `/catalog/${catalog[1]}/`;
+  for (const [pattern, name] of PRODUCT_SECTIONS) if (pattern.test(path)) return name;
+  if (path.startsWith("/product/")) return "прочие карточки товаров";
+  const first = path.split("/")[1];
+  return first ? `/${first}/` : "/";
+}
+
+function sectionRows(pages) {
+  const sections = new Map();
+  for (const row of pages) {
+    const section = sectionOf(row.keys[0]);
+    const entry = sections.get(section) ?? { section, pages: 0, impressions: 0, clicks: 0, weighted: 0 };
+    entry.pages += 1;
+    entry.impressions += row.impressions;
+    entry.clicks += row.clicks;
+    entry.weighted += row.position * row.impressions;
+    sections.set(section, entry);
+  }
+  return [...sections.values()]
+    .map((entry) => ({ ...entry, position: entry.impressions ? entry.weighted / entry.impressions : null }))
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 25);
+}
+
 function googleSection(result) {
   if (!result.ok) return `## Google Search Console\n\n${failed(result)}`;
   const data = result.data;
   const lines = [`## Google Search Console\n`, `Период: ${data.dates.current.from} — ${data.dates.current.to}, сравнение с ${data.dates.previous.from} — ${data.dates.previous.to}.\n`];
-  const t = data.totals ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
-  const p = data.previousTotals ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
+  lines.push(totalsTable(data.totals, data.previousTotals));
+  if (!data.previousTotals?.impressions) {
+    lines.push(`> За прошлый период в Search Console данных нет, сравнивать не с чем.\n`);
+  }
+  if (data.weekTotals) {
+    lines.push(`### Последняя неделя\n`);
+    lines.push(
+      `${data.weekDates.current.from} — ${data.weekDates.current.to}, сравнение с ${data.weekDates.previous.from} — ${data.weekDates.previous.to}.\n`,
+    );
+    lines.push(totalsTable(data.weekTotals, data.previousWeekTotals));
+  }
+
+  lines.push(`### Разделы сайта\n`);
+  lines.push(`Сумма по страницам из топ-${data.pages.length}: позиция — средняя с весом по показам.\n`);
   lines.push(
     table(
-      ["Показатель", "Сейчас", "Было", "Изменение"],
-      [
-        ["Клики", number(t.clicks), number(p.clicks), change(t.clicks, p.clicks)],
-        ["Показы", number(t.impressions), number(p.impressions), change(t.impressions, p.impressions)],
-        ["CTR", percent(t.ctr, 2), percent(p.ctr, 2), ""],
-        ["Средняя позиция", number(t.position, 1), number(p.position, 1), ""],
-      ],
+      ["Раздел", "Страниц", "Показы", "Клики", "CTR", "Позиция"],
+      sectionRows(data.pages).map((row) => [
+        row.section,
+        number(row.pages),
+        number(row.impressions),
+        number(row.clicks),
+        percent(row.impressions ? row.clicks / row.impressions : 0),
+        number(row.position, 1),
+      ]),
     ),
   );
 
+  const visibleShows = data.queries.reduce((sum, row) => sum + row.impressions, 0);
+  const totalShows = data.totals?.impressions ?? 0;
+  const queriesByShows = [...data.queries].sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks);
   const previous = new Map(data.previousQueries.map((row) => [row.keys[0], row]));
   lines.push(`### Запросы — топ-50 по показам\n`);
+  if (totalShows > visibleShows) {
+    lines.push(
+      `> Google раскрывает запросы только для ${percent(visibleShows / totalShows, 0)} показов (${number(visibleShows)} из ${number(totalShows)}), остальные скрыты как редкие. Выводы по запросам приблизительные — надёжнее смотреть разделы и страницы.\n`,
+    );
+  }
   lines.push(
     table(
       ["Запрос", "Показы", "Клики", "CTR", "Позиция", "Позиция была"],
-      data.queries.slice(0, 50).map((row) => [
+      queriesByShows.slice(0, 50).map((row) => [
         row.keys[0],
         number(row.impressions),
         number(row.clicks),
@@ -90,7 +161,7 @@ function googleSection(result) {
     ),
   );
 
-  const lowCtr = data.queries
+  const lowCtr = queriesByShows
     .filter((row) => row.position <= 5 && row.impressions >= 30 && row.ctr < 0.03)
     .slice(0, 20);
   lines.push(`### Высокая позиция, мало кликов — позиция до 5, CTR ниже 3%\n`);
@@ -316,10 +387,15 @@ function metrikaSection(result) {
   return lines.join("\n");
 }
 
-const { google, webmaster, metrika } = await collectSearch({
-  gscKeyFile: path.join(SECRETS_DIR, "gsc-key.json"),
-  yandexTokenFile: path.join(SECRETS_DIR, "yandex-token.txt"),
-});
+const rawIndex = process.argv.indexOf("--raw");
+const rawInput = rawIndex >= 0 ? process.argv[rawIndex + 1] : null;
+
+const { google, webmaster, metrika } = rawInput
+  ? JSON.parse(fs.readFileSync(rawInput, "utf8"))
+  : await collectSearch({
+      gscKeyFile: path.join(SECRETS_DIR, "gsc-key.json"),
+      yandexTokenFile: path.join(SECRETS_DIR, "yandex-token.txt"),
+    });
 for (const [name, result] of [["Search Console", google], ["Вебмастер", webmaster], ["Метрика", metrika]]) {
   if (!result.ok) console.error(`[${name}] ${result.error}`);
 }
