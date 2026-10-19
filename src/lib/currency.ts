@@ -1,3 +1,5 @@
+import { isPairValue, isSidesGroup } from "./side-options";
+
 export const FOREIGN_CURRENCIES = { RUB: "₽", USD: "$" } as const;
 
 export type ForeignCurrency = keyof typeof FOREIGN_CURRENCIES;
@@ -23,6 +25,8 @@ export const LINKED_FIELDS = [
 ] as const;
 
 interface LinkedOption {
+  id?: string;
+  label?: string;
   price?: number;
   priceSource?: MoneySource;
   wholesalePrice?: number;
@@ -50,8 +54,39 @@ function relinkOption<T extends LinkedOption>(value: T, rates: CurrencyRates): T
   return next;
 }
 
+function isDoubleOf(pair: MoneySource | undefined, single: MoneySource | undefined): boolean {
+  return Boolean(pair && single && pair.currency === single.currency && Math.abs(pair.amount - single.amount * 2) < 0.005);
+}
+
+function pairFromSingle<T extends LinkedOption>(pair: T, single: LinkedOption): T {
+  const next = { ...pair };
+  if (single.price !== undefined && isDoubleOf(pair.priceSource, single.priceSource)) next.price = single.price * 2;
+  if (single.wholesalePrice !== undefined && isDoubleOf(pair.wholesaleSource, single.wholesaleSource)) {
+    next.wholesalePrice = single.wholesalePrice * 2;
+  }
+  return next;
+}
+
+function relinkGroup<G extends LinkedGroup>(group: G, rates: CurrencyRates): G {
+  const values = group.values.map((value) => relinkOption(value, rates));
+  const sides = group.id !== undefined && group.name !== undefined && isSidesGroup({ id: group.id, name: group.name });
+  const single = sides ? values.find((value) => !isPairValue({ id: value.id ?? "", label: value.label ?? "" })) : undefined;
+  return {
+    ...group,
+    values: single
+      ? values.map((value) => (isPairValue({ id: value.id ?? "", label: value.label ?? "" }) ? pairFromSingle(value, single) : value))
+      : values,
+  };
+}
+
+interface LinkedGroup {
+  id?: string;
+  name?: string;
+  values: LinkedOption[];
+}
+
 export type LinkedValues = {
-  optionGroups?: Array<{ values: LinkedOption[] }>;
+  optionGroups?: LinkedGroup[];
   price?: number | null;
   wholesalePrice?: number | null;
   costPrice?: number | null;
@@ -77,10 +112,7 @@ export function relinkValues<T extends LinkedValues>(values: T, rates: CurrencyR
     if (source && rate) next[field.value] = convertToByn(source.amount, rate.rate, field.rounding);
   }
   if (next.optionGroups && hasLinkedOptions(next)) {
-    next.optionGroups = next.optionGroups.map((group) => ({
-      ...group,
-      values: group.values.map((value) => relinkOption(value, rates)),
-    }));
+    next.optionGroups = next.optionGroups.map((group) => relinkGroup(group, rates));
   }
   return next;
 }

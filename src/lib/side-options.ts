@@ -34,6 +34,10 @@ function suffixOf(value: OptionValue): string | null {
   return null;
 }
 
+export function isPairValue(value: Pick<OptionValue, "id" | "label">): boolean {
+  return suffixOf(value as OptionValue) === PAIR_SUFFIX;
+}
+
 const round = (value: number) => Math.round(value * 100) / 100;
 
 function doubled(source: MoneySource | null | undefined): MoneySource | undefined {
@@ -69,7 +73,7 @@ export function sidesGroup(base: SideBase): OptionGroup {
   };
 }
 
-export function isSidesGroup(group: OptionGroup): boolean {
+export function isSidesGroup(group: Pick<OptionGroup, "id" | "name">): boolean {
   return group.id === SIDES_GROUP_ID || /^сторона$/i.test(group.name.trim());
 }
 
