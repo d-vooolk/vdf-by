@@ -16,7 +16,7 @@ import {
 } from "@/components/icons";
 import { years, type CarGeneration, type CarModel } from "@/lib/car-types";
 import type { Background, ComposerSettings } from "@/lib/composer";
-import { flagSvg, MARKETS, type Market } from "@/lib/market-flags";
+import { flagSvg, MARKETS, type Market } from "@/lib/market-flags.mjs";
 import { toSlug } from "@/lib/slug.mjs";
 
 import { ComposerCarPhoto, type CarPhotoInfo } from "./ComposerCarPhoto";
