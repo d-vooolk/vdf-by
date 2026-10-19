@@ -21,7 +21,7 @@ export interface FrameLenses {
 
 function lensSizeOf(title: string): LensSize | null {
   if (/птф/i.test(title)) return null;
-  if (/наборн|matrix/i.test(title) && !/hella\s*3/i.test(title)) return null;
+  if (/наборн|matrix/i.test(title) && !/hella\s*3|3[.,]0/i.test(title)) return null;
   if (/2[.,]5/.test(title)) return "linzy-2-5";
   return "linzy-3-0";
 }
