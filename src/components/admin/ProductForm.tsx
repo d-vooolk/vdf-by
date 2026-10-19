@@ -27,6 +27,7 @@ import { CopyIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Product } from "@/lib/schema";
+import { isSidesGroup } from "@/lib/side-options";
 import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
@@ -573,17 +574,18 @@ export function ProductForm({
           <Field
             label="Вес, кг"
             hint={
-              draft.optionGroups.length
-                ? "У товара есть опции — вес указывается в каждом значении опции"
-                : "Для расчёта доставки по весу: 0.35 — это 350 г"
+              draft.optionGroups.some(isSidesGroup)
+                ? "Вес одного стекла: у «Пары» умножается на 2 по кнопке «Пересчитать из полей товара»"
+                : draft.optionGroups.length
+                  ? "Вес по умолчанию: берётся для вариантов, у которых свой вес не указан"
+                  : "Для расчёта доставки по весу: 0.35 — это 350 г"
             }
           >
             <NumberInput
-              value={draft.optionGroups.length ? null : (draft.weight ?? null)}
+              value={draft.weight ?? null}
               onChange={(weight) => patch({ weight: weight && weight > 0 ? weight : null })}
-              placeholder={draft.optionGroups.length ? "в опциях" : "не указан"}
-              disabled={draft.optionGroups.length > 0}
-              className="field tnum disabled:bg-brand-50 disabled:text-brand-400"
+              placeholder="не указан"
+              className="field tnum"
             />
           </Field>
         </div>
@@ -973,7 +975,7 @@ function clean(product: Product): Product {
     // null и undefined схема принимает одинаково, но в JSON товара лишний
     // ключ со значением null оставлять незачем.
     stockQty: product.stockQty ?? undefined,
-    weight: product.optionGroups.length ? undefined : (product.weight ?? undefined),
+    weight: product.weight ?? undefined,
     costPrice: product.costPrice ?? undefined,
     priceSource: product.priceSource ?? undefined,
     wholesaleSource: product.wholesaleSource ?? undefined,

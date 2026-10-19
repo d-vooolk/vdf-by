@@ -60,9 +60,7 @@ function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): G
   if (!product.images?.length && !values.some((value) => value.images?.length)) {
     gaps.push("photo");
   }
-  const weighed = product.optionGroups?.length
-    ? values.every((value) => (value.weight ?? 0) > 0)
-    : (product.weight ?? 0) > 0;
+  const weighed = (product.weight ?? 0) > 0 || (values.length > 0 && values.every((value) => (value.weight ?? 0) > 0));
   if (!weighed) gaps.push("weight");
   if (!product.faq?.length) gaps.push("faq");
   if (carFitment && cars === 0) gaps.push("cars");

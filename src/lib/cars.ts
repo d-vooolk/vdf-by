@@ -354,6 +354,27 @@ export function getProductCars(productId: string): ProductCar[] {
     .all(productId) as ProductCar[];
 }
 
+export function getFrameTypeCars(categoryId: string, type: string, productId: string): ProductCar[] {
+  return getDb()
+    .prepare(
+      `SELECT DISTINCT k.slug AS markSlug, k.name AS markName,
+              m.slug AS modelSlug, m.name AS modelName,
+              g.id   AS generationId, g.slug AS generationSlug,
+              g.name AS generationName,
+              g.year_from AS yearFrom, g.year_to AS yearTo
+         FROM frame_type_products ftp
+         JOIN products        p ON p.id = ftp.product_id AND p.category_id = ftp.category_id
+         JOIN product_cars    pc ON pc.product_id = ftp.product_id
+         JOIN car_generations g ON g.id = pc.generation_id
+         JOIN car_models      m ON m.id = g.model_id
+         JOIN car_marks       k ON k.id = m.mark_id
+        WHERE ftp.category_id = ? AND ftp.type = ? AND ftp.product_id <> ?
+          AND g.id NOT IN (SELECT generation_id FROM product_cars WHERE product_id = ?)
+        ORDER BY k.name, m.name, g.year_from`,
+    )
+    .all(categoryId, type, productId, productId) as ProductCar[];
+}
+
 /**
  * Адреса страниц подбора, которых касается товар, — для сброса кеша.
  * Вместе со страницами марки и модели: там стоят счётчики позиций.

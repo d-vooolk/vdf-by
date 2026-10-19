@@ -191,6 +191,7 @@ export function OptionGroupsEditor({
             currencySymbol={currencySymbol}
             basePrice={basePrice}
             baseWholesale={baseWholesale}
+            baseWeight={sideBase.weight ?? null}
             isFirstGroup={groupIndex === 0}
             counted={counted}
           />
@@ -239,6 +240,7 @@ interface ValuesEditorProps {
   currencySymbol: string;
   basePrice: number;
   baseWholesale: number | null;
+  baseWeight: number | null;
   isFirstGroup: boolean;
   counted: boolean;
 }
@@ -261,6 +263,7 @@ function ValuesEditor({
   currencySymbol,
   basePrice,
   baseWholesale,
+  baseWeight,
   isFirstGroup,
   counted,
 }: ValuesEditorProps) {
@@ -371,6 +374,20 @@ function ValuesEditor({
                 </label>
               )}
 
+              <label
+                className="flex items-center gap-1.5"
+                title="Вес варианта для расчёта доставки. Пусто — вес из поля товара"
+              >
+                <span className="text-xs text-brand-400">вес</span>
+                <NumberInput
+                  value={item.weight ?? null}
+                  onChange={(weight) => update(index, { weight: weight && weight > 0 ? weight : undefined })}
+                  placeholder={baseWeight ? String(baseWeight) : "—"}
+                  className="field tnum w-20 py-1.5 text-sm"
+                />
+                <span className="text-xs text-brand-300">кг</span>
+              </label>
+
               {counted ? (
                 <label
                   className="flex items-center gap-1.5"
@@ -451,7 +468,7 @@ function ValuesEditor({
             {/* -------------------- Развёрнутые детали ------------------- */}
             {open && (
               <div className="space-y-4 border-t border-brand-100 bg-brand-50/60 p-4">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="label mb-1 text-xs">Код значения</span>
                     <input
@@ -464,18 +481,6 @@ function ValuesEditor({
                     <span className="mt-1 block text-xs text-brand-400">
                       Входит в ключ корзины — после запуска не меняйте
                     </span>
-                  </label>
-
-                  <label className="block">
-                    <span className="label mb-1 text-xs">Вес, кг</span>
-                    <NumberInput
-                      value={item.weight ?? null}
-                      onChange={(weight) =>
-                        update(index, { weight: weight && weight > 0 ? weight : undefined })
-                      }
-                      placeholder="не указан"
-                      className="field tnum py-2 text-sm"
-                    />
                   </label>
 
                   <label className="block">

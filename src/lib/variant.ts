@@ -107,9 +107,7 @@ export function resolveVariant(
   const sku =
     selected.find((entry) => entry.value.sku)?.value.sku ?? product.sku ?? null;
 
-  const weight = product.optionGroups.length
-    ? (selected.find((entry) => entry.value.weight)?.value.weight ?? null)
-    : (product.weight ?? null);
+  const weight = selected.find((entry) => entry.value.weight)?.value.weight ?? product.weight ?? null;
 
   return {
     images: ownImages?.length ? ownImages : product.images,
