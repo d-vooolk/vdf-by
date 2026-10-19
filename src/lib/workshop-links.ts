@@ -21,6 +21,10 @@ export const WORKSHOP_LINKS = {
     href: `${WORKSHOP_SERVICES}/tehnicheskoye-obsluzhivaniye-far`,
     anchor: "Замена ламп и блоков розжига в Минске",
   },
+  ledRepair: {
+    href: `${WORKSHOP_SERVICES}/remont-far/remont-led-far-i-dho`,
+    anchor: "Ремонт LED-фар и ДХО в Минске — Prime Auto",
+  },
   retrofit: {
     href: `${WORKSHOP_SERVICES}/uluchshenie-kachestva-sveta`,
     anchor: "Ретрофит фар в Минске",
@@ -49,7 +53,7 @@ const KIND_BY_CATEGORY_SLUG: Record<string, WorkshopKind | null> = {
 
   "maski-dlya-linz": "retrofit",
   "dnevnye-hodovye-ogni": "retrofit",
-  svetovody: "retrofit",
+  svetovody: "ledRepair",
 
   "korpusa-far": "general",
   "pylniki-dlya-far": "general",
@@ -62,7 +66,8 @@ const KIND_BY_KEYWORD: [RegExp, WorkshopKind][] = [
   [/стекл/i, "glass"],
   [/bi-?led|би-?л[еэ]д|линз|модул|рамк/i, "biled"],
   [/ламп|розжиг|ксенон|балласт|корректор|обманк/i, "lamps"],
-  [/маск|дхо|ходов|световод|ретрофит/i, "retrofit"],
+  [/световод/i, "ledRepair"],
+  [/маск|дхо|ходов|ретрофит/i, "retrofit"],
   [/фар/i, "general"],
 ];
 

@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import Database from "better-sqlite3";
+import sharp from "sharp";
+
+import { env } from "../src/lib/env.mjs";
+import { processImage } from "../src/lib/image-pipeline.mjs";
+import { openDatabase } from "../src/lib/migrations.mjs";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
+const BACKUP_DIR = env("BACKUP_DIR", path.join(ROOT, "var", "backups"));
+const IMG_DIR = path.join(ROOT, "public", "img");
+const CONTENT = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts", "seo-svetovody-2026-10.json"), "utf8"));
+const TITLE_LIMIT = 65;
+const BRAND_SUFFIX_LENGTH = " — VDF.BY".length;
+
+function arg(name, fallback) {
+  const index = process.argv.indexOf(`--${name}`);
+  return index >= 0 ? process.argv[index + 1] : fallback;
+}
+
+const apply = process.argv.includes("--apply");
+const port = arg("port", env("PORT", "3011"));
+const libraryDir = arg("library", "/var/www/prime-auto/var/uploads/library");
+
+sharp.cache(false);
+
+const db = openDatabase(Database, DB_PATH);
+const now = Date.now();
+const problems = [];
+const log = [];
+const say = (line) => {
+  log.push(line);
+  console.log(line);
+};
+
+const readCategory = db.prepare("SELECT id, data FROM categories WHERE slug = ?");
+const writeCategory = db.prepare("UPDATE categories SET data = ?, updated_at = ? WHERE id = ?");
+const imageExists = db.prepare("SELECT 1 FROM images WHERE path = ?");
+const insertImage = db.prepare(
+  `INSERT INTO images (path, w, h, blur, sources, fallback, bytes, created_at)
+   VALUES (@path, @w, @h, @blur, @sources, @fallback, @bytes, @createdAt)`,
+);
+const readSetting = db.prepare("SELECT value FROM settings WHERE key = ?");
+const writeSetting = db.prepare(
+  `INSERT INTO settings (key, value) VALUES (?, ?)
+   ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+);
+const bump = db.prepare(
+  `INSERT INTO settings (key, value) VALUES (?, '1')
+   ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)`,
+);
+
+const libraryPhotos = Object.entries(CONTENT.libraryPhotos).filter(([target]) => !imageExists.get(target));
+
+function planLibraryPhotos() {
+  for (const [target, source] of libraryPhotos) {
+    const file = path.join(libraryDir, source);
+    if (!fs.existsSync(file)) problems.push(`фото ${target}: нет файла ${file}`);
+    else say(`фото ${target} ← библиотека ${source}`);
+  }
+}
+
+function planCategory() {
+  const spec = CONTENT.category;
+  const row = readCategory.get(spec.slug);
+  if (!row) throw new Error(`нет раздела ${spec.slug}`);
+  const data = JSON.parse(row.data);
+
+  const { seoTitle, seoDescription } = spec.set;
+  if (seoTitle.length + BRAND_SUFFIX_LENGTH > TITLE_LIMIT) problems.push(`title ${seoTitle.length} знаков — не влезет с « — VDF.BY»`);
+  if (seoDescription.length > 165) problems.push(`описание для поиска ${seoDescription.length} знаков`);
+
+  for (const [field, value] of Object.entries(spec.set)) {
+    if (JSON.stringify(data[field] ?? null) === JSON.stringify(value)) continue;
+    const size = typeof value === "string" ? `${value.length} знаков` : `${value.length} шт.`;
+    say(`раздел ${spec.slug}: ${field} ${data[field] === undefined ? "добавлено" : "заменено"} (${size})`);
+    data[field] = value;
+  }
+  return JSON.stringify(data) === row.data ? null : { id: row.id, data };
+}
+
+function planWorkshopPhotos() {
+  const sets = JSON.parse(readSetting.get("workshop_photos")?.value ?? "{}");
+  const before = JSON.stringify(sets);
+  for (const [kind, set] of Object.entries(CONTENT.workshopPhotos)) {
+    for (const photo of set.photos) {
+      const planned = libraryPhotos.some(([target]) => target === photo.image);
+      if (!planned && !imageExists.get(photo.image)) problems.push(`набор ${kind}: нет фото ${photo.image}`);
+    }
+    if (JSON.stringify(sets[kind]) !== JSON.stringify(set)) say(`фото мастерской «${kind}»: ${set.photos.length} фото`);
+    sets[kind] = set;
+  }
+  return JSON.stringify(sets) === before ? null : sets;
+}
+
+async function importLibraryPhotos() {
+  const stored = [];
+  for (const [target, source] of libraryPhotos) {
+    const result = await processImage({ source: path.join(libraryDir, source), relativePath: target, outDir: IMG_DIR, sharp });
+    if (!result) throw new Error(`не картинка: ${source}`);
+    stored.push({ path: target, ...result });
+  }
+  return stored;
+}
+
+async function revalidate() {
+  const keyFile = path.join(ROOT, "var", "cron-key");
+  if (!fs.existsSync(keyFile)) {
+    say("! нет var/cron-key — кеш страниц не сброшен");
+    return;
+  }
+  try {
+    const response = await fetch(`http://localhost:${port}/api/cron/revalidate/`, {
+      method: "POST",
+      headers: { "x-cron-key": fs.readFileSync(keyFile, "utf8").trim() },
+    });
+    say(`сброс кеша страниц: ${response.status}`);
+  } catch (error) {
+    say(`! сброс кеша страниц не удался: ${error.message}`);
+  }
+}
+
+planLibraryPhotos();
+const category = planCategory();
+const workshopSets = planWorkshopPhotos();
+
+if (problems.length) {
+  console.log(`\nОшибки:\n${problems.map((line) => `- ${line}`).join("\n")}`);
+  process.exit(1);
+}
+
+if (!apply) {
+  console.log(
+    `\nПроверка: раздел ${category ? "меняется" : "без изменений"}, фото мастерской ${workshopSets ? "меняются" : "без изменений"}, новых фото ${libraryPhotos.length}. Ничего не записано — запустите с --apply.`,
+  );
+  process.exit(0);
+}
+
+fs.mkdirSync(BACKUP_DIR, { recursive: true });
+const backupFile = path.join(BACKUP_DIR, `shop-before-seo-svetovody-${now}.db`);
+await db.backup(backupFile);
+say(`копия базы: ${path.relative(ROOT, backupFile)}`);
+
+const photos = await importLibraryPhotos();
+
+db.transaction(() => {
+  for (const photo of photos) {
+    insertImage.run({
+      path: photo.path,
+      w: photo.entry.w,
+      h: photo.entry.h,
+      blur: photo.entry.blur,
+      sources: JSON.stringify(photo.entry.sources),
+      fallback: photo.entry.fallback,
+      bytes: photo.bytes,
+      createdAt: now,
+    });
+  }
+  if (category) writeCategory.run(JSON.stringify(category.data), now, category.id);
+  if (workshopSets) writeSetting.run("workshop_photos", JSON.stringify(workshopSets));
+  bump.run("counter:catalog");
+  if (photos.length) bump.run("counter:images");
+})();
+
+await revalidate();
+
+const reportFile = path.join(ROOT, "var", `seo-svetovody-${now}.txt`);
+fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
+console.log(`\nГотово: раздел ${category ? "обновлён" : "без изменений"}, новых фото ${photos.length}. Отчёт: ${path.relative(ROOT, reportFile)}`);
