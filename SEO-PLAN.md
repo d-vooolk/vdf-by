@@ -122,6 +122,15 @@ Google за 19.09–16.10: 205 кликов, 2 629 показов, позици�
   работ по би-LED (он же у би-LED модулей и линз), в тексте и FAQ — сборка
   на бутиловый герметик и регулировка света, новый вопрос про регулировку.
 
+- Тексты моделей рамок: ещё 30 моделей (было 26) — Kia K5, Transporter T5,
+  Audi A8/Q5/A5, Range Rover и Evoque, Mazda 6, Outback, Rio, Octavia, ix35,
+  Vectra, Qashqai, Corolla, BMW X4/X6/7, Mercedes E/C, Jetta, Mondeo, Prado,
+  Golf, Highlander, Optima, Superb, Outlander, XC90, Cayenne. Выбраны по
+  показам страниц в Google и числу рамок; модели с одной рамкой пропущены.
+  Тексты только по рамкам из каталога (поколения, AFS, галоген/ксенон/LED,
+  исполнения). Файл — `scripts/seo-ramki-models-2026-10.md`, запись —
+  `seo-section-content.mjs --content scripts/seo-ramki-models-2026-10.json`.
+
 ## Неделя 1 (15–21.10) — техника и быстрые правки
 
 1. **Пагинация.** Убрать `?page=N` из конкуренции с первой страницей:
