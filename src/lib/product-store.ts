@@ -375,7 +375,7 @@ export function listProducts(filter: {
   const params: Record<string, string | number> = {};
 
   if (filter.categoryId) {
-    where.push("category_id = @categoryId");
+    where.push("category_id IN (SELECT id FROM categories WHERE id = @categoryId OR parent_id = @categoryId)");
     params.categoryId = filter.categoryId;
   }
   if (filter.outOfStock) where.push("in_stock = 0");

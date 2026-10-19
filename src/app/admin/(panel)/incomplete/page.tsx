@@ -9,7 +9,7 @@ import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
 import { GAPS, isGap, listIncompleteProducts, SEO_GAPS, type Gap } from "@/lib/incomplete";
 import { COPY_TARGET_SCORE, copyQueue } from "@/lib/product-copy";
-import { listCategoriesBrief } from "@/lib/category-store";
+import { categoryFilterOptions, categoryWithChildren, listCategoriesBrief } from "@/lib/category-store";
 
 export const metadata: Metadata = { title: "Незаполненные карточки" };
 
@@ -30,7 +30,8 @@ export default async function IncompletePage({ searchParams }: PageProps) {
 
   const everything = listIncompleteProducts();
   const copyBacklog = copyQueue(new Set());
-  const all = everything.filter((product) => !categoryId || product.categoryId === categoryId);
+  const scope = categoryWithChildren(categories, categoryId);
+  const all = everything.filter((product) => !categoryId || scope.has(product.categoryId));
   const counts = Object.fromEntries(
     (Object.keys(GAPS) as Gap[]).map((key) => [
       key,
@@ -93,13 +94,9 @@ export default async function IncompletePage({ searchParams }: PageProps) {
           .filter((key) => !SEO_GAPS.includes(key))
           .map(gapOption)}
         seoGaps={SEO_GAPS.map(gapOption)}
-        categories={categories
-          .filter((category) => perCategory.has(category.id) || category.id === categoryId)
-          .map((category) => ({
-            value: category.id,
-            label: category.name,
-            count: perCategory.get(category.id) ?? 0,
-          }))}
+        categories={categoryFilterOptions(categories, (category) => perCategory.get(category.id) ?? 0)
+          .filter((option) => option.count > 0 || option.id === categoryId)
+          .map((option) => ({ value: option.id, label: option.label, count: option.count }))}
       />
 
       {rows.length === 0 ? (

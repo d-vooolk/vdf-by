@@ -8,7 +8,7 @@ import { getSite } from "@/lib/catalog";
 import { frameLockedIds } from "@/lib/frame-membership";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
-import { listCategoriesBrief } from "@/lib/category-store";
+import { categoryFilterOptions, listCategoriesBrief } from "@/lib/category-store";
 import { listProducts } from "@/lib/product-store";
 
 export const metadata = { title: "Нет в наличии" };
@@ -95,9 +95,9 @@ export default async function OutOfStockPage({ searchParams }: PageProps) {
             className="field py-2 text-sm"
           >
             <option value="">Все категории</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
+            {categoryFilterOptions(categories).map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
               </option>
             ))}
           </select>
