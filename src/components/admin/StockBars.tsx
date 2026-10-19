@@ -26,7 +26,7 @@ export function StockBars({ rows }: { rows: CategoryStock[] }) {
           const missing = row.total - row.inStock;
           const share = row.total ? (row.inStock / row.total) * 100 : 0;
           return (
-            <li key={row.id} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 text-xs">
+            <li key={row.id} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_6rem] items-center gap-3 text-xs">
               <Link
                 href={`/admin/products/?category=${encodeURIComponent(row.id)}`}
                 className="truncate text-brand-700 hover:underline"
@@ -50,7 +50,7 @@ export function StockBars({ rows }: { rows: CategoryStock[] }) {
                   />
                 )}
               </div>
-              <span className="tnum whitespace-nowrap text-brand-500">
+              <span className="tnum text-right whitespace-nowrap text-brand-500">
                 {formatNumber(row.inStock)} из {formatNumber(row.total)}
               </span>
             </li>

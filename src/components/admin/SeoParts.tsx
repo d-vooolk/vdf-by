@@ -198,6 +198,7 @@ export function DailyBars({
   const plotHeight = height - top - bottom;
   const total = points.reduce((sum, point) => sum + point.value, 0);
   const label = (date: string) => date.slice(8, 10) + "." + date.slice(5, 7);
+  const summaryText = withUnit(summary === "sum" ? total : points[points.length - 1].value, unit);
   const ticks = [0, Math.floor(points.length / 2), points.length - 1];
 
   return (
@@ -250,10 +251,8 @@ export function DailyBars({
       </svg>
       <figcaption className="mt-1 text-xs text-brand-400">
         {summary === "sum" ? "Всего за период: " : "Сейчас: "}
-        <span className="tnum font-medium text-brand-700">
-          {withUnit(summary === "sum" ? total : points[points.length - 1].value, unit)}
-        </span>
-        . Наведите на столбик — покажется {step === "week" ? "неделя" : "день"} и значение.
+        <span className="tnum font-medium text-brand-700">{summaryText}</span>
+        {summaryText.endsWith(".") ? "" : "."} Наведите на столбик — покажется {step === "week" ? "неделя" : "день"} и значение.
       </figcaption>
     </figure>
   );
