@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 
 import { saveProductRowAction, type ProductRowChanges } from "@/app/admin/product-actions";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
@@ -226,35 +226,47 @@ export function ProductRow({
           const suffix =
             field === "stockQty" ? "шт." : field === "storageCode" ? "" : currencySymbol;
           return (
-            <label key={field} className="block" title={titleOf(field)}>
-              <span className="block text-[10px] leading-tight text-brand-400">
-                {FIELD_LABELS[field]}
-              </span>
-              <span className="relative block">
-                <input
-                  type="text"
-                  inputMode={field === "storageCode" ? "text" : "decimal"}
-                  value={text}
-                  placeholder="—"
-                  disabled={disabled}
-                  onChange={(event) =>
-                    setTexts((current) => ({ ...current, [field]: event.target.value }))
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") reset(field);
-                  }}
-                  aria-invalid={invalid.includes(field) || undefined}
-                  className={`field tnum py-1.5 text-sm disabled:bg-brand-50 disabled:text-brand-400 aria-invalid:border-red-400 ${
-                    field === "storageCode" ? "w-24" : "w-24 pr-9 text-right"
-                  }`}
+            <Fragment key={field}>
+              <label className="block" title={titleOf(field)}>
+                <span className="block text-[10px] leading-tight text-brand-400">
+                  {FIELD_LABELS[field]}
+                </span>
+                <span className="relative block">
+                  <input
+                    type="text"
+                    inputMode={field === "storageCode" ? "text" : "decimal"}
+                    value={text}
+                    placeholder="—"
+                    disabled={disabled}
+                    onChange={(event) =>
+                      setTexts((current) => ({
+                        ...current,
+                        [field]: event.target.value,
+                      }))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") reset(field);
+                    }}
+                    aria-invalid={invalid.includes(field) || undefined}
+                    className={`field tnum py-1.5 text-sm disabled:bg-brand-50 disabled:text-brand-400 aria-invalid:border-red-400 ${
+                      field === "storageCode" ? "w-24" : "w-24 pr-9 text-right"
+                    }`}
+                  />
+                  {suffix && (
+                    <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
+                      {suffix}
+                    </span>
+                  )}
+                </span>
+              </label>
+              {field === "storageCode" && product.storageCode && (
+                <PrintLabelButton
+                  target={{ productId: product.id }}
+                  layout="storage"
+                  className="px-2 py-1.5"
                 />
-                {suffix && (
-                  <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-brand-300">
-                    {suffix}
-                  </span>
-                )}
-              </span>
-            </label>
+              )}
+            </Fragment>
           );
         })}
         <button

@@ -107,6 +107,15 @@ export function ProductForm({
   );
 
   const creating = !previousId;
+  const savedStorageCode = initial.storageCode?.trim() ?? "";
+  const printStorageButton =
+    !creating && savedStorageCode && (draft.storageCode?.trim() ?? "") === savedStorageCode ? (
+      <PrintLabelButton
+        target={{ productId: initial.id }}
+        layout="storage"
+        className="border border-brand-200 px-3"
+      />
+    ) : null;
   const closeComposer = useCallback(() => setComposerOpen(false), []);
 
   const money = (value: number | null | undefined) =>
@@ -510,7 +519,12 @@ export function ProductForm({
           )}
 
           {frameType ? (
-            <LockedField label="Складской номер" value={draft.storageCode || "—"} />
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <LockedField label="Складской номер" value={draft.storageCode || "—"} />
+              </div>
+              {printStorageButton}
+            </div>
           ) : (
             <Field
               label="Складской номер"
@@ -518,12 +532,15 @@ export function ProductForm({
                 buildProductSku(draft.sku, draft.storageCode) || "—"
               }`}
             >
-              <input
-                value={draft.storageCode ?? ""}
-                onChange={(event) => patch({ storageCode: event.target.value })}
-                className="field"
-                placeholder="А-12-3"
-              />
+              <div className="flex gap-2">
+                <input
+                  value={draft.storageCode ?? ""}
+                  onChange={(event) => patch({ storageCode: event.target.value })}
+                  className="field"
+                  placeholder="А-12-3"
+                />
+                {printStorageButton}
+              </div>
             </Field>
           )}
 

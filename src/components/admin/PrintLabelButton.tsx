@@ -6,7 +6,13 @@ import { PrinterIcon, SpinnerIcon } from "@/components/icons";
 
 type LabelTarget = { productId: string } | { categoryId: string; type: string };
 
-type LabelLayout = "label" | "number";
+type LabelLayout = "label" | "number" | "storage";
+
+const CAPTIONS: Record<LabelLayout, string> = {
+  label: "Печать этикетки",
+  number: "Печать номера рамки",
+  storage: "Печать складского номера",
+};
 
 interface PrintLabelButtonProps {
   target: LabelTarget;
@@ -20,7 +26,7 @@ function labelUrl(target: LabelTarget, layout: LabelLayout): string {
     "productId" in target
       ? new URLSearchParams({ product: target.productId })
       : new URLSearchParams({ category: target.categoryId, type: target.type });
-  if (layout === "number") params.set("layout", "number");
+  if (layout !== "label") params.set("layout", layout);
   return `/admin/api/label/?${params}`;
 }
 
@@ -55,7 +61,7 @@ export function PrintLabelButton({
 }: PrintLabelButtonProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const caption = layout === "number" ? "Печать номера рамки" : "Печать этикетки";
+  const caption = CAPTIONS[layout];
 
   const print = async () => {
     setPending(true);
@@ -85,6 +91,7 @@ export function PrintLabelButton({
     >
       {pending ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <PrinterIcon className="h-4 w-4" />}
       {layout === "number" && <span className="text-xs font-semibold leading-none">№</span>}
+      {layout === "storage" && <span className="text-xs font-semibold leading-none">СК</span>}
       {withText && (error ? "Ошибка печати" : caption)}
     </button>
   );

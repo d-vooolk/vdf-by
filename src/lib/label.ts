@@ -196,24 +196,46 @@ body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: ex
 }
 `;
 
-function frameNumberFontSize(text: string): number {
-  const usableWidthMm = 53;
-  const maxHeightMm = 34;
-  const glyphWidthEm = 0.6;
-  return Math.min(maxHeightMm, usableWidthMm / (glyphWidthEm * Math.max(text.length, 1)));
+function boldGlyphWidthEm(char: string): number {
+  if (/\d/.test(char)) return 0.56;
+  if (char === " ") return 0.28;
+  if (/[-.,:;/|()]/.test(char)) return 0.34;
+  if (/[ШЩЖЮМФЫ]/.test(char)) return 0.9;
+  if (char !== char.toLowerCase()) return 0.74;
+  return 0.6;
 }
 
-export function renderFrameNumberHtml(type: string): string {
-  const fontSize = frameNumberFontSize(type).toFixed(1);
+function bigTextFontSize(text: string): number {
+  const usableWidthMm = 53;
+  const maxHeightMm = 34;
+  const widthEm = [...text].reduce((sum, char) => sum + boldGlyphWidthEm(char), 0);
+  return Math.min(maxHeightMm, usableWidthMm / Math.max(widthEm, 1));
+}
+
+export function productStorageCode(id: string): string | null {
+  const product = getProductRaw(id);
+  if (!product) return null;
+  return product.storageCode?.trim() ?? "";
+}
+
+export function frameTypeStorageCode(categoryId: string, type: string): string | null {
+  if (!isFrameCategory(categoryId)) return null;
+  const group = getFrameType(categoryId, type);
+  if (!group) return null;
+  return group.storageCode.trim();
+}
+
+export function renderBigTextHtml(text: string): string {
+  const fontSize = bigTextFontSize(text).toFixed(1);
   return `<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>${escapeHtml(type)}</title>
+<title>${escapeHtml(text)}</title>
 <style>${NUMBER_LABEL_CSS}</style>
 </head>
 <body>
-<div class="label"><div class="number" style="font-size:${fontSize}mm">${escapeHtml(type)}</div></div>
+<div class="label"><div class="number" style="font-size:${fontSize}mm">${escapeHtml(text)}</div></div>
 </body>
 </html>`;
 }

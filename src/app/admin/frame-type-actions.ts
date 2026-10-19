@@ -13,6 +13,7 @@ import {
   removeFromFrameType,
   saveFrameTypeInfo,
   setFrameTypeStock,
+  setFrameTypeStorageCode,
   setPlannedFrameCars,
   validFrameTypeInfo,
   validFrameTypeValues,
@@ -139,4 +140,14 @@ export async function setFrameTypeStockAction(
     return fail(["Количество — целое число не меньше нуля"]);
   }
   return finishFrameChange(setFrameTypeStock(categoryId, type, stockQty));
+}
+
+export async function setFrameTypeStorageCodeAction(
+  categoryId: string,
+  type: string,
+  storageCode: string,
+): Promise<FormState> {
+  await requireAdmin();
+  if (typeof storageCode !== "string") return fail(["Складской номер указан неверно"]);
+  return finishFrameChange(setFrameTypeStorageCode(categoryId, type, storageCode));
 }

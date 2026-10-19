@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
+import { FrameTypeStorageField } from "@/components/admin/FrameTypeStorageField";
 import { FrameTypeStockField } from "@/components/admin/FrameTypeStockField";
 import { startNavigationOverlay } from "@/components/admin/NavigationOverlay";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
@@ -221,41 +222,40 @@ const FrameTypeRows = memo(function FrameTypeRows({
             key={row.type}
             className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 sm:gap-x-4"
           >
-            <Link
-              href={`/admin/frame-types/${row.type}/${categoryQuery}`}
-              prefetch={false}
-              className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1 sm:order-none sm:grow sm:basis-[26rem]"
-            >
-              <span className="tnum w-16 text-base font-semibold text-brand-900">{row.type}</span>
-              <span className="min-w-0 flex-1 basis-40">
-                <span className="block truncate text-sm text-brand-900">
-                  {row.name || <span className="text-brand-400">без названия</span>}
-                </span>
-                <span className="block text-xs text-brand-500">
-                  <span className="tnum">{row.sku}</span>
-                  {" · "}
-                  {row.summary}
-                </span>
-              </span>
-              <span
-                className="tnum w-28 truncate text-sm text-brand-700"
-                title="Складской номер — входит в артикул товаров типа"
+            <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1 sm:order-none sm:grow sm:basis-[26rem]">
+              <Link
+                href={`/admin/frame-types/${row.type}/${categoryQuery}`}
+                prefetch={false}
+                className="flex min-w-0 flex-1 basis-56 items-center gap-x-4"
               >
-                {row.storageCode ? (
-                  <>склад: {row.storageCode}</>
-                ) : (
-                  <span className="text-brand-400">
-                    {row.storageMixed ? "склад: разный" : "склад: —"}
+                <span className="tnum w-16 shrink-0 text-base font-semibold text-brand-900">
+                  {row.type}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-brand-900">
+                    {row.name || <span className="text-brand-400">без названия</span>}
                   </span>
-                )}
-              </span>
+                  <span className="block text-xs text-brand-500">
+                    <span className="tnum">{row.sku}</span>
+                    {" · "}
+                    {row.summary}
+                  </span>
+                </span>
+              </Link>
+              <FrameTypeStorageField
+                key={row.storageCode}
+                categoryId={categoryId}
+                type={row.type}
+                initial={row.storageCode}
+                mixed={row.storageMixed}
+              />
               <span className="tnum w-24 text-sm text-brand-500">
                 {row.productCount} {row.productCount === 1 ? "товар" : "товаров"}
               </span>
               {!row.uniform && (
                 <span className="badge bg-amber-100 text-amber-900">у товаров разные значения</span>
               )}
-            </Link>
+            </div>
             <FrameTypeStockField
               categoryId={categoryId}
               type={row.type}
