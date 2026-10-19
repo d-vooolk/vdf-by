@@ -14,7 +14,7 @@ import { frameComposerSettings, getFrameType, readFrameImage } from "./frame-typ
 import { removeImageFiles } from "./image-pipeline.mjs";
 import { storeImage } from "./image-store";
 import { deleteImage, getImage, imageUsage } from "./images";
-import { marketFromTitle } from "./market-flags";
+import { marketFromTitle } from "./market-flags.mjs";
 import { composeInWorker } from "./ml";
 import type { Product } from "./schema";
 import sharp from "./sharp";

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { CloseIcon } from "@/components/icons";
-import { marketFromTitle } from "@/lib/market-flags";
+import { marketFromTitle } from "@/lib/market-flags.mjs";
 
 import { ImageComposer, type ComposedImage, type ComposerProductImage } from "./ImageComposer";
 

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import sharp, { type Sharp } from "sharp";
 
-import { flagMarkup, isMarket, type Market } from "./market-flags";
+import { flagMarkup, isMarket, type Market } from "./market-flags.mjs";
 
 export const CANVAS = 1600;
 

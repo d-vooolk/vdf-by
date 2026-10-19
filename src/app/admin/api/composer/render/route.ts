@@ -2,7 +2,7 @@ import { getAdmin } from "@/lib/auth";
 import { getCarFrontPhoto, readCarFrontPhoto } from "@/lib/car-photos";
 import { isBackground } from "@/lib/composer";
 import { storeImage } from "@/lib/image-store";
-import { isMarket } from "@/lib/market-flags";
+import { isMarket } from "@/lib/market-flags.mjs";
 import { composeInWorker } from "@/lib/ml";
 import { revalidateImages } from "@/lib/revalidate";
 

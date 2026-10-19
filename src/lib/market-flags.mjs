@@ -1,18 +1,24 @@
+/** @typedef {"us" | "eu" | "ru" | "cn" | "kr"} Market */
+
+/** @type {ReadonlyArray<{ value: Market, label: string }>} */
 export const MARKETS = [
   { value: "us", label: "США" },
   { value: "eu", label: "Европа" },
   { value: "ru", label: "Россия" },
   { value: "cn", label: "Китай" },
   { value: "kr", label: "Корея" },
-] as const;
+];
 
-export type Market = (typeof MARKETS)[number]["value"];
-
-export function isMarket(value: unknown): value is Market {
+/**
+ * @param {unknown} value
+ * @returns {value is Market}
+ */
+export function isMarket(value) {
   return MARKETS.some((market) => market.value === value);
 }
 
-const TITLE_MARKERS: Array<[RegExp, Market]> = [
+/** @type {Array<[RegExp, Market]>} */
+const TITLE_MARKERS = [
   [/(^|[^a-zа-я])(usa|us)([^a-zа-я]|$)|сша|америк/i, "us"],
   [/(^|[^a-zа-я])eu([^a-zа-я]|$)|европ/i, "eu"],
   [/(^|[^a-zа-я])(cn|china)([^a-zа-я]|$)|китай/i, "cn"],
@@ -20,13 +26,23 @@ const TITLE_MARKERS: Array<[RegExp, Market]> = [
   [/(^|[^a-zа-я])рф([^a-zа-я]|$)|росси/i, "ru"],
 ];
 
-export function marketFromTitle(title: string): Market | "" {
+/**
+ * @param {string} title
+ * @returns {Market | ""}
+ */
+export function marketFromTitle(title) {
   return TITLE_MARKERS.find(([pattern]) => pattern.test(title))?.[1] ?? "";
 }
 
-function star(cx: number, cy: number, outer: number, rotation = -90): string {
+/**
+ * @param {number} cx
+ * @param {number} cy
+ * @param {number} outer
+ * @param {number} [rotation]
+ */
+function star(cx, cy, outer, rotation = -90) {
   const inner = outer * 0.382;
-  const points: string[] = [];
+  const points = [];
   for (let index = 0; index < 10; index += 1) {
     const radius = index % 2 ? inner : outer;
     const angle = ((rotation + index * 36) * Math.PI) / 180;
@@ -35,14 +51,14 @@ function star(cx: number, cy: number, outer: number, rotation = -90): string {
   return points.join(" ");
 }
 
-function usa(): string {
+function usa() {
   const stripe = 20 / 13;
   const stripes = Array.from({ length: 7 }, (_, index) =>
     `<rect y="${(index * 2 * stripe).toFixed(3)}" width="30" height="${stripe.toFixed(3)}" fill="#B22234"/>`,
   ).join("");
   const cantonWidth = 12;
   const cantonHeight = stripe * 7;
-  const stars: string[] = [];
+  const stars = [];
   for (let row = 0; row < 9; row += 1) {
     const count = row % 2 ? 5 : 6;
     for (let column = 0; column < count; column += 1) {
@@ -54,7 +70,7 @@ function usa(): string {
   return `<rect width="30" height="20" fill="#fff"/>${stripes}<rect width="${cantonWidth}" height="${cantonHeight.toFixed(3)}" fill="#3C3B6E"/>${stars.join("")}`;
 }
 
-function europe(): string {
+function europe() {
   const stars = Array.from({ length: 12 }, (_, index) => {
     const angle = (index * 30 * Math.PI) / 180;
     return `<polygon points="${star(15 + 6 * Math.sin(angle), 10 - 6 * Math.cos(angle), 1)}" fill="#FFCC00"/>`;
@@ -62,12 +78,12 @@ function europe(): string {
   return `<rect width="30" height="20" fill="#003399"/>${stars}`;
 }
 
-function russia(): string {
+function russia() {
   return `<rect width="30" height="20" fill="#fff"/><rect y="6.667" width="30" height="6.667" fill="#0039A6"/><rect y="13.333" width="30" height="6.667" fill="#D52B1E"/>`;
 }
 
-function china(): string {
-  const small: Array<[number, number]> = [[10, 2], [12, 4], [12, 7], [10, 9]];
+function china() {
+  const small = [[10, 2], [12, 4], [12, 7], [10, 9]];
   return (
     `<rect width="30" height="20" fill="#EE1C25"/><polygon points="${star(5, 5, 3)}" fill="#FFFF00"/>` +
     small
@@ -79,8 +95,14 @@ function china(): string {
   );
 }
 
-function korea(): string {
-  const bars = (pattern: Array<boolean>, cx: number, cy: number, angle: number) => {
+function korea() {
+  /**
+   * @param {boolean[]} pattern
+   * @param {number} cx
+   * @param {number} cy
+   * @param {number} angle
+   */
+  const bars = (pattern, cx, cy, angle) => {
     const width = 4;
     const height = 0.6;
     const gap = 0.35;
@@ -108,12 +130,19 @@ function korea(): string {
   );
 }
 
-const FLAGS: Record<Market, () => string> = { us: usa, eu: europe, ru: russia, cn: china, kr: korea };
+/** @type {Record<Market, () => string>} */
+const FLAGS = { us: usa, eu: europe, ru: russia, cn: china, kr: korea };
 
-export function flagMarkup(market: Market): string {
+/** @param {Market} market */
+export function flagMarkup(market) {
   return FLAGS[market]();
 }
 
-export function flagSvg(market: Market, width: number, height: number): string {
+/**
+ * @param {Market} market
+ * @param {number} width
+ * @param {number} height
+ */
+export function flagSvg(market, width, height) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 30 20" preserveAspectRatio="none">${flagMarkup(market)}</svg>`;
 }
