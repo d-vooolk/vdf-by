@@ -1,0 +1,38 @@
+{
+  "category": {
+    "slug": "perehodnye-ramki",
+    "replaceInDescription": [
+      [
+        "ставят рамку с модулем и собирают фару на новый герметик.",
+        "ставят рамку с модулем, собирают фару на бутиловый герметик и регулируют свет."
+      ]
+    ],
+    "faqAnswers": {
+      "Где установить рамки и линзы в Минске?": "В мастерской Prime Auto: снимут и вскроют фару, поставят рамки и модули, соберут фару на бутиловый герметик и отрегулируют свет. Ссылка на мастерскую и фото работ — на этой странице."
+    },
+    "faqAppend": [
+      {
+        "q": "Нужно ли регулировать свет после установки линз на рамки?",
+        "a": "Да. Рамка ставит модуль на место штатной линзы, но светотеневую границу всё равно проверяют и выставляют у стены или на стенде. Без регулировки свет может слепить встречных или бить слишком близко."
+      }
+    ]
+  },
+  "libraryPhotos": {
+    "workshop/biled/bi-led-modul-na-perehodnoy-ramke.webp": "bi-led/primer-zamenennogo-modulya-so-shtatnogo-na-biled-1564x1564.webp",
+    "workshop/biled/ramka-s-modulem-v-razobrannoy-fare.webp": "bi-led/primer-ustanovlennogo-modulya-na-razobrannoy-fare-1600x1067.webp",
+    "workshop/biled/zamena-shtatnogo-modulya-na-bi-led-afs.webp": "bi-led/primer-zameny-shtatnogo-modulya-na-biled-s-afs-1280x1280.webp",
+    "workshop/biled/svet-do-i-posle-ustanovki-bi-led.webp": "bi-led/ustanovka-biled-moduley-do-posle-na-doroge-1600x1599.webp"
+  },
+  "workshopPhotos": {
+    "biled": {
+      "title": "Установка би-LED линз на переходные рамки: работы мастерской",
+      "lead": "Фото из мастерской Prime Auto в Минске — там ставят линзы и рамки из нашего каталога: вскрывают фару, крепят модуль на рамку в штатные точки, собирают фару на бутиловый герметик и регулируют свет.",
+      "photos": [
+        { "image": "workshop/biled/bi-led-modul-na-perehodnoy-ramke.webp", "caption": "Би-LED модуль на переходной рамке перед установкой в фару" },
+        { "image": "workshop/biled/ramka-s-modulem-v-razobrannoy-fare.webp", "caption": "Рамка с модулем в разобранной фаре: крепление в штатных точках" },
+        { "image": "workshop/biled/zamena-shtatnogo-modulya-na-bi-led-afs.webp", "caption": "Фара с AFS: штатный модуль и би-LED на его месте" },
+        { "image": "workshop/biled/svet-do-i-posle-ustanovki-bi-led.webp", "caption": "Свет на дороге до и после установки би-LED" }
+      ]
+    }
+  }
+}
