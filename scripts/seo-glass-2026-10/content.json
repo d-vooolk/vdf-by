@@ -16,6 +16,16 @@
       "На что вклеивают стекло фары?": "На бутиловый герметик для фар. Он остаётся эластичным в мороз и жару, держит влагу и пыль, а при следующем ремонте шов достаточно прогреть, чтобы снять стекло. Силикон, клеи и кузовные герметики не подходят: фару потом не разобрать, а пары от них мутят поликарбонат."
     }
   },
+  "libraryPhotos": {
+    "articles/zapotevshaya-fara-kondensat.webp": "zapotevanie/zapotevshaya-fara-1600x1185.webp",
+    "articles/proverka-germetichnosti-fary-mylnyy-rastvor.webp": "zapotevanie/proverka-germetichnosti-fary-1198x800.webp",
+    "articles/opressovka-fary-proverka-shva.webp": "zapotevanie/opresovka-proverka-germetichnosti-1280x720.webp",
+    "articles/zapotevanie-fary-do-posle.webp": "zapotevanie/zapotevanie-do-posle-1024x768.webp",
+    "articles/zamena-stekla-fary-do-posle-avto.webp": "remont/zamena-stekla-do-posle-1600x1119.webp",
+    "articles/razobrannaya-fara.webp": "remont/primer-razobrannoy-fary-960x640.webp",
+    "articles/pozheltevshee-steklo-fary-do-posle.webp": "polirovka/polirovka-far-do-posle-1-1280x720.webp",
+    "articles/himicheskaya-polirovka-fary.webp": "polirovka/himicheskaya-polirovka-far-process-1200x675.webp"
+  },
   "articles": [
     {
       "slug": "zamena-stekla-fary-svoimi-rukami",
