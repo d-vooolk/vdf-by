@@ -1,3 +1,5 @@
+import { notFound, permanentRedirect } from "next/navigation";
+
 import { bumpCatalogVersion, getDb } from "./db";
 
 /**
@@ -82,4 +84,10 @@ export function findRedirect(path: string): string | null {
     .get(source) as { to_path: string } | undefined;
 
   return row?.to_path ?? null;
+}
+
+export function redirectOrNotFound(path: string): never {
+  const target = findRedirect(path);
+  if (target) permanentRedirect(target);
+  notFound();
 }
