@@ -275,6 +275,11 @@ const FrameTypeRows = memo(function FrameTypeRows({
               target={{ categoryId, type: row.type }}
               className="p-2 text-brand-500 hover:text-brand-900"
             />
+            <PrintLabelButton
+              target={{ categoryId, type: row.type }}
+              layout="number"
+              className="p-2 text-brand-500 hover:text-brand-900"
+            />
           </li>
         ))}
       </ul>

@@ -6,17 +6,21 @@ import { PrinterIcon, SpinnerIcon } from "@/components/icons";
 
 type LabelTarget = { productId: string } | { categoryId: string; type: string };
 
+type LabelLayout = "label" | "number";
+
 interface PrintLabelButtonProps {
   target: LabelTarget;
+  layout?: LabelLayout;
   withText?: boolean;
   className?: string;
 }
 
-function labelUrl(target: LabelTarget): string {
+function labelUrl(target: LabelTarget, layout: LabelLayout): string {
   const params =
     "productId" in target
       ? new URLSearchParams({ product: target.productId })
       : new URLSearchParams({ category: target.categoryId, type: target.type });
+  if (layout === "number") params.set("layout", "number");
   return `/admin/api/label/?${params}`;
 }
 
@@ -43,15 +47,21 @@ function printInFrame(html: string): Promise<void> {
   });
 }
 
-export function PrintLabelButton({ target, withText = false, className = "" }: PrintLabelButtonProps) {
+export function PrintLabelButton({
+  target,
+  layout = "label",
+  withText = false,
+  className = "",
+}: PrintLabelButtonProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const caption = layout === "number" ? "Печать номера рамки" : "Печать этикетки";
 
   const print = async () => {
     setPending(true);
     setError("");
     try {
-      const response = await fetch(labelUrl(target), { cache: "no-store" });
+      const response = await fetch(labelUrl(target, layout), { cache: "no-store" });
       if (!response.ok) {
         setError((await response.text()) || "Не удалось подготовить этикетку");
         return;
@@ -69,12 +79,13 @@ export function PrintLabelButton({ target, withText = false, className = "" }: P
       type="button"
       onClick={print}
       disabled={pending}
-      title={error || "Печать этикетки 58×40"}
-      aria-label="Печать этикетки"
+      title={error || `${caption} 58×40`}
+      aria-label={caption}
       className={`btn-ghost shrink-0 ${error ? "text-red-700" : ""} ${className}`}
     >
       {pending ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <PrinterIcon className="h-4 w-4" />}
-      {withText && (error ? "Ошибка печати" : "Печать этикетки")}
+      {layout === "number" && <span className="text-xs font-semibold leading-none">№</span>}
+      {withText && (error ? "Ошибка печати" : caption)}
     </button>
   );
 }
