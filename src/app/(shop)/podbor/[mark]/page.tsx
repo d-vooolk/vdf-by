@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ModelList } from "@/components/CarTiles";
@@ -18,6 +17,7 @@ import {
   singleBranchOf,
 } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
+import { redirectOrNotFound } from "@/lib/redirects";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
@@ -73,7 +73,7 @@ export async function generateMetadata({
 export default async function MarkPage({ params }: PageProps) {
   const { mark: slug } = await params;
   const mark = findMark(slug);
-  if (!mark) notFound();
+  if (!mark) redirectOrNotFound(`/podbor/${slug}/`);
 
   const site = getSite();
   const products = getProductsForMark(mark.id);

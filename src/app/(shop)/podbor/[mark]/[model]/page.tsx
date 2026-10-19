@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GenerationGrid } from "@/components/CarTiles";
@@ -19,6 +18,7 @@ import {
   singleBranchOf,
 } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
+import { redirectOrNotFound } from "@/lib/redirects";
 import { formatPrice, pluralize } from "@/lib/format";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
 import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
@@ -86,7 +86,7 @@ export async function generateMetadata({
 export default async function ModelPage({ params }: PageProps) {
   const { mark: markSlug, model: modelSlug } = await params;
   const found = resolve(markSlug, modelSlug);
-  if (!found) notFound();
+  if (!found) redirectOrNotFound(`/podbor/${markSlug}/${modelSlug}/`);
 
   const { mark, model } = found;
   const site = getSite();

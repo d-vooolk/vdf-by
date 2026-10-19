@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import {
   CategoryModelView,
   categoryModelMetadata,
 } from "@/components/CategoryCarView";
 import { modelParams, resolveModel } from "@/lib/car-branch";
+import { redirectOrNotFound } from "@/lib/redirects";
 
 export function generateStaticParams() {
   return modelParams();
@@ -26,7 +26,7 @@ export async function generateMetadata({
 export default async function CategoryModelPage({ params }: PageProps) {
   const { category, branch, model } = await params;
   const scope = resolveModel(category, branch, model);
-  if (!scope) notFound();
+  if (!scope) redirectOrNotFound(`/catalog/${category}/${branch}/${model}/`);
 
   return <CategoryModelView {...scope} />;
 }

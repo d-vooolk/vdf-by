@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import {
   CategoryGenerationView,
   categoryGenerationMetadata,
 } from "@/components/CategoryCarView";
 import { generationParams, resolveGeneration } from "@/lib/car-branch";
+import { redirectOrNotFound } from "@/lib/redirects";
 
 export function generateStaticParams() {
   return generationParams();
@@ -31,7 +31,7 @@ export async function generateMetadata({
 export default async function CategoryGenerationPage({ params }: PageProps) {
   const { category, branch, model, generation } = await params;
   const scope = resolveGeneration(category, branch, model, generation);
-  if (!scope) notFound();
+  if (!scope) redirectOrNotFound(`/catalog/${category}/${branch}/${model}/${generation}/`);
 
   return <CategoryGenerationView {...scope} />;
 }
