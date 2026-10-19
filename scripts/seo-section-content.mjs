@@ -14,7 +14,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
 const BACKUP_DIR = env("BACKUP_DIR", path.join(ROOT, "var", "backups"));
 const IMG_DIR = path.join(ROOT, "public", "img");
-const CONTENT = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts", "seo-svetovody-2026-10.json"), "utf8"));
 const TITLE_LIMIT = 65;
 const BRAND_SUFFIX_LENGTH = " — VDF.BY".length;
 
@@ -26,6 +25,13 @@ function arg(name, fallback) {
 const apply = process.argv.includes("--apply");
 const port = arg("port", env("PORT", "3011"));
 const libraryDir = arg("library", "/var/www/prime-auto/var/uploads/library");
+const contentFile = arg("content", null);
+if (!contentFile) {
+  console.error("Укажите файл с контентом: --content scripts/seo-….json");
+  process.exit(1);
+}
+const CONTENT = JSON.parse(fs.readFileSync(path.resolve(ROOT, contentFile), "utf8"));
+const label = path.basename(contentFile, ".json");
 
 sharp.cache(false);
 
@@ -55,7 +61,7 @@ const bump = db.prepare(
    ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)`,
 );
 
-const libraryPhotos = Object.entries(CONTENT.libraryPhotos).filter(([target]) => !imageExists.get(target));
+const libraryPhotos = Object.entries(CONTENT.libraryPhotos ?? {}).filter(([target]) => !imageExists.get(target));
 
 function planLibraryPhotos() {
   for (const [target, source] of libraryPhotos) {
@@ -71,15 +77,41 @@ function planCategory() {
   if (!row) throw new Error(`нет раздела ${spec.slug}`);
   const data = JSON.parse(row.data);
 
-  const { seoTitle, seoDescription } = spec.set;
-  if (seoTitle.length + BRAND_SUFFIX_LENGTH > TITLE_LIMIT) problems.push(`title ${seoTitle.length} знаков — не влезет с « — VDF.BY»`);
-  if (seoDescription.length > 165) problems.push(`описание для поиска ${seoDescription.length} знаков`);
+  const set = spec.set ?? {};
+  if (set.seoTitle && set.seoTitle.length + BRAND_SUFFIX_LENGTH > TITLE_LIMIT) {
+    problems.push(`title ${set.seoTitle.length} знаков — не влезет с « — VDF.BY»`);
+  }
+  if (set.seoDescription && set.seoDescription.length > 165) problems.push(`описание для поиска ${set.seoDescription.length} знаков`);
 
-  for (const [field, value] of Object.entries(spec.set)) {
+  for (const [field, value] of Object.entries(set)) {
     if (JSON.stringify(data[field] ?? null) === JSON.stringify(value)) continue;
     const size = typeof value === "string" ? `${value.length} знаков` : `${value.length} шт.`;
     say(`раздел ${spec.slug}: ${field} ${data[field] === undefined ? "добавлено" : "заменено"} (${size})`);
     data[field] = value;
+  }
+  for (const [from, to] of spec.replaceInDescription ?? []) {
+    if (data.description?.includes(to)) continue;
+    if (!data.description?.includes(from)) {
+      problems.push(`раздел ${spec.slug}: в описании не найдено «${from}»`);
+      continue;
+    }
+    data.description = data.description.replace(from, to);
+    say(`раздел ${spec.slug}: описание — «${from}» → «${to}»`);
+  }
+  for (const [question, answer] of Object.entries(spec.faqAnswers ?? {})) {
+    const item = (data.faq ?? []).find((entry) => entry.q.trim() === question);
+    if (!item) {
+      problems.push(`раздел ${spec.slug}: нет вопроса «${question}»`);
+      continue;
+    }
+    if (item.a === answer) continue;
+    say(`раздел ${spec.slug}: ответ на «${question}» заменён`);
+    item.a = answer;
+  }
+  for (const entry of spec.faqAppend ?? []) {
+    if ((data.faq ?? []).some((item) => item.q.trim() === entry.q)) continue;
+    data.faq = [...(data.faq ?? []), entry];
+    say(`раздел ${spec.slug}: добавлен вопрос «${entry.q}»`);
   }
   return JSON.stringify(data) === row.data ? null : { id: row.id, data };
 }
@@ -87,7 +119,7 @@ function planCategory() {
 function planWorkshopPhotos() {
   const sets = JSON.parse(readSetting.get("workshop_photos")?.value ?? "{}");
   const before = JSON.stringify(sets);
-  for (const [kind, set] of Object.entries(CONTENT.workshopPhotos)) {
+  for (const [kind, set] of Object.entries(CONTENT.workshopPhotos ?? {})) {
     for (const photo of set.photos) {
       const planned = libraryPhotos.some(([target]) => target === photo.image);
       if (!planned && !imageExists.get(photo.image)) problems.push(`набор ${kind}: нет фото ${photo.image}`);
@@ -142,7 +174,7 @@ if (!apply) {
 }
 
 fs.mkdirSync(BACKUP_DIR, { recursive: true });
-const backupFile = path.join(BACKUP_DIR, `shop-before-seo-svetovody-${now}.db`);
+const backupFile = path.join(BACKUP_DIR, `shop-before-${label}-${now}.db`);
 await db.backup(backupFile);
 say(`копия базы: ${path.relative(ROOT, backupFile)}`);
 
@@ -169,6 +201,6 @@ db.transaction(() => {
 
 await revalidate();
 
-const reportFile = path.join(ROOT, "var", `seo-svetovody-${now}.txt`);
+const reportFile = path.join(ROOT, "var", `${label}-${now}.txt`);
 fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
 console.log(`\nГотово: раздел ${category ? "обновлён" : "без изменений"}, новых фото ${photos.length}. Отчёт: ${path.relative(ROOT, reportFile)}`);
