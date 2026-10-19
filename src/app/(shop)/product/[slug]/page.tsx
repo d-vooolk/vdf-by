@@ -23,7 +23,7 @@ import {
 } from "@/lib/catalog";
 import { sectionsForProductCars } from "@/lib/car-branch";
 import { carsRoot } from "@/lib/car-types";
-import { getProductCars, getProductsForSameCars } from "@/lib/cars";
+import { getFrameTypeCars, getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { fitCheckMessage, getMessengers, productMessage } from "@/lib/contacts";
 import { formatPrice } from "@/lib/format";
 import { frameMembershipOf, specsWithFrameType } from "@/lib/frame-membership";
@@ -146,6 +146,10 @@ export default async function ProductPage({ params }: PageProps) {
     .slice(0, 5);
   const cars = category?.carFitment ? getProductCars(product.id) : [];
   const carSections = category?.carFitment ? sectionsForProductCars(category, cars) : [];
+  const frameType = category?.carFitment && category.frameTypes ? frameMembershipOf(product.id) : null;
+  const sameFrame = frameType
+    ? { type: frameType.type, cars: getFrameTypeCars(frameType.categoryId, frameType.type, product.id) }
+    : null;
   const workshop = workshopLinkFor(category, product.title);
 
   // В клиентский компонент уходят записи манифеста только для фото этого
@@ -276,7 +280,7 @@ export default async function ProductPage({ params }: PageProps) {
             </dl>
           </section>
         )}
-        <ProductCars cars={cars} base={carsRoot(category?.slug)} />
+        <ProductCars cars={cars} base={carsRoot(category?.slug)} sameFrame={sameFrame} />
       </div>
 
       {category?.carFitment && (
