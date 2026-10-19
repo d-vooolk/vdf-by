@@ -146,7 +146,7 @@ const LABEL_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 58mm; height: 40mm; background: #fff; color: #000; }
 body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.label { width: 58mm; height: 40mm; padding: 1.5mm; overflow: hidden; }
+.label { width: 58mm; height: 40mm; padding: 0.7mm 1.3mm 2mm; overflow: hidden; }
 .frame {
   height: 100%; border: 0.35mm solid #000; border-radius: 1.2mm; padding: 1.2mm 1.6mm;
   display: flex; gap: 1.4mm;
@@ -189,7 +189,7 @@ const NUMBER_LABEL_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 58mm; height: 40mm; background: #fff; color: #000; }
 body { font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.label { width: 58mm; height: 40mm; padding: 1.5mm; overflow: hidden; }
+.label { width: 58mm; height: 40mm; padding: 0.7mm 1.3mm 2mm; overflow: hidden; }
 .number {
   height: 100%; display: flex; align-items: center; justify-content: center;
   font-weight: 700; line-height: 1; white-space: nowrap; letter-spacing: -0.02em;
