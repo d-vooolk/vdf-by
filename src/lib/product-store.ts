@@ -495,3 +495,28 @@ export function getProductRaw(id: string): Product | null {
     ? parseOrThrow(productSchema, JSON.parse(row.data), `товар ${id}`)
     : null;
 }
+
+export interface CategoryStock {
+  id: string;
+  name: string;
+  total: number;
+  inStock: number;
+}
+
+export function stockByCategory(): CategoryStock[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT COALESCE(c.parent_id, c.id) AS root, COUNT(p.id) AS total, COALESCE(SUM(p.in_stock), 0) AS inStock
+         FROM products p JOIN categories c ON c.id = p.category_id
+        GROUP BY root`,
+    )
+    .all() as Array<{ root: string; total: number; inStock: number }>;
+  const names = new Map(
+    (getDb().prepare("SELECT id, name FROM categories WHERE parent_id IS NULL").all() as Array<{ id: string; name: string }>).map(
+      (row) => [row.id, row.name],
+    ),
+  );
+  return rows
+    .map((row) => ({ id: row.root, name: names.get(row.root) ?? row.root, total: row.total, inStock: row.inStock }))
+    .sort((a, b) => b.total - a.total);
+}

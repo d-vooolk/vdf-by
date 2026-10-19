@@ -476,3 +476,50 @@ export function orderStats(): OrderStats {
     byStatus,
   };
 }
+
+export interface OrderPoint {
+  date: string;
+  value: number;
+}
+
+const SHOP_TIME_ZONE = "Europe/Minsk";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function shopDay(time: number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: SHOP_TIME_ZONE }).format(time);
+}
+
+function mondayOf(day: string): string {
+  const date = new Date(`${day}T12:00:00Z`);
+  const shift = (date.getUTCDay() + 6) % 7;
+  return new Date(date.getTime() - shift * DAY_MS).toISOString().slice(0, 10);
+}
+
+export function orderTimeline(days = 30, weeks = 12): { daily: OrderPoint[]; weekly: OrderPoint[] } {
+  const now = Date.now();
+  const today = shopDay(now);
+  const firstWeek = new Date(new Date(`${mondayOf(today)}T12:00:00Z`).getTime() - (weeks - 1) * 7 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  const since = Math.min(now - (days + 1) * DAY_MS, new Date(`${firstWeek}T00:00:00Z`).getTime() - DAY_MS);
+  const rows = getDb()
+    .prepare("SELECT created_at, status, total FROM orders WHERE created_at >= ?")
+    .all(since) as Array<{ created_at: number; status: string; total: number }>;
+
+  const daily = new Map<string, number>();
+  for (let index = days - 1; index >= 0; index -= 1) daily.set(shopDay(now - index * DAY_MS), 0);
+  const weekly = new Map<string, number>();
+  for (let index = 0; index < weeks; index += 1) {
+    weekly.set(new Date(new Date(`${firstWeek}T12:00:00Z`).getTime() + index * 7 * DAY_MS).toISOString().slice(0, 10), 0);
+  }
+
+  for (const row of rows) {
+    const day = shopDay(row.created_at);
+    if (daily.has(day)) daily.set(day, (daily.get(day) ?? 0) + 1);
+    const week = mondayOf(day);
+    if (row.status !== "cancelled" && weekly.has(week)) weekly.set(week, (weekly.get(week) ?? 0) + row.total);
+  }
+
+  const points = (map: Map<string, number>) => [...map].map(([date, value]) => ({ date, value: Math.round(value * 100) / 100 }));
+  return { daily: points(daily), weekly: points(weekly) };
+}

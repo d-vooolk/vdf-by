@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { DailyBars, Panel } from "@/components/admin/SeoParts";
+import { StockBars } from "@/components/admin/StockBars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
-import { orderStats } from "@/lib/orders";
+import { orderStats, orderTimeline } from "@/lib/orders";
 import { listCategoriesBrief } from "@/lib/category-store";
-import { countOutOfStock, listProducts } from "@/lib/product-store";
+import { countOutOfStock, listProducts, stockByCategory } from "@/lib/product-store";
 
 /** Сводка: с чего начинается рабочий день — сколько новых заказов и что в каталоге. */
 export default function DashboardPage() {
@@ -14,6 +16,8 @@ export default function DashboardPage() {
   const categories = listCategoriesBrief();
   const products = listProducts({ limit: 5 });
   const outOfStock = countOutOfStock();
+  const timeline = orderTimeline();
+  const money = [site.currencySymbol, site.currencySymbol, site.currencySymbol] as const;
 
   return (
     <div className="space-y-6">
@@ -53,6 +57,19 @@ export default function DashboardPage() {
           href="/admin/out-of-stock/"
         />
       </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Заказы по дням" note="Последние 30 дней, все заказы — как в плитке «Заказов за сутки»">
+          <DailyBars points={timeline.daily} unit={["заказ", "заказа", "заказов"]} />
+        </Panel>
+        <Panel title="Продажи по неделям" note="Последние 12 недель, без отменённых; неделя — с понедельника">
+          <DailyBars points={timeline.weekly} unit={money} step="week" />
+        </Panel>
+      </div>
+
+      <Panel title="Наличие по разделам" note="Сколько товаров каждого раздела можно заказать — к плиткам «Товаров в каталоге» и «Нет в наличии»">
+        <StockBars rows={stockByCategory()} />
+      </Panel>
 
     </div>
   );

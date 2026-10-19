@@ -180,10 +180,12 @@ export function DailyBars({
   points,
   unit,
   summary = "sum",
+  step = "day",
 }: {
   points: DailyPoint[];
   unit: Unit;
   summary?: "sum" | "last";
+  step?: "day" | "week";
 }) {
   if (!points.length) return <Empty />;
   const width = 720;
@@ -204,7 +206,7 @@ export function DailyBars({
         viewBox={`0 0 ${width} ${height}`}
         className="h-36 w-full"
         role="img"
-        aria-label={`По дням с ${label(points[0].date)} по ${label(points[points.length - 1].date)}, ${
+        aria-label={`${step === "week" ? "По неделям" : "По дням"} с ${label(points[0].date)} по ${label(points[points.length - 1].date)}, ${
           summary === "sum" ? `всего ${withUnit(total, unit)}` : `сейчас ${withUnit(points[points.length - 1].value, unit)}`
         }, максимум ${formatNumber(max)}`}
         preserveAspectRatio="none"
@@ -227,7 +229,7 @@ export function DailyBars({
                   className="fill-brand-600 group-hover:fill-brand-900"
                 />
               )}
-              <title>{`${label(point.date)}: ${withUnit(point.value, unit)}`}</title>
+              <title>{`${step === "week" ? "неделя с " : ""}${label(point.date)}: ${withUnit(point.value, unit)}`}</title>
             </g>
           );
         })}
@@ -251,7 +253,7 @@ export function DailyBars({
         <span className="tnum font-medium text-brand-700">
           {withUnit(summary === "sum" ? total : points[points.length - 1].value, unit)}
         </span>
-        . Наведите на столбик — покажется день и значение.
+        . Наведите на столбик — покажется {step === "week" ? "неделя" : "день"} и значение.
       </figcaption>
     </figure>
   );

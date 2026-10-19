@@ -1,4 +1,6 @@
 :root:has([data-admin-theme]) {
+  --a-chart-1: #2a78d6;
+  --a-chart-2: #eb6834;
   --a-bg: #f3f6f6;
   --a-surface: #ffffff;
   --a-ink: #1a2b20;
@@ -86,6 +88,8 @@
 }
 
 :root:has([data-admin-theme="dark"]) {
+  --a-chart-1: #3987e5;
+  --a-chart-2: #d95926;
   --a-bg: #1a2b20;
   --a-surface: #1e362d;
   --a-ink: #f4f2ee;
