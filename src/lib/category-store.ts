@@ -435,6 +435,35 @@ export function listCategoriesBrief(): CategoryBrief[] {
   ]);
 }
 
+export interface CategoryFilterOption {
+  id: string;
+  label: string;
+  count: number;
+}
+
+const CHILD_INDENT = "    └ ";
+
+export function categoryFilterOptions(
+  categories: CategoryBrief[],
+  countOf: (category: CategoryBrief) => number = (category) => category.count,
+): CategoryFilterOption[] {
+  const own = new Map(categories.map((category) => [category.id, countOf(category)]));
+  return categories.map((category) => ({
+    id: category.id,
+    label: category.parentId ? `${CHILD_INDENT}${category.name}` : category.name,
+    count: categories
+      .filter((child) => child.parentId === category.id)
+      .reduce((sum, child) => sum + (own.get(child.id) ?? 0), own.get(category.id) ?? 0),
+  }));
+}
+
+export function categoryWithChildren(categories: CategoryBrief[], categoryId: string): Set<string> {
+  return new Set([
+    categoryId,
+    ...categories.filter((category) => category.parentId === categoryId).map((category) => category.id),
+  ]);
+}
+
 export function getCategoryRaw(id: string): Category | null {
   const row = getDb()
     .prepare("SELECT data FROM categories WHERE id = ?")

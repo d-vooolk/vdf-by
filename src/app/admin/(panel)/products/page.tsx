@@ -8,7 +8,7 @@ import { getSite } from "@/lib/catalog";
 import { frameLockedIds } from "@/lib/frame-membership";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
-import { listCategoriesBrief } from "@/lib/category-store";
+import { categoryFilterOptions, listCategoriesBrief } from "@/lib/category-store";
 import { listProducts } from "@/lib/product-store";
 
 /** Список товаров с поиском, фильтром по разделу и постраничной листалкой. */
@@ -107,9 +107,9 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             className="field w-full py-2 text-sm sm:w-auto sm:max-w-72"
           >
             <option value="">Все категории</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name} ({category.count})
+            {categoryFilterOptions(categories).map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} ({option.count})
               </option>
             ))}
           </select>
