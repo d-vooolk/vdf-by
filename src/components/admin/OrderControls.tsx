@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteOrderAction, requestReviewAction, setOrderNoteAction, setOrderStatusAction } from "@/app/admin/order-actions";
+import {
+  deleteOrderAction,
+  notifyOrderReadyAction,
+  requestReviewAction,
+  setOrderNoteAction,
+  setOrderStatusAction,
+} from "@/app/admin/order-actions";
 import { Problems } from "@/components/admin/form-parts";
 import { CheckIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-types";
@@ -20,6 +26,7 @@ interface OrderControlsProps {
   status: OrderStatus;
   note: string;
   reviewSmsAt: number | null;
+  readySmsAt: number | null;
   smsReady: boolean;
 }
 
@@ -28,6 +35,7 @@ export function OrderControls({
   status: initial,
   note: initialNote,
   reviewSmsAt: initialReviewSmsAt,
+  readySmsAt: initialReadySmsAt,
   smsReady,
 }: OrderControlsProps) {
   const router = useRouter();
@@ -39,6 +47,23 @@ export function OrderControls({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reviewSmsAt, setReviewSmsAt] = useState(initialReviewSmsAt);
   const [requestingReview, setRequestingReview] = useState(false);
+  const [readySmsAt, setReadySmsAt] = useState(initialReadySmsAt);
+  const [askReadySms, setAskReadySms] = useState(false);
+  const [sendingReadySms, setSendingReadySms] = useState(false);
+
+  const notifyReady = async () => {
+    setProblems([]);
+    setSendingReadySms(true);
+    try {
+      const result = await notifyOrderReadyAction(id);
+      if (result.ok) {
+        setReadySmsAt(Date.now());
+        setAskReadySms(false);
+      } else setProblems(result.problems);
+    } finally {
+      setSendingReadySms(false);
+    }
+  };
 
   const requestReview = async () => {
     setProblems([]);
@@ -56,6 +81,7 @@ export function OrderControls({
     const previous = status;
     setStatus(next);
     setProblems([]);
+    setAskReadySms(false);
 
     startTransition(async () => {
       const result = await setOrderStatusAction(id, next);
@@ -64,6 +90,7 @@ export function OrderControls({
         setProblems(result.problems);
         return;
       }
+      if (next === "ready" && previous !== "ready" && !readySmsAt) setAskReadySms(true);
       // Счётчик новых заказов стоит в шапке — обновляем её тоже.
       router.refresh();
     });
@@ -106,6 +133,61 @@ export function OrderControls({
           </button>
         ))}
       </div>
+
+      {status === "ready" && readySmsAt && (
+        <p className="mb-4 flex items-center gap-1.5 rounded-xl bg-accent-100/60 p-3 text-sm text-green-800">
+          <CheckIcon className="h-4 w-4" />
+          SMS о готовности ушло {new Date(readySmsAt).toLocaleString("ru-RU")}
+        </p>
+      )}
+
+      {status === "ready" && !readySmsAt && askReadySms && (
+        <div className="mb-4 rounded-xl bg-accent-100/60 p-3">
+          <p className="mb-2 text-sm font-medium text-brand-900">
+            Отправить SMS с уведомлением о готовности заказа?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={notifyReady}
+              disabled={sendingReadySms || !smsReady}
+              className="btn-primary py-1.5 text-sm"
+            >
+              {sendingReadySms ? (
+                <>
+                  <SpinnerIcon className="h-4 w-4 animate-spin" />
+                  Отправляем…
+                </>
+              ) : (
+                "Да, отправить"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAskReadySms(false)}
+              disabled={sendingReadySms}
+              className="btn-ghost py-1.5 text-sm"
+            >
+              Нет
+            </button>
+          </div>
+          {!smsReady && (
+            <p className="mt-1.5 text-xs text-brand-500">
+              SMS не настроены — подключите sms.by в разделе Настройки → SMS.
+            </p>
+          )}
+        </div>
+      )}
+
+      {status === "ready" && !readySmsAt && !askReadySms && (
+        <button
+          type="button"
+          onClick={() => setAskReadySms(true)}
+          className="btn-ghost mb-4 py-1.5 text-xs"
+        >
+          Уведомить клиента о готовности по SMS
+        </button>
+      )}
 
       {status === "done" && (
         <div className="mb-4 rounded-xl bg-accent-100/60 p-3">

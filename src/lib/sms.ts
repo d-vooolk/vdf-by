@@ -15,6 +15,7 @@ export interface SmsSettings {
   codeTemplate: string;
   approvedTemplate: string;
   reviewTemplate: string;
+  readyTemplate: string;
 }
 
 export const DEFAULT_TEMPLATES = {
@@ -22,6 +23,7 @@ export const DEFAULT_TEMPLATES = {
   approvedTemplate:
     "{{name}}, оптовые цены на {{siteName}} открыты. Войдите в личный кабинет по номеру телефона.",
   reviewTemplate: "{{name}}, спасибо за покупку в {{siteName}}! Будем рады вашему отзыву: {{link}}",
+  readyTemplate: "{{name}}, ваш заказ №{{number}} в {{siteName}} готов к выдаче.",
 };
 
 export const TEMPLATE_VARIABLES: Record<keyof typeof DEFAULT_TEMPLATES, Array<[string, string]>> = {
@@ -37,6 +39,11 @@ export const TEMPLATE_VARIABLES: Record<keyof typeof DEFAULT_TEMPLATES, Array<[s
     ["{{name}}", "имя покупателя из заказа"],
     ["{{siteName}}", "название магазина"],
     ["{{link}}", "ссылка на страницу с отзывами на Яндекс и Google"],
+  ],
+  readyTemplate: [
+    ["{{name}}", "имя покупателя из заказа"],
+    ["{{number}}", "номер заказа"],
+    ["{{siteName}}", "название магазина"],
   ],
 };
 
@@ -54,6 +61,7 @@ export function getSmsSettings(): SmsSettings {
     codeTemplate: saved?.codeTemplate?.trim() || DEFAULT_TEMPLATES.codeTemplate,
     approvedTemplate: saved?.approvedTemplate?.trim() || DEFAULT_TEMPLATES.approvedTemplate,
     reviewTemplate: saved?.reviewTemplate?.trim() || DEFAULT_TEMPLATES.reviewTemplate,
+    readyTemplate: saved?.readyTemplate?.trim() || DEFAULT_TEMPLATES.readyTemplate,
   };
 }
 
@@ -67,6 +75,7 @@ export function saveSmsSettings(input: Partial<SmsSettings>): SmsSettings {
     codeTemplate: input.codeTemplate?.trim() || DEFAULT_TEMPLATES.codeTemplate,
     approvedTemplate: input.approvedTemplate?.trim() || DEFAULT_TEMPLATES.approvedTemplate,
     reviewTemplate: input.reviewTemplate?.trim() || DEFAULT_TEMPLATES.reviewTemplate,
+    readyTemplate: input.readyTemplate?.trim() || DEFAULT_TEMPLATES.readyTemplate,
   };
   getDb()
     .prepare(

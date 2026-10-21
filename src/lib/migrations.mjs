@@ -717,6 +717,9 @@ export const MIGRATIONS = [
       since INTEGER NOT NULL
     );
   `,
+  `
+    ALTER TABLE orders ADD COLUMN ready_sms_at INTEGER;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

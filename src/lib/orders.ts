@@ -52,6 +52,7 @@ interface OrderRow {
   wholesale: number;
   edited_at: number | null;
   review_sms_at: number | null;
+  ready_sms_at: number | null;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -83,13 +84,14 @@ function toOrder(row: OrderRow): Order {
     wholesale: row.wholesale === 1,
     editedAt: row.edited_at,
     reviewSmsAt: row.review_sms_at,
+    readySmsAt: row.ready_sms_at,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total, total_manual,
   currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
-  wholesale, edited_at, review_sms_at`;
+  wholesale, edited_at, review_sms_at, ready_sms_at`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -406,6 +408,10 @@ export function setOrderTotal(id: number, total: number | null): { ok: true } | 
 
 export function markReviewRequested(id: number): void {
   getDb().prepare("UPDATE orders SET review_sms_at = ? WHERE id = ?").run(Date.now(), id);
+}
+
+export function markReadyNotified(id: number): void {
+  getDb().prepare("UPDATE orders SET ready_sms_at = ? WHERE id = ?").run(Date.now(), id);
 }
 
 export function setOrderNote(id: number, note: string): void {
