@@ -10,6 +10,7 @@ import { ORDER_STATUSES, type OrderStatus } from "@/lib/order-types";
 const TONES: Record<OrderStatus, string> = {
   new: "order-status order-status-new",
   called: "order-status order-status-called",
+  ready: "order-status order-status-ready",
   shipped: "order-status order-status-shipped",
   done: "order-status order-status-done",
   cancelled: "order-status order-status-cancelled",

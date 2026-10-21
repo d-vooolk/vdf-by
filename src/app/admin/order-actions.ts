@@ -10,6 +10,7 @@ import { findOrderVariants, type OrderVariantOption } from "@/lib/order-catalog"
 import {
   deleteOrder,
   getOrder,
+  markReadyNotified,
   markReviewRequested,
   setOrderNote,
   setOrderStatus,
@@ -130,6 +131,33 @@ export async function requestReviewAction(orderId: number): Promise<FormState> {
     return fail([(error as Error).message]);
   }
   markReviewRequested(order.id);
+  revalidatePath(`/admin/orders/${order.id}`);
+  return ok();
+}
+
+export async function notifyOrderReadyAction(orderId: number): Promise<FormState> {
+  await requireAdmin();
+  const order = getOrder(Number(orderId));
+  if (!order) return fail(["Заказ не найден"]);
+  if (order.status !== "ready") return fail(["Заказ не в статусе «Готов к выдаче»"]);
+  if (order.readySmsAt) return fail(["SMS о готовности по этому заказу уже отправляли"]);
+  if (!smsConfigured()) return fail(["SMS не настроены: Настройки → SMS"]);
+  const phone = normalizePhone(order.phoneDigits);
+  if (!phone) return fail(["У заказа не белорусский номер — SMS не отправить"]);
+
+  try {
+    await sendSms(
+      phone,
+      renderTemplate(getSmsSettings().readyTemplate, {
+        name: order.name.split(" ")[0] || order.name,
+        number: String(order.id),
+        siteName: getSite().name,
+      }),
+    );
+  } catch (error) {
+    return fail([(error as Error).message]);
+  }
+  markReadyNotified(order.id);
   revalidatePath(`/admin/orders/${order.id}`);
   return ok();
 }

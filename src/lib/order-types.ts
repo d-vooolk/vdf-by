@@ -12,6 +12,7 @@
 export const ORDER_STATUSES = [
   { id: "new", name: "Новый" },
   { id: "called", name: "Созвонились" },
+  { id: "ready", name: "Готов к выдаче" },
   { id: "shipped", name: "Отправлен" },
   { id: "done", name: "Выполнен" },
   { id: "cancelled", name: "Отменён" },
@@ -63,4 +64,5 @@ export interface Order {
   wholesale: boolean;
   editedAt: number | null;
   reviewSmsAt: number | null;
+  readySmsAt: number | null;
 }

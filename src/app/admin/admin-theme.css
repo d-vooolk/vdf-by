@@ -161,6 +161,11 @@
   color: var(--a-ivory);
 }
 
+.order-status-ready {
+  background: var(--a-ivory);
+  color: var(--a-green);
+}
+
 .order-status-shipped {
   background: var(--a-green-light);
   color: var(--a-ivory);

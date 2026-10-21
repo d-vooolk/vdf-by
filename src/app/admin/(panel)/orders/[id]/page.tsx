@@ -180,6 +180,7 @@ export default async function OrderPage({ params }: PageProps) {
             status={order.status}
             note={order.adminNote}
             reviewSmsAt={order.reviewSmsAt}
+            readySmsAt={order.readySmsAt}
             smsReady={smsConfigured()}
           />
         </div>

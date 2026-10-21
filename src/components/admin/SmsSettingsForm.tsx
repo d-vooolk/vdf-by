@@ -12,6 +12,7 @@ interface Templates {
   codeTemplate: string;
   approvedTemplate: string;
   reviewTemplate: string;
+  readyTemplate: string;
 }
 
 type SmsState = { enabled: boolean; alphanameId: string; alphaname: string } & Templates;
@@ -20,6 +21,7 @@ const TEMPLATE_LABELS: Record<keyof Templates, string> = {
   codeTemplate: "Шаблон SMS с кодом входа",
   approvedTemplate: "Шаблон «Оптовые цены открыты»",
   reviewTemplate: "Шаблон «Просьба об отзыве» — кнопка в выполненном заказе",
+  readyTemplate: "Шаблон «Заказ готов к выдаче» — предлагается при смене статуса",
 };
 
 function AlphanamePicker({

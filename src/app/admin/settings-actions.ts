@@ -53,6 +53,7 @@ export async function saveSmsSettingsAction(input: Partial<SmsSettings>): Promis
     codeTemplate: typeof input.codeTemplate === "string" ? input.codeTemplate : "",
     approvedTemplate: typeof input.approvedTemplate === "string" ? input.approvedTemplate : "",
     reviewTemplate: typeof input.reviewTemplate === "string" ? input.reviewTemplate : "",
+    readyTemplate: typeof input.readyTemplate === "string" ? input.readyTemplate : "",
   });
   return ok();
 }
