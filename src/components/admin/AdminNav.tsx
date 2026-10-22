@@ -74,7 +74,7 @@ export function AdminNav({
   const switchTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     writeAdminCookie(ADMIN_THEME_COOKIE, next);
-    document.querySelector("[data-admin-theme]")?.setAttribute("data-admin-theme", next);
+    document.querySelectorAll("[data-admin-theme]").forEach((element) => element.setAttribute("data-admin-theme", next));
     router.refresh();
   };
 

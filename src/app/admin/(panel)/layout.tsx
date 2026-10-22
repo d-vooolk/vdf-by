@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 
 import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminRootTheme } from "@/components/admin/AdminRootTheme";
 import { NavigationOverlay } from "@/components/admin/NavigationOverlay";
 import { ADMIN_THEME_COOKIE, BOTTOM_NAV_COOKIE, parseAdminTheme, parseBottomNav } from "@/lib/admin-prefs";
 import { countOpenServiceRequests } from "@/lib/service";
@@ -39,6 +40,7 @@ export default async function PanelLayout({
 
   return (
     <div data-admin-theme={theme} className="admin-panel flex min-h-dvh flex-col bg-brand-50 lg:flex-row">
+      <AdminRootTheme theme={theme} />
       <AdminNav
         siteName={site.name}
         login={admin.login}

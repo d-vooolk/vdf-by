@@ -1,4 +1,4 @@
-:root:has([data-admin-theme]) {
+[data-admin-theme] {
   --a-chart-1: #2a78d6;
   --a-chart-2: #eb6834;
   --a-bg: #f3f6f6;
@@ -67,27 +67,27 @@
   --color-violet-900: var(--color-amber-900);
 }
 
-:root:has([data-admin-theme]) body {
+:root[data-admin-theme] body {
   background: var(--color-brand-50);
 }
 
-:root:has([data-admin-theme]) :is(.btn-primary, .btn-accent) {
+[data-admin-theme] :is(.btn-primary, .btn-accent) {
   background: var(--a-cta);
   color: var(--a-cta-ink);
   text-shadow: none;
   box-shadow: none;
 }
 
-:root:has([data-admin-theme]) :is(.btn-primary, .btn-accent):hover {
+[data-admin-theme] :is(.btn-primary, .btn-accent):hover {
   background: var(--a-cta-hover);
 }
 
-:root:has([data-admin-theme]) ::selection {
+[data-admin-theme] ::selection {
   background: var(--a-brass);
   color: var(--a-ink);
 }
 
-:root:has([data-admin-theme="dark"]) {
+[data-admin-theme="dark"] {
   --a-chart-1: #3987e5;
   --a-chart-2: #d95926;
   --a-bg: #1a2b20;
