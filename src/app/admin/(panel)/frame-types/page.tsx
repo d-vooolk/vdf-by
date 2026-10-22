@@ -10,8 +10,7 @@ import { buildFrameSku } from "@/lib/frame-sku";
 import {
   defaultFrameCategory,
   frameCategories,
-  initialFrameValues,
-  listFrameTypes,
+  listFrameTypeSummaries,
   type FrameTypeValues,
 } from "@/lib/frame-types";
 
@@ -38,29 +37,23 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
       `опт ${money(values.wholesalePrice)}`,
     ].join(" · ");
 
-  const groups = categoryId ? listFrameTypes(categoryId) : [];
-  const stockOnly = params.stock === "1";
-  const allRows: FrameTypeListRow[] = groups.map((group) => ({
-    type: group.type,
-    name: group.name,
-    sku: buildFrameSku({ number: "номер", storage: group.storageCode, type: group.type }),
-    summary: group.saved ? describe(group.saved) : "цены для типа не заданы",
-    storageCode: group.storageCode,
-    storageMixed: group.storageMixed,
-    productCount: group.products.length,
-    uniform: group.uniform,
-    stockQty: initialFrameValues(group).stockQty,
+  const summaries = categoryId ? listFrameTypeSummaries(categoryId) : [];
+  const rows: FrameTypeListRow[] = summaries.map((summary) => ({
+    type: summary.type,
+    name: summary.name,
+    sku: buildFrameSku({ number: "номер", storage: summary.storageCode, type: summary.type }),
+    summary: summary.saved ? describe(summary.saved) : "цены для типа не заданы",
+    storageCode: summary.storageCode,
+    storageMixed: summary.storageMixed,
+    productCount: summary.productCount,
+    uniform: summary.uniform,
+    stockQty: summary.stockQty,
   }));
-  const stockRows = allRows.filter((row) => (row.stockQty ?? 0) > 0);
-  const rows = stockOnly ? stockRows : allRows;
-  const renderable = groups.filter((group) => group.hasFrameImage && group.composer && group.products.length);
-  const renderTypes = renderable.map((group) => ({
-    type: group.type,
-    productIds: group.products.map((product) => product.id),
-  }));
-  const notRenderable = groups
-    .filter((group) => group.products.length && !(group.hasFrameImage && group.composer))
-    .map((group) => group.type);
+  const renderable = summaries.filter((summary) => summary.renderable);
+  const renderProductCount = renderable.reduce((sum, summary) => sum + summary.productCount, 0);
+  const notRenderable = summaries
+    .filter((summary) => summary.productCount && !summary.renderable)
+    .map((summary) => summary.type);
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
 
   return (
@@ -69,7 +62,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold text-brand-900">
             Типы рамок{" "}
-            <span className="tnum text-base font-medium text-brand-400">{groups.length}</span>
+            <span className="tnum text-base font-medium text-brand-400">{summaries.length}</span>
           </h1>
           <p className="mt-1 text-sm text-brand-500">
             Артикул товара собирается как «номер-складской номер-тип»: номер свой у каждого товара,
@@ -92,15 +85,18 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
         </p>
       ) : (
         <>
-        <FrameTypesRenderAll categoryId={categoryId} types={renderTypes} missing={notRenderable} />
+        <FrameTypesRenderAll
+          categoryId={categoryId}
+          typeCount={renderable.length}
+          productCount={renderProductCount}
+          missing={notRenderable}
+        />
         <FrameTypeList
           rows={rows}
           categories={categories}
           categoryId={categoryId}
           initialQuery={query}
-          stockOnly={stockOnly}
-          stockCount={stockRows.length}
-          totalCount={allRows.length}
+          initialStockOnly={params.stock === "1"}
         />
         </>
       )}
