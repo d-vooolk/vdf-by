@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Lora } from "next/font/google";
+import "@fontsource-variable/lora/wght.css";
+import { Inter } from "next/font/google";
 
 import { getSite } from "@/lib/catalog";
 
@@ -26,13 +27,6 @@ const inter = Inter({
   // Метрики системного шрифта подгоняются под Inter, чтобы при подмене
   // текст не «прыгал» — это убирает CLS от загрузки шрифта.
   adjustFontFallback: true,
-});
-
-const lora = Lora({
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600", "700"],
-  display: "swap",
-  variable: "--font-lora",
 });
 
 const site = getSite();
@@ -67,7 +61,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className={`${inter.variable} ${lora.variable}`} data-scroll-behavior="smooth">
+    <html lang="ru" className={inter.variable} data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );
