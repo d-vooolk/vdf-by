@@ -32,6 +32,8 @@ interface FrameTypeListProps {
 
 const QUERY_LENGTH = 10;
 const PAGE_SIZE = 60;
+const CHUNK_SIZE = 30;
+const CHUNK_KEEP_MARGIN = 1500;
 
 function listHref(categoryId: string, query: string, stockOnly: boolean): string {
   const params = new URLSearchParams({ category: categoryId });
@@ -57,9 +59,11 @@ export function FrameTypeList({
   const [stockOnly, setStockOnly] = useState(initialStockOnly);
   const [query, setQuery] = useState(normalizeQuery(initialQuery));
   const [searching, startSearching] = useTransition();
-  const stale = searching;
+  const [filtering, startFiltering] = useTransition();
+  const stale = searching || filtering;
   const [limit, setLimit] = useState(PAGE_SIZE);
   const sentinel = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const stockRows = useMemo(() => rows.filter((row) => (row.stockQty ?? 0) > 0), [rows]);
   const filtered = stockOnly ? stockRows : rows;
@@ -72,8 +76,14 @@ export function FrameTypeList({
     [filtered, query],
   );
 
-  const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
-  const hasMore = visible.length < shown.length;
+  const chunks = useMemo(() => {
+    const list: FrameTypeListRow[][] = [];
+    for (let start = 0; start < shown.length; start += CHUNK_SIZE) list.push(shown.slice(start, start + CHUNK_SIZE));
+    return list;
+  }, [shown]);
+  const visibleChunks = useMemo(() => chunks.slice(0, Math.ceil(limit / CHUNK_SIZE)), [chunks, limit]);
+  const visibleCount = Math.min(limit, shown.length);
+  const hasMore = visibleCount < shown.length;
 
   useEffect(() => {
     const target = sentinel.current;
@@ -86,7 +96,7 @@ export function FrameTypeList({
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, visible.length]);
+  }, [hasMore, visibleCount]);
 
   const search = () => {
     const next = normalizeQuery(input);
@@ -100,7 +110,9 @@ export function FrameTypeList({
   const toggleStockOnly = () => {
     const next = !stockOnly;
     window.history.replaceState(null, "", listHref(categoryId, query, next));
-    startSearching(() => {
+    const form = formRef.current;
+    if (form && form.getBoundingClientRect().top < 0) form.scrollIntoView({ block: "start", behavior: "instant" });
+    startFiltering(() => {
       setStockOnly(next);
       setLimit(PAGE_SIZE);
     });
@@ -114,6 +126,7 @@ export function FrameTypeList({
   return (
     <>
       <form
+        ref={formRef}
         onSubmit={(event) => {
           event.preventDefault();
           search();
@@ -167,7 +180,11 @@ export function FrameTypeList({
           className={`${stockOnly ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
         >
           В наличии
-          <span className="tnum opacity-70">{stockRows.length}</span>
+          {filtering ? (
+            <SpinnerIcon className="h-4 w-4 animate-spin" />
+          ) : (
+            <span className="tnum opacity-70">{stockRows.length}</span>
+          )}
         </button>
       </form>
 
@@ -183,11 +200,11 @@ export function FrameTypeList({
         </p>
       ) : (
         <div className={`transition-opacity ${stale || switching ? "opacity-60" : ""}`}>
-          <FrameTypeRows rows={visible} categoryId={categoryId} />
+          <FrameTypeRows chunks={visibleChunks} categoryId={categoryId} />
           {hasMore && (
             <div ref={sentinel} className="flex items-center justify-center gap-3 py-6 text-sm text-brand-500">
               <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="btn-ghost text-sm">
-                Показать ещё · <span className="tnum">{visible.length} из {shown.length}</span>
+                Показать ещё · <span className="tnum">{visibleCount} из {shown.length}</span>
               </button>
             </div>
           )}
@@ -198,20 +215,51 @@ export function FrameTypeList({
 }
 
 const FrameTypeRows = memo(function FrameTypeRows({
+  chunks,
+  categoryId,
+}: {
+  chunks: FrameTypeListRow[][];
+  categoryId: string;
+}) {
+  return (
+    <div className="card overflow-hidden">
+      {chunks.map((chunk) => (
+        <FrameTypeChunk key={chunk[0].type} rows={chunk} categoryId={categoryId} />
+      ))}
+    </div>
+  );
+});
+
+const FrameTypeChunk = memo(function FrameTypeChunk({
   rows,
   categoryId,
 }: {
   rows: FrameTypeListRow[];
   categoryId: string;
 }) {
+  const ref = useRef<HTMLUListElement>(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setPlaceholderHeight(entry.isIntersecting ? null : entry.boundingClientRect.height),
+      { rootMargin: `${CHUNK_KEEP_MARGIN}px 0px` },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="card overflow-hidden">
-      <ul className="-mt-px flex flex-col">
-        {rows.map((row) => (
-          <FrameTypeRow key={row.type} row={row} categoryId={categoryId} />
-        ))}
-      </ul>
-    </div>
+    <ul
+      ref={ref}
+      className="-mt-px flex flex-col"
+      style={placeholderHeight === null ? undefined : { height: placeholderHeight }}
+    >
+      {placeholderHeight === null &&
+        rows.map((row) => <FrameTypeRow key={row.type} row={row} categoryId={categoryId} />)}
+    </ul>
   );
 });
 
@@ -225,7 +273,7 @@ const FrameTypeRow = memo(function FrameTypeRow({
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
   return (
     <li
-      className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 [contain-intrinsic-size:auto_64px] [content-visibility:auto] hover:bg-brand-50 sm:gap-x-4"
+      className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 sm:gap-x-4"
     >
       <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1 sm:order-none sm:grow sm:basis-[26rem]">
         <Link
