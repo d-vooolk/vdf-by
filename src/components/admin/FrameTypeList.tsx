@@ -204,76 +204,87 @@ const FrameTypeRows = memo(function FrameTypeRows({
   rows: FrameTypeListRow[];
   categoryId: string;
 }) {
-  const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
   return (
     <div className="card overflow-hidden">
       <ul className="-mt-px flex flex-col">
         {rows.map((row) => (
-          <li
-            key={row.type}
-            className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 hover:bg-brand-50 sm:gap-x-4"
-          >
-            <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1 sm:order-none sm:grow sm:basis-[26rem]">
-              <Link
-                href={`/admin/frame-types/${row.type}/${categoryQuery}`}
-                prefetch={false}
-                className="flex min-w-0 flex-1 basis-56 items-center gap-x-4"
-              >
-                <span className="tnum w-16 shrink-0 text-base font-semibold text-brand-900">
-                  {row.type}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-brand-900">
-                    {row.name || <span className="text-brand-400">без названия</span>}
-                  </span>
-                  <span className="block text-xs text-brand-500">
-                    <span className="tnum">{row.sku}</span>
-                    {" · "}
-                    {row.summary}
-                  </span>
-                </span>
-              </Link>
-              <FrameTypeStorageField
-                key={row.storageCode}
-                categoryId={categoryId}
-                type={row.type}
-                initial={row.storageCode}
-                mixed={row.storageMixed}
-              />
-              <span className="tnum w-24 text-sm text-brand-500">
-                {row.productCount} {row.productCount === 1 ? "товар" : "товаров"}
-              </span>
-              {!row.uniform && (
-                <span className="badge bg-amber-100 text-amber-900">у товаров разные значения</span>
-              )}
-            </div>
-            <FrameTypeStockField
-              categoryId={categoryId}
-              type={row.type}
-              initial={row.stockQty}
-              className="order-first sm:order-last"
-            />
-            <Link
-              href={`/admin/frame-types/new/${categoryQuery}&from=${encodeURIComponent(row.type)}`}
-              prefetch={false}
-              title="Копировать тип"
-              aria-label={`Копировать тип ${row.type}`}
-              className="btn-ghost ml-auto p-2 text-brand-500 hover:text-brand-900 sm:ml-0"
-            >
-              <CopyIcon className="h-4 w-4" />
-            </Link>
-            <PrintLabelButton
-              target={{ categoryId, type: row.type }}
-              className="p-2 text-brand-500 hover:text-brand-900"
-            />
-            <PrintLabelButton
-              target={{ categoryId, type: row.type }}
-              layout="number"
-              className="p-2 text-brand-500 hover:text-brand-900"
-            />
-          </li>
+          <FrameTypeRow key={row.type} row={row} categoryId={categoryId} />
         ))}
       </ul>
     </div>
+  );
+});
+
+const FrameTypeRow = memo(function FrameTypeRow({
+  row,
+  categoryId,
+}: {
+  row: FrameTypeListRow;
+  categoryId: string;
+}) {
+  const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
+  return (
+    <li
+      className="flex flex-wrap items-center gap-x-2 gap-y-3 border-t border-brand-100 px-4 py-3 [contain-intrinsic-size:auto_64px] [content-visibility:auto] hover:bg-brand-50 sm:gap-x-4"
+    >
+      <div className="order-last flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1 sm:order-none sm:grow sm:basis-[26rem]">
+        <Link
+          href={`/admin/frame-types/${row.type}/${categoryQuery}`}
+          prefetch={false}
+          className="flex min-w-0 flex-1 basis-56 items-center gap-x-4"
+        >
+          <span className="tnum w-16 shrink-0 text-base font-semibold text-brand-900">
+            {row.type}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm text-brand-900">
+              {row.name || <span className="text-brand-400">без названия</span>}
+            </span>
+            <span className="block text-xs text-brand-500">
+              <span className="tnum">{row.sku}</span>
+              {" · "}
+              {row.summary}
+            </span>
+          </span>
+        </Link>
+        <FrameTypeStorageField
+          key={row.storageCode}
+          categoryId={categoryId}
+          type={row.type}
+          initial={row.storageCode}
+          mixed={row.storageMixed}
+        />
+        <span className="tnum w-24 text-sm text-brand-500">
+          {row.productCount} {row.productCount === 1 ? "товар" : "товаров"}
+        </span>
+        {!row.uniform && (
+          <span className="badge bg-amber-100 text-amber-900">у товаров разные значения</span>
+        )}
+      </div>
+      <FrameTypeStockField
+        categoryId={categoryId}
+        type={row.type}
+        initial={row.stockQty}
+        className="order-first sm:order-last"
+      />
+      <Link
+        href={`/admin/frame-types/new/${categoryQuery}&from=${encodeURIComponent(row.type)}`}
+        prefetch={false}
+        title="Копировать тип"
+        aria-label={`Копировать тип ${row.type}`}
+        className="btn-ghost ml-auto p-2 text-brand-500 hover:text-brand-900 sm:ml-0"
+      >
+        <CopyIcon className="h-4 w-4" />
+      </Link>
+      <PrintLabelButton
+        target={{ categoryId, type: row.type }}
+        className="p-2 text-brand-500 hover:text-brand-900"
+      />
+      <PrintLabelButton
+        target={{ categoryId, type: row.type }}
+        layout="number"
+        className="p-2 text-brand-500 hover:text-brand-900"
+      />
+    </li>
   );
 });

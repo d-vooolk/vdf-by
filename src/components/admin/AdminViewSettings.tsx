@@ -24,7 +24,7 @@ export function AdminViewSettings({ theme, bottomNav }: { theme: AdminTheme; bot
   const applyTheme = (next: AdminTheme) => {
     setCurrentTheme(next);
     writeAdminCookie(ADMIN_THEME_COOKIE, next);
-    document.querySelector("[data-admin-theme]")?.setAttribute("data-admin-theme", next);
+    document.querySelectorAll("[data-admin-theme]").forEach((element) => element.setAttribute("data-admin-theme", next));
     router.refresh();
   };
 
