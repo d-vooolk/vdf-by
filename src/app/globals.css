@@ -59,6 +59,7 @@
 
 @layer base {
   html {
+    --font-lora: "Lora Variable";
     scroll-behavior: smooth;
     /* Липкая шапка не должна накрывать заголовок при переходе по анкору. */
     scroll-padding-top: 5rem;
