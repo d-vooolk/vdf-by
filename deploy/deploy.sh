@@ -110,11 +110,6 @@ echo "==> Обновляю справочник автомобилей"
 # тысяч строк — дешевле, чем помнить про отдельную команду после деплоя.
 run npm run import-cars -- --logos
 
-echo "==> Копия базы перед сборкой"
-if docker ps --format '{{.Names}}' | grep -qx vdf; then
-  bash deploy/backup.sh || echo "    Копия не сделана — смотрите вывод выше"
-fi
-
 current_slot="$(cat var/dist-slot 2>/dev/null || echo .next)"
 if [ "$current_slot" = ".next-a" ]; then build_slot=".next-b"; else build_slot=".next-a"; fi
 
