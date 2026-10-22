@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/lora/wght.css";
-import { Inter } from "next/font/google";
 
 import { getSite } from "@/lib/catalog";
 
@@ -14,20 +14,6 @@ import "./globals.css";
  * приложении, и меню каталога с корзиной ей ни к чему. Группа (shop) на
  * адреса не влияет: /catalog/ так и остался /catalog/.
  */
-
-/**
- * Шрифт скачивается на сборке и раздаётся с нашего домена: нет запроса к
- * fonts.googleapis.com, нет лишнего DNS-резолва и TLS-хендшейка перед
- * отрисовкой текста. display: swap — текст видно сразу системным шрифтом.
- */
-const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  display: "swap",
-  variable: "--font-inter",
-  // Метрики системного шрифта подгоняются под Inter, чтобы при подмене
-  // текст не «прыгал» — это убирает CLS от загрузки шрифта.
-  adjustFontFallback: true,
-});
 
 const site = getSite();
 
@@ -61,7 +47,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className={inter.variable} data-scroll-behavior="smooth">
+    <html lang="ru" data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );

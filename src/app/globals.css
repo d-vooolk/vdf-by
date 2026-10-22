@@ -57,8 +57,18 @@
 /* База                                                               */
 /* ------------------------------------------------------------------ */
 
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+
 @layer base {
   html {
+    --font-inter: "Inter Variable", "Inter Fallback";
     --font-lora: "Lora Variable";
     scroll-behavior: smooth;
     /* Липкая шапка не должна накрывать заголовок при переходе по анкору. */
