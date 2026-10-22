@@ -306,22 +306,128 @@ function typeRow(categoryId: string, type: string): TypeRow | undefined {
     .get(categoryId, type) as TypeRow | undefined;
 }
 
-export function listFrameTypes(categoryId: string): FrameTypeGroup[] {
+export interface FrameTypeSummary {
+  type: string;
+  name: string;
+  storageCode: string;
+  storageMixed: boolean;
+  saved: FrameTypeValues | null;
+  productCount: number;
+  uniform: boolean;
+  stockQty: number | null;
+  renderable: boolean;
+}
+
+interface MemberStatsRow {
+  type: string;
+  products: number;
+  storages: number;
+  storage: string;
+  variants: number;
+}
+
+interface MemberStockRow {
+  type: string;
+  qty: number | null;
+}
+
+const MEMBER_JOIN = `FROM frame_type_products f
+  JOIN products p ON p.id = f.product_id AND p.category_id = f.category_id
+ WHERE f.category_id = ?`;
+
+function memberStats(categoryId: string): Map<string, MemberStatsRow> {
+  ensureFrameMembership();
+  const rows = getDb()
+    .prepare(
+      `SELECT f.type,
+              count(*) AS products,
+              count(DISTINCT coalesce(json_extract(p.data, '$.storageCode'), '')) AS storages,
+              max(coalesce(json_extract(p.data, '$.storageCode'), '')) AS storage,
+              count(DISTINCT json_array(
+                json_extract(p.data, '$.costPrice'),
+                CASE WHEN p.price > 0 THEN p.price END,
+                json_extract(p.data, '$.wholesalePrice'),
+                json_extract(p.data, '$.stockQty'),
+                p.in_stock,
+                json_extract(p.data, '$.priceSource'),
+                json_extract(p.data, '$.costSource'),
+                json_extract(p.data, '$.wholesaleSource')
+              )) AS variants
+         ${MEMBER_JOIN}
+        GROUP BY f.type`,
+    )
+    .all(categoryId) as MemberStatsRow[];
+  return new Map(rows.map((row) => [row.type, row]));
+}
+
+function prevailingStock(categoryId: string): Map<string, number | null> {
+  const rows = getDb()
+    .prepare(
+      `SELECT f.type, json_extract(p.data, '$.stockQty') AS qty
+         ${MEMBER_JOIN}
+        GROUP BY f.type, qty
+        ORDER BY f.type, count(*) DESC`,
+    )
+    .all(categoryId) as MemberStockRow[];
+  const stock = new Map<string, number | null>();
+  for (const row of rows) if (!stock.has(row.type)) stock.set(row.type, row.qty);
+  return stock;
+}
+
+export function listFrameTypeSummaries(categoryId: string): FrameTypeSummary[] {
   if (!isFrameCategory(categoryId)) return [];
   const saved = new Map(typeRows(categoryId).map((row) => [row.type, row]));
+  const stats = memberStats(categoryId);
+  const stock = prevailingStock(categoryId);
+  const types = new Set([...saved.keys(), ...stats.keys()]);
 
-  const groups = new Map<string, FrameTypeProduct[]>();
-  for (const type of saved.keys()) groups.set(type, []);
-  for (const row of memberRows(categoryId)) {
-    const type = row.type ?? "";
-    const list = groups.get(type) ?? [];
-    list.push(toProduct(row));
-    groups.set(type, list);
+  return [...types]
+    .sort((a, b) => typeOrder.compare(a, b))
+    .map((type) => {
+      const row = saved.get(type);
+      const member = stats.get(type);
+      const values = row ? toValues(row) : null;
+      const productCount = member?.products ?? 0;
+      return {
+        type,
+        name: row?.name ?? "",
+        storageCode: row?.storage_code ?? (member?.storages === 1 ? member.storage : ""),
+        storageMixed: (member?.storages ?? 0) > 1,
+        saved: values,
+        productCount,
+        uniform: (member?.variants ?? 0) <= 1,
+        stockQty: values ? values.stockQty : (stock.get(type) ?? null),
+        renderable: Boolean(productCount && row?.has_frame_image === 1 && row.composer),
+      };
+    });
+}
+
+export function frameRenderPlan(categoryId: string): Array<{ type: string; productIds: string[] }> {
+  if (!isFrameCategory(categoryId)) return [];
+  ensureFrameMembership();
+  const rows = getDb()
+    .prepare(
+      `SELECT f.type, p.id, p.title
+         FROM frame_type_products f
+         JOIN products p ON p.id = f.product_id AND p.category_id = f.category_id
+         JOIN frame_types t ON t.category_id = f.category_id AND t.type = f.type
+        WHERE f.category_id = ?
+          AND t.frame_image_file IS NOT NULL
+          AND coalesce(t.composer, '') <> ''`,
+    )
+    .all(categoryId) as Array<{ type: string; id: string; title: string }>;
+  const plan = new Map<string, Array<{ id: string; title: string }>>();
+  for (const row of rows) {
+    const list = plan.get(row.type) ?? [];
+    list.push(row);
+    plan.set(row.type, list);
   }
-
-  return [...groups.entries()]
+  return [...plan.entries()]
     .sort(([a], [b]) => typeOrder.compare(a, b))
-    .map(([type, products]) => buildGroup(type, saved.get(type), products));
+    .map(([type, products]) => ({
+      type,
+      productIds: products.sort((a, b) => titleOrder.compare(a.title, b.title)).map((product) => product.id),
+    }));
 }
 
 export function getFrameType(categoryId: string, type: string): FrameTypeGroup | null {

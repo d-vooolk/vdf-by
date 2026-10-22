@@ -2,16 +2,12 @@
 
 import { useRef, useState } from "react";
 
+import { frameRenderPlanAction } from "@/app/admin/frame-type-actions";
 import { ImagePlusIcon, SpinnerIcon } from "@/components/icons";
 
 import { renderOne } from "./FrameTypeComposer";
 
 const RETRY_DELAY = 10000;
-
-export interface RenderAllType {
-  type: string;
-  productIds: string[];
-}
 
 interface Problem {
   type: string;
@@ -23,11 +19,13 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function FrameTypesRenderAll({
   categoryId,
-  types,
+  typeCount,
+  productCount,
   missing,
 }: {
   categoryId: string;
-  types: RenderAllType[];
+  typeCount: number;
+  productCount: number;
   missing: string[];
 }) {
   const [running, setRunning] = useState(false);
@@ -35,8 +33,8 @@ export function FrameTypesRenderAll({
   const [done, setDone] = useState(0);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [finished, setFinished] = useState(false);
+  const [planError, setPlanError] = useState("");
   const stopRef = useRef(false);
-  const total = types.reduce((sum, item) => sum + item.productIds.length, 0);
 
   const renderWithRetry = async (type: string, productId: string) => {
     try {
@@ -48,12 +46,24 @@ export function FrameTypesRenderAll({
   };
 
   const run = async () => {
-    if (!window.confirm(`Перегенерировать картинки для ${total} товаров в ${types.length} типах?`)) return;
+    if (!window.confirm(`Перегенерировать картинки для ${productCount} товаров в ${typeCount} типах?`)) return;
     stopRef.current = false;
     setRunning(true);
     setFinished(false);
     setProblems([]);
     setDone(0);
+    setPlanError("");
+    setProgress("Собираем список товаров…");
+    let types: Awaited<ReturnType<typeof frameRenderPlanAction>>;
+    try {
+      types = await frameRenderPlanAction(categoryId);
+    } catch (problem) {
+      setPlanError(`Не удалось получить список товаров: ${(problem as Error).message}`);
+      setRunning(false);
+      setProgress("");
+      return;
+    }
+    const total = types.reduce((sum, item) => sum + item.productIds.length, 0);
     let count = 0;
     for (const item of types) {
       for (const productId of item.productIds) {
@@ -81,9 +91,9 @@ export function FrameTypesRenderAll({
   return (
     <div className="card space-y-2 p-4 text-sm">
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={run} disabled={running || !total} className="btn-primary py-2 text-sm">
+        <button type="button" onClick={run} disabled={running || !productCount} className="btn-primary py-2 text-sm">
           {running ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : <ImagePlusIcon className="h-4 w-4" />}
-          Перегенерировать картинки всех типов ({total})
+          Перегенерировать картинки всех типов ({productCount})
         </button>
         {running && (
           <button type="button" onClick={() => (stopRef.current = true)} className="btn-ghost py-2 text-sm">
@@ -101,6 +111,7 @@ export function FrameTypesRenderAll({
         Берёт сохранённое фото рамки и оформление каждого типа и пересобирает первую картинку у всех его
         товаров по текущему шаблону. Вкладку не закрывайте до конца.
       </p>
+      {planError && <p className="text-xs text-red-700">{planError}</p>}
       {missing.length > 0 && (
         <p className="text-xs text-amber-700">
           Без фото рамки или оформления, будут пропущены: {missing.join(", ")}

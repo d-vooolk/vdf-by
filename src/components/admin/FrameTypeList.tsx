@@ -27,9 +27,7 @@ interface FrameTypeListProps {
   categories: Array<{ id: string; name: string }>;
   categoryId: string;
   initialQuery: string;
-  stockOnly: boolean;
-  stockCount: number;
-  totalCount: number;
+  initialStockOnly: boolean;
 }
 
 const QUERY_LENGTH = 10;
@@ -51,26 +49,27 @@ export function FrameTypeList({
   categories,
   categoryId,
   initialQuery,
-  stockOnly,
-  stockCount,
-  totalCount,
+  initialStockOnly,
 }: FrameTypeListProps) {
   const router = useRouter();
   const [input, setInput] = useState(initialQuery);
   const [switching, startSwitching] = useTransition();
-  const [filtering, startFiltering] = useTransition();
+  const [stockOnly, setStockOnly] = useState(initialStockOnly);
   const [query, setQuery] = useState(normalizeQuery(initialQuery));
   const [searching, startSearching] = useTransition();
   const stale = searching;
   const [limit, setLimit] = useState(PAGE_SIZE);
   const sentinel = useRef<HTMLDivElement>(null);
 
+  const stockRows = useMemo(() => rows.filter((row) => (row.stockQty ?? 0) > 0), [rows]);
+  const filtered = stockOnly ? stockRows : rows;
+
   const shown = useMemo(
     () =>
       query
-        ? rows.filter((row) => row.type.startsWith(query) || row.name.toUpperCase().includes(query))
-        : rows,
-    [rows, query],
+        ? filtered.filter((row) => row.type.startsWith(query) || row.name.toUpperCase().includes(query))
+        : filtered,
+    [filtered, query],
   );
 
   const visible = useMemo(() => shown.slice(0, limit), [shown, limit]);
@@ -99,8 +98,12 @@ export function FrameTypeList({
   };
 
   const toggleStockOnly = () => {
-    startNavigationOverlay();
-    startFiltering(() => router.push(listHref(categoryId, normalizeQuery(input), !stockOnly)));
+    const next = !stockOnly;
+    window.history.replaceState(null, "", listHref(categoryId, query, next));
+    startSearching(() => {
+      setStockOnly(next);
+      setLimit(PAGE_SIZE);
+    });
   };
 
   const changeCategory = (nextCategoryId: string) => {
@@ -144,7 +147,7 @@ export function FrameTypeList({
               id="category"
               value={categoryId}
               onChange={(event) => changeCategory(event.target.value)}
-              disabled={switching || filtering}
+              disabled={switching}
               className="field py-2 text-sm"
             >
               {categories.map((category) => (
@@ -160,31 +163,19 @@ export function FrameTypeList({
           type="button"
           onClick={toggleStockOnly}
           aria-pressed={stockOnly}
-          disabled={filtering || switching}
+          disabled={switching}
           className={`${stockOnly ? "btn-primary" : "btn-secondary"} ml-auto py-2 text-sm`}
         >
           В наличии
-          {filtering ? (
-            <SpinnerIcon className="h-4 w-4 animate-spin" />
-          ) : (
-            <span className="tnum opacity-70">{stockCount}</span>
-          )}
+          <span className="tnum opacity-70">{stockRows.length}</span>
         </button>
       </form>
 
-      {filtering ? (
-        <div
-          role="status"
-          className="card flex items-center justify-center gap-3 py-24 text-sm text-brand-500"
-        >
-          <SpinnerIcon className="h-5 w-5 animate-spin" />
-          {stockOnly ? "Загружаем все типы…" : "Загружаем типы в наличии…"}
-        </div>
-      ) : shown.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
-          {!totalCount
+          {!rows.length
             ? "Типов пока нет — создайте первый."
-            : stockOnly && !rows.length
+            : stockOnly && !stockRows.length
               ? "Типов в наличии нет."
               : stockOnly
                 ? "Такого типа в наличии нет."
