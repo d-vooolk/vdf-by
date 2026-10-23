@@ -118,6 +118,17 @@ export function ProductForm({
       />
     ) : null;
   const closeComposer = useCallback(() => setComposerOpen(false), []);
+  const optionImageCount = draft.optionGroups.reduce(
+    (sum, group) => sum + group.values.reduce((count, value) => count + (value.images?.length ?? 0), 0),
+    0,
+  );
+  const clearOptionImages = () =>
+    patch({
+      optionGroups: draft.optionGroups.map((group) => ({
+        ...group,
+        values: group.values.map((value) => ({ ...value, images: undefined })),
+      })),
+    });
 
   const money = (value: number | null | undefined) =>
     value !== null && value !== undefined && value > 0 ? formatPrice(value, currencySymbol) : "—";
@@ -673,9 +684,17 @@ export function ProductForm({
           removableBackground
         />
 
-        <button type="button" className="btn-secondary" onClick={() => setComposerOpen(true)}>
-          Сделать картинку с автомобилем
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-secondary" onClick={() => setComposerOpen(true)}>
+            Сделать картинку с автомобилем
+          </button>
+          {optionImageCount > 0 && (
+            <button type="button" className="btn-secondary" onClick={clearOptionImages}>
+              <TrashIcon className="h-4 w-4" />
+              Очистить фото в опциях ({optionImageCount} фото)
+            </button>
+          )}
+        </div>
 
         {composerOpen && (
           <ComposerDialog
