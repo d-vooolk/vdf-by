@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GenerationList, ModelList } from "@/components/CarTiles";
 import { CatalogControls, type CatalogItem } from "@/components/CatalogControls";
 import { Faq } from "@/components/Faq";
+import { GenerationFit } from "@/components/GenerationFit";
 import { FrameLenses } from "@/components/FrameLenses";
 import { JsonLd } from "@/components/JsonLd";
 import { ListingFacts } from "@/components/ListingFacts";
@@ -513,6 +514,7 @@ export function CategoryGenerationView({
   const siblings = model.generations.filter(
     (item) => item.id !== generation.id,
   );
+  const fitNoun = generationCopy(category.slug).fitNoun;
 
   return (
     <div className="container-page pb-16">
@@ -549,6 +551,19 @@ export function CategoryGenerationView({
       </header>
 
       <ProductGrid products={products} currencySymbol={site.currencySymbol} />
+
+      {fitNoun && (
+        <GenerationFit
+          category={category}
+          base={base}
+          noun={fitNoun}
+          mark={mark}
+          model={model}
+          generation={generation}
+          products={products}
+          hasModelText={Boolean(getCarText(category.id, model.id))}
+        />
+      )}
 
       {siblings.length > 0 && (
         <nav className="mt-14" aria-label={`Другие поколения ${model.name}`}>
