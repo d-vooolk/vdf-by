@@ -74,6 +74,15 @@ function applyFields(data, spec, where) {
     if (existing) existing.value = value;
     else data.specs.push({ name, value });
   }
+  for (const [from, to] of spec.replaceInFaq ?? []) {
+    const item = (data.faq ?? []).find((entry) => entry.a.includes(from));
+    if (!item) {
+      if (!(data.faq ?? []).some((entry) => entry.a.includes(to))) problems.push(`${where}: в ответах FAQ не найдено «${from}»`);
+      continue;
+    }
+    item.a = item.a.replace(from, to);
+    say(`${where}: ответ «${item.q}» — «${from}» → «${to}»`);
+  }
   for (const [from, to] of spec.replaceInDescription ?? []) {
     if (!data.description?.includes(from)) {
       if (!data.description?.includes(to)) problems.push(`${where}: в описании не найдено «${from.trim()}»`);
