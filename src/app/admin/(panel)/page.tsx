@@ -42,7 +42,7 @@ export default function DashboardPage() {
         <Stat
           label="Продажи за неделю"
           value={formatPrice(stats.weekTotal, site.currencySymbol)}
-          hint="без отменённых"
+          hint="без отменённых и сотрудников"
         />
         <Stat
           label="Товаров в каталоге"
@@ -59,10 +59,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Заказы по дням" note="Последние 30 дней, все заказы — как в плитке «Заказов за сутки»">
+        <Panel title="Заказы по дням" note="Последние 30 дней, без заказов сотрудников — как в плитке «Заказов за сутки»">
           <DailyBars points={timeline.daily} unit={["заказ", "заказа", "заказов"]} />
         </Panel>
-        <Panel title="Продажи по неделям" note="Последние 12 недель, без отменённых; неделя — с понедельника">
+        <Panel title="Продажи по неделям" note="Последние 12 недель, без отменённых и заказов сотрудников; неделя — с понедельника">
           <DailyBars points={timeline.weekly} unit={money} step="week" />
         </Panel>
       </div>

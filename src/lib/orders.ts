@@ -453,6 +453,11 @@ export function orderStatusCounts(staff: boolean): Record<string, number> {
   return counts;
 }
 
+export function countNewOrders(): number {
+  const row = getDb().prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'new'").get() as { n: number };
+  return row.n;
+}
+
 export function orderStats(): OrderStats {
   const db = getDb();
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
@@ -460,18 +465,18 @@ export function orderStats(): OrderStats {
 
   const byStatus: Record<string, number> = {};
   const statusRows = db
-    .prepare("SELECT status, COUNT(*) AS n FROM orders GROUP BY status")
+    .prepare("SELECT status, COUNT(*) AS n FROM orders WHERE staff = 0 GROUP BY status")
     .all() as Array<{ status: string; n: number }>;
   for (const row of statusRows) byStatus[row.status] = row.n;
 
   const today = db
-    .prepare("SELECT COUNT(*) AS n FROM orders WHERE created_at >= ?")
+    .prepare("SELECT COUNT(*) AS n FROM orders WHERE created_at >= ? AND staff = 0")
     .get(dayAgo) as { n: number };
 
   // Отменённые в выручку не считаем — иначе цифра врёт в приятную сторону.
   const week = db
     .prepare(
-      "SELECT COALESCE(SUM(total), 0) AS sum FROM orders WHERE created_at >= ? AND status != 'cancelled'",
+      "SELECT COALESCE(SUM(total), 0) AS sum FROM orders WHERE created_at >= ? AND status != 'cancelled' AND staff = 0",
     )
     .get(weekAgo) as { sum: number };
 
@@ -509,7 +514,7 @@ export function orderTimeline(days = 30, weeks = 12): { daily: OrderPoint[]; wee
     .slice(0, 10);
   const since = Math.min(now - (days + 1) * DAY_MS, new Date(`${firstWeek}T00:00:00Z`).getTime() - DAY_MS);
   const rows = getDb()
-    .prepare("SELECT created_at, status, total FROM orders WHERE created_at >= ?")
+    .prepare("SELECT created_at, status, total FROM orders WHERE created_at >= ? AND staff = 0")
     .all(since) as Array<{ created_at: number; status: string; total: number }>;
 
   const daily = new Map<string, number>();

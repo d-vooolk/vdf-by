@@ -10,7 +10,7 @@ import { countOpenServiceRequests } from "@/lib/service";
 import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
 import { countPendingWholesale } from "@/lib/customers";
-import { orderStats } from "@/lib/orders";
+import { countNewOrders } from "@/lib/orders";
 
 
 /**
@@ -34,7 +34,6 @@ export default async function PanelLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const admin = await requireAdmin();
   const site = getSite();
-  const { newCount } = orderStats();
   const store = await cookies();
   const theme = parseAdminTheme(store.get(ADMIN_THEME_COOKIE)?.value);
 
@@ -44,7 +43,7 @@ export default async function PanelLayout({
       <AdminNav
         siteName={site.name}
         login={admin.login}
-        newOrders={newCount}
+        newOrders={countNewOrders()}
         pendingWholesale={countPendingWholesale()}
         openService={countOpenServiceRequests()}
         theme={theme}
