@@ -202,10 +202,10 @@ FAQ, наборы фото мастерской и перенос фото из 
 
 `node scripts/seo-content-patch.mjs --content scripts/seo-….json` — у
 товаров поля (`set`: `title`, `seoTitle` и т. д.), замены в описании
-(`replaceInDescription`), характеристики (`specs`: `{ "Гарантия": "2 недели" }` —
+(`replaceInDescription`) и в ответах FAQ (`replaceInFaq`), характеристики (`specs`: `{ "Гарантия": "2 недели" }` —
 заменяет значение или добавляет строку) и привязки к поколениям (`cars.remove` / `cars.add`
 путями `марка/модель/поколение`); у статей — `title`, `seoTitle`,
 `seoDescription`, `excerpt`. Без `--apply` только показывает изменения, с
 `--apply` делает копию базы, пишет и сбрасывает кеш страниц. Повторный
 запуск того же файла ничего не меняет. Файлы: `seo-2026-10-26.json`,
-`seo-stekla-cards-2026-10.json`.
+`seo-stekla-cards-2026-10.json`, `seo-stekla-faq-2026-10.json`.
