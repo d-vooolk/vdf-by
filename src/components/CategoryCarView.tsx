@@ -514,7 +514,7 @@ export function CategoryGenerationView({
   const siblings = model.generations.filter(
     (item) => item.id !== generation.id,
   );
-  const fitNoun = generationCopy(category.slug).fitNoun;
+  const fitWords = generationCopy(category.slug).fit;
 
   return (
     <div className="container-page pb-16">
@@ -552,11 +552,11 @@ export function CategoryGenerationView({
 
       <ProductGrid products={products} currencySymbol={site.currencySymbol} />
 
-      {fitNoun && (
+      {fitWords && (
         <GenerationFit
           category={category}
           base={base}
-          noun={fitNoun}
+          words={fitWords}
           mark={mark}
           model={model}
           generation={generation}
