@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { CloseIcon } from "@/components/icons";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 import { marketFromTitle } from "@/lib/market-flags.mjs";
 
 import { ImageComposer, type ComposedImage, type ComposerProductImage } from "./ImageComposer";
@@ -32,8 +33,10 @@ export function ComposerDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const backdrop = useBackdropClose(onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" {...backdrop}>
       <div className="flex max-h-[92vh] w-full max-w-7xl flex-col rounded-card bg-brand-50 shadow-xl">
         <div className="flex items-center gap-3 border-b border-brand-100 bg-white p-4">
           <h2 className="text-sm font-bold text-brand-900">Картинка с автомобилем</h2>

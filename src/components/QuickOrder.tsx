@@ -8,6 +8,7 @@ import { OrderCelebration } from "@/components/OrderCelebration";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice } from "@/lib/format";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 import { useAccount, type AccountCustomer } from "@/store/account";
 
 /**
@@ -234,6 +235,7 @@ export function QuickOrder({
       setStatus("idle");
     }
   };
+  const backdrop = useBackdropClose(close);
 
   if (customer?.staff) {
     return (
@@ -273,14 +275,13 @@ export function QuickOrder({
         createPortal(
           <div
             className="fixed inset-0 z-[80] flex items-end justify-center bg-brand-900/60 p-0 sm:items-center sm:p-4"
-            onClick={close}
+            {...backdrop}
             role="dialog"
             aria-modal="true"
             aria-label="Быстрый заказ"
           >
             <div
               className="w-full max-w-md rounded-t-card bg-white p-5 shadow-pop sm:rounded-card sm:p-6"
-              onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>

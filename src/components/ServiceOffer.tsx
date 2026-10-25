@@ -8,6 +8,7 @@ import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { CheckIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
 import { WorkshopNote } from "@/components/WorkshopNote";
 import { SERVICE_PHONE, SERVICE_PHONE_HREF } from "@/lib/service-contacts";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 import { useAccount } from "@/store/account";
 
 interface ServiceOfferProps {
@@ -83,6 +84,7 @@ function ServiceRequestDialog({
   const [errors, setErrors] = useState<{ name?: string; phone?: string; consent?: string }>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "failed">("idle");
   const [failure, setFailure] = useState("");
+  const backdrop = useBackdropClose(onClose);
 
   useEffect(() => {
     void loadAccount();
@@ -138,14 +140,13 @@ function ServiceRequestDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-end justify-center bg-brand-900/60 p-0 sm:items-center sm:p-4"
-      onClick={onClose}
+      {...backdrop}
       role="dialog"
       aria-modal="true"
       aria-label="Расчёт установки"
     >
       <div
         className="w-full max-w-md rounded-t-card bg-white p-5 shadow-pop sm:rounded-card sm:p-6"
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>

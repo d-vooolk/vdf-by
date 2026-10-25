@@ -6,6 +6,7 @@ import { deleteCarEntryAction, saveCarEntryAction } from "@/app/admin/car-action
 import { Field, Problems } from "@/components/admin/form-parts";
 import { SpinnerIcon, TrashIcon } from "@/components/icons";
 import type { CarEntry, CarLevel } from "@/lib/car-types";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 const LEVEL_TEXT: Record<
   CarLevel,
@@ -71,6 +72,7 @@ export function CarCatalogEditor() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
+  const backdrop = useBackdropClose(() => !pending && setDraft(null));
 
   const reload = useCallback(async (level: CarLevel, parent?: string) => {
     const setters = { mark: setMarks, model: setModels, generation: setGenerations };
@@ -238,12 +240,9 @@ export function CarCatalogEditor() {
       {draft && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/40 p-4"
-          onClick={() => !pending && setDraft(null)}
+          {...backdrop}
         >
-          <div
-            className="card max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className="card max-h-[90vh] w-full max-w-md space-y-4 overflow-y-auto p-5">
             <h2 className="text-lg font-semibold text-brand-900">
               {draft.entry ? "Изменить" : "Добавить"} {LEVEL_TEXT[draft.level].one}
             </h2>
