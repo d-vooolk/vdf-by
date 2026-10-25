@@ -34,6 +34,7 @@ interface GenerationCopy {
   lead: string;
   promise: string;
   buyInTitle: boolean;
+  fitNoun?: string;
 }
 
 const GENERATION_COPY: Record<string, GenerationCopy> = {
@@ -41,11 +42,13 @@ const GENERATION_COPY: Record<string, GenerationCopy> = {
     lead: "новое стекло из поликарбоната с УФ-лаком вместо помутневшего, левое, правое или пара",
     promise: "Поможем сверить фару по фото до заказа. Доставка по Минску и Беларуси",
     buyInTitle: true,
+    fitNoun: "стекло",
   },
   svetovody: {
     lead: "замена пожелтевших световодов ДХО без покупки фары в сборе",
     promise: "Подберём по кузову и версии фары. Доставка по Минску и Беларуси",
     buyInTitle: true,
+    fitNoun: "световод",
   },
 };
 
