@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { runPanicAction } from "@/app/admin/security-actions";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 type Step = "idle" | "confirm1" | "confirm2" | "confirm3" | "pin";
 
@@ -19,12 +20,11 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const backdrop = useBackdropClose(onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-card border border-brand-100 bg-white p-5 shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" {...backdrop}>
+      <div className="w-full max-w-sm rounded-card border border-brand-100 bg-white p-5 shadow-xl">
         {children}
       </div>
     </div>

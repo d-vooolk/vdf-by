@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 export interface CutoutImage {
   path: string;
@@ -137,8 +138,10 @@ export function BackgroundRemover({
     }
   };
 
+  const backdrop = useBackdropClose(() => !saving && onClose());
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" {...backdrop}>
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-card bg-white shadow-xl">
         <div className="flex items-center gap-3 border-b border-brand-100 p-4">
           <h2 className="text-sm font-bold text-brand-900">Убрать фон</h2>

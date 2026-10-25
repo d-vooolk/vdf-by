@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { AlertIcon, CloseIcon, EraserIcon, SpinnerIcon } from "@/components/icons";
 import { runPool, sendWithProgress } from "@/lib/upload-client";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 import { BackgroundRemover, type CutoutImage } from "./BackgroundRemover";
 
@@ -524,8 +525,10 @@ function MediaBrowser({ exclude, limit, onPick, onClose }: MediaBrowserProps) {
           : current,
     );
 
+  const backdrop = useBackdropClose(onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" {...backdrop}>
       <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-card bg-white shadow-xl">
         <div className="flex items-center gap-3 border-b border-brand-100 p-4">
           <h2 className="text-sm font-bold text-brand-900">Загруженные фото</h2>
