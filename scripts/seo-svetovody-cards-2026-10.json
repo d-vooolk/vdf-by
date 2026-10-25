@@ -1,0 +1,11 @@
+{
+  "products": [
+    { "slug": "svetovod-dlya-fary-bmw-5-g30-2016-2020-vneshniy", "replaceInDescription": [["Деталь производит (Китай), вес 1 кг", "Страна производства — Китай, вес 1 кг"]] },
+    { "slug": "svetovod-fary-bmw-5-g30-restayling-2020-2024-vnutrenniy", "replaceInDescription": [["Внутренний световод выпускает. Размер детали", "Размер детали"]] },
+    { "slug": "svetovod-fary-bmw-x3-g01-2017-2021", "replaceInDescription": [["Световод производит. Размер детали", "Размер детали"]] },
+    { "slug": "svetovod-fary-tesla-model-s-2016-2021", "replaceInDescription": [[" Поставка — комплектом.", ""]] },
+    { "slug": "svetovod-fary-bmw-x5-g05-2018-2023-laser-vneshniy", "cars": { "add": ["bmw/x6/iii-g06"] } },
+    { "slug": "svetovod-fary-bmw-x5-g05-2018-2023-laser-vnutrenniy", "cars": { "add": ["bmw/x6/iii-g06"] } },
+    { "slug": "svetovod-fary-mercedes-benz-vito-w447-2014-2020", "cars": { "add": ["mercedes-benz/vito/iii-w447"] } }
+  ]
+}
