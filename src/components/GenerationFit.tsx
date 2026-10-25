@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { carName, generationUrl, modelUrl, years } from "@/lib/car-types";
+import type { FitWords } from "@/lib/car-page-copy";
 import { getProductCars } from "@/lib/cars";
 import type { Category, Product } from "@/lib/schema";
 
@@ -10,7 +11,7 @@ const MAX_PRODUCTS = 4;
 interface GenerationFitProps {
   category: Category;
   base: string;
-  noun: string;
+  words: FitWords;
   mark: { slug: string; name: string };
   model: { slug: string; name: string };
   generation: { id: string; name: string };
@@ -21,7 +22,7 @@ interface GenerationFitProps {
 export function GenerationFit({
   category,
   base,
-  noun,
+  words,
   mark,
   model,
   generation,
@@ -35,7 +36,7 @@ export function GenerationFit({
   return (
     <section className="mt-12 max-w-3xl">
       <h2 className="mb-3 text-lg font-semibold text-brand-900">
-        Какое {noun} подходит к {title}
+        {products.length > 1 ? words.whichMany : words.which} к {title}
       </h2>
       <ul className="space-y-3 text-base text-brand-600">
         {products.slice(0, MAX_PRODUCTS).map((product) => {
@@ -52,7 +53,7 @@ export function GenerationFit({
                 <> — только для этого поколения.</>
               ) : (
                 <>
-                  {" "}— это же {noun} ставится на{" "}
+                  {" "}— {words.same} ставится на{" "}
                   {others.map((car, index) => {
                     const period = years(car, THIS_YEAR);
                     return (
