@@ -58,3 +58,19 @@ const DEFAULT_GENERATION_COPY: GenerationCopy = {
 export function generationCopy(categorySlug: string): GenerationCopy {
   return GENERATION_COPY[categorySlug] ?? DEFAULT_GENERATION_COPY;
 }
+
+const SAME_OPENING_HINTS: Record<string, Record<string, string>> = {
+  "stekla-far": {
+    svetovody:
+      "Световоды стоят внутри той же фары: если «глазки» пожелтели, их удобно заменить вместе со стеклом — фару вскрывают один раз.",
+  },
+  svetovody: {
+    "stekla-far":
+      "Чтобы заменить световод, фару вскрывают: если стекло помутнело, его меняют за ту же разборку.",
+  },
+};
+
+export function sameOpeningHint(categorySlug: string, relatedSlugs: string[]): string | undefined {
+  const hints = SAME_OPENING_HINTS[categorySlug];
+  return hints ? relatedSlugs.map((slug) => hints[slug]).find(Boolean) : undefined;
+}

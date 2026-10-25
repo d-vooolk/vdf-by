@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { CarSections } from "@/lib/car-branch";
+import { sameOpeningHint } from "@/lib/car-page-copy";
 import { carName, years } from "@/lib/car-types";
 import type { Category } from "@/lib/schema";
 
@@ -16,6 +17,10 @@ export function ProductCarSections({
   groups: CarSections[];
 }) {
   const allLabel = `Все ${category.name.toLowerCase()}`;
+  const hint = sameOpeningHint(
+    category.slug,
+    groups.flatMap(({ related }) => related.map((entry) => entry.category.slug)),
+  );
 
   return (
     <nav
@@ -27,6 +32,7 @@ export function ProductCarSections({
           <h2 className="mb-4 text-xl font-semibold text-brand-900 sm:text-2xl">
             Что ещё есть для этой машины
           </h2>
+          {hint && <p className="mb-4 max-w-3xl text-sm text-brand-600">{hint}</p>}
           <ul className="mb-5 space-y-3">
             {groups.map(({ car, related }) => {
               const name = carName(
