@@ -197,3 +197,13 @@ FAQ, наборы фото мастерской и перенос фото из 
 `seo-ramki-2026-10.json`, `seo-ramki-models-2026-10.json`,
 `seo-biled-2026-10.json`. Поля подборок раздела правятся блоком
 `category.collections` — `{ "слаг подборки": { поле: значение } }`.
+
+## Точечные правки товаров и статей скриптом
+
+`node scripts/seo-content-patch.mjs --content scripts/seo-….json` — у
+товаров поля (`set`: `title`, `seoTitle` и т. д.), замены в описании
+(`replaceInDescription`) и привязки к поколениям (`cars.remove` / `cars.add`
+путями `марка/модель/поколение`); у статей — `title`, `seoTitle`,
+`seoDescription`, `excerpt`. Без `--apply` только показывает изменения, с
+`--apply` делает копию базы, пишет и сбрасывает кеш страниц. Повторный
+запуск того же файла ничего не меняет. Файлы: `seo-2026-10-26.json`.

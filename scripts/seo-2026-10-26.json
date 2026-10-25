@@ -1,0 +1,30 @@
+{
+  "products": [
+    { "slug": "steklo-dlya-fary-audi-a3-2016-2020", "set": { "seoTitle": "Стекло фары Audi A3 8V (2016–2020) — купить в Минске" }, "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-audi-a3-2020-2022", "set": { "seoTitle": "Стекло фары Audi A3 8Y (2020–2022) — купить в Минске" } },
+    { "slug": "steklo-dlya-fary-audi-a5-f5-2016-2020", "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-audi-q5-2008-2012", "set": { "seoTitle": "Стекло фары Audi Q5 8R (2008–2012) — купить в Минске" }, "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-audi-q5-2012-2017", "set": { "seoTitle": "Стекло фары Audi Q5 8R рестайлинг (2012–2017) — купить в Минске" }, "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-bmw-1-series-e82-e87-2004-2011", "set": { "seoTitle": "Стекло фары BMW 1 E87/E82 (2004–2011) — купить в Минске" } },
+    { "slug": "steklo-dlya-fary-bmw-3-f30-2011-2015", "replaceInDescription": [["Раздел каталога: Стёкла фар — это", "Стёкла фар — это"]] },
+    { "slug": "steklo-dlya-fary-bmw-5-e39-2000-2004-s-sekciey-povorotnika-i-uplotnitelnoy-rezin", "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-bmw-5-e60-e61-2003-2010-s-led-resnichkoy", "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-jaguar-xf-2015-2020", "set": { "seoTitle": "Стекло фары Jaguar XF X260 (2015–2020) — купить в Минске" }, "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-land-rover-range-rover-sport-2013-2017", "set": { "seoTitle": "Стекло фары Range Rover Sport L494 (2013–2017) — купить в Минске" }, "cars": { "remove": ["land-rover/range-rover/iv"], "add": ["land-rover/range-rover-sport/ii"] } },
+    { "slug": "steklo-dlya-fary-land-rover-range-rover-sport-2017-2022", "set": { "seoTitle": "Стекло фары Range Rover Sport L494 рестайлинг (2017–2022)" } },
+    { "slug": "steklo-dlya-fary-mercedes-s-class-w222-2013-2017", "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-mercedes-sprinter-w906-2006-2013", "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-opel-insignia-2017-2020", "set": { "seoTitle": "Стекло фары Opel Insignia B (2017–2020) — купить в Минске" } },
+    { "slug": "steklo-dlya-fary-opel-insignia-2020-2022", "set": { "seoTitle": "Стекло фары Opel Insignia B рестайлинг (2020–2022) — купить в Минске" }, "replaceInDescription": [["\n\nРаздел каталога: Стёкла фар\n\n", "\n\n"]] },
+    { "slug": "steklo-dlya-fary-porsche-macan-2018-2022", "set": { "seoTitle": "Стекло фары Porsche Macan 95B (2018–2022) — купить в Минске" } },
+    { "slug": "steklo-dlya-fary-volkswagen-tiguan-2020-2024", "set": { "seoTitle": "Стекло фары Volkswagen Tiguan 2 рестайлинг (2020–2024)" } },
+    { "slug": "steklo-dlya-fary-volvo-xc70-v70-s80-2007-2016", "set": { "title": "Стекло для фары Volvo XC70, V70, S80 (2007-2016)" }, "replaceInDescription": [["Стекло выпускает, страна производства — Китай.", "Страна производства — Китай."]] }
+  ],
+  "articles": [
+    { "slug": "bi-led-moduli-chto-eto-i-kak-vybrat", "seoTitle": "Какие би-LED модули выбрать: что это и как подобрать" },
+    { "slug": "bi-led-ili-bi-ksenonovye-linzy-chto-postavit-v-fary", "seoTitle": "Биксенон или би-LED: что это и что лучше в фары" },
+    { "slug": "chto-nuzhno-dlya-ustanovki-bi-led-linz", "seoTitle": "Как поставить линзы в фары: что нужно, чек-лист" },
+    { "slug": "mozhno-li-stavit-svetodiodnye-lampy-v-reflektornye-fary", "seoTitle": "LED лампы в рефлекторные фары: можно ли ставить" },
+    { "slug": "kak-pravilno-sobrat-faru-butilovyy-germetik", "seoTitle": "Чем склеить фару после разборки и как снять герметик" }
+  ]
+}

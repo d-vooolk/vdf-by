@@ -14,9 +14,17 @@ import {
 } from "@/lib/article-body";
 import { coverOf } from "@/lib/article-photos";
 import type { Article } from "@/lib/articles";
-import { getProductBySlug, getSite } from "@/lib/catalog";
+import {
+  categoryUrl,
+  getCategoryBySlug,
+  getProductBySlug,
+  getProductsInCategory,
+  getSite,
+  resolveSubcategory,
+} from "@/lib/catalog";
+import { pluralize } from "@/lib/format";
 import { getImage } from "@/lib/images";
-import type { Product } from "@/lib/schema";
+import type { Category, Product } from "@/lib/schema";
 
 interface ArticleViewProps {
   article: Article;
@@ -54,6 +62,39 @@ function Inline({ text }: { text: string }) {
         );
       })}
     </>
+  );
+}
+
+function mainSection(body: string): Category | undefined {
+  const counts = new Map<string, number>();
+  for (const match of body.matchAll(/\]\(\/catalog\/([a-z0-9-]+\/(?:[a-z0-9-]+\/)?)\)/g)) {
+    counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([path]) => {
+      const [root, child] = path.split("/");
+      return child ? resolveSubcategory(root, child) : getCategoryBySlug(root);
+    })
+    .find(Boolean);
+}
+
+function SectionLink({ category }: { category: Category }) {
+  const count = getProductsInCategory(category.id).length;
+  return (
+    <Link
+      href={categoryUrl(category)}
+      className="card mt-6 flex items-center justify-between gap-4 px-5 py-4 hover:border-brand-300"
+    >
+      <span>
+        <span className="block font-semibold text-brand-900">{category.heading ?? category.name} в каталоге</span>
+        <span className="mt-0.5 block text-sm text-brand-500">
+          {pluralize(count, "позиция", "позиции", "позиций")}
+          {category.carFitment ? " · подбор по марке и модели" : ""}
+        </span>
+      </span>
+      <span aria-hidden className="text-xl text-brand-700">→</span>
+    </Link>
   );
 }
 
@@ -178,6 +219,7 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
   const headings = articleHeadings(article.body);
   const cover = getImage(coverOf(article));
   const minutes = readingMinutes(article.body);
+  const section = mainSection(article.body);
   const date = article.publishedAt ?? article.updatedAt;
   const updated = article.updatedAt - date > 24 * 60 * 60 * 1000;
 
@@ -225,6 +267,8 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
       {article.excerpt && (
         <p className="mt-6 text-lg leading-relaxed text-brand-800">{article.excerpt}</p>
       )}
+
+      {section && <SectionLink category={section} />}
 
       {headings.length >= 3 && (
         <nav aria-label="Содержание" className="mt-8 rounded-card border border-brand-100 bg-brand-50/50 p-5">
