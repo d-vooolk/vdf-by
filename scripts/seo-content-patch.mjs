@@ -66,6 +66,14 @@ function applyFields(data, spec, where) {
     say(`${where}: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${value}`);
     data[field] = value;
   }
+  for (const [name, value] of Object.entries(spec.specs ?? {})) {
+    data.specs ??= [];
+    const existing = data.specs.find((entry) => entry.name === name);
+    if (existing?.value === value) continue;
+    say(`${where}: характеристика «${name}» — ${existing?.value ?? "—"} → ${value}`);
+    if (existing) existing.value = value;
+    else data.specs.push({ name, value });
+  }
   for (const [from, to] of spec.replaceInDescription ?? []) {
     if (!data.description?.includes(from)) {
       if (!data.description?.includes(to)) problems.push(`${where}: в описании не найдено «${from.trim()}»`);
