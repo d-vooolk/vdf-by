@@ -32,6 +32,7 @@ import {
   getProductsForModel,
 } from "@/lib/cars";
 import { carFaq, oemNumbers } from "@/lib/car-content";
+import { generationCopy, markWithSpelling } from "@/lib/car-page-copy";
 import { carTextParagraphs, getCarText } from "@/lib/car-texts";
 import { lensesForFrames } from "@/lib/frame-lenses";
 import { categoryUrl, getSite } from "@/lib/catalog";
@@ -244,7 +245,7 @@ export function categoryMarkMetadata({ category, mark }: MarkScope): Metadata {
   return buildMetadata({
     title: `${category.name} для ${mark.name} купить в Минске`,
     description: sentences(
-      `${category.name} для ${mark.name} с подбором по модели и поколению`,
+      `${category.name} для ${markWithSpelling(mark)} с подбором по модели и поколению`,
       mark.models.length > 0 &&
         `В подборе: ${mark.models
           .slice(0, 6)
@@ -345,7 +346,7 @@ export function categoryModelMetadata({
   return buildMetadata({
     title: `${category.name} для ${title} купить в Минске`,
     description: sentences(
-      `${category.name} для ${title}`,
+      `${category.name} для ${carName({ name: markWithSpelling(mark) }, model)}`,
       model.generations.length > 0 &&
         `${pluralize(model.generations.length, "поколение", "поколения", "поколений")} в подборе`,
       countLine(products, site.currencySymbol),
@@ -477,13 +478,14 @@ export function categoryGenerationMetadata({
   const products = getProductsForGeneration(generation.id, category.id);
   const period = years(generation, THIS_YEAR);
   const title = carName(mark, model, generation);
+  const copy = generationCopy(category.slug);
 
   return buildMetadata({
-    title: `${category.name} для ${title}${period ? ` (${period})` : ""}`,
+    title: `${category.name} для ${title}${period ? ` (${period})` : ""}${copy.buyInTitle ? " купить в Минске" : ""}`,
     description: sentences(
-      `${category.name} для ${title}${period ? ` ${period}` : ""} — встают без доработок`,
+      `${category.name} для ${title}${period ? ` ${period}` : ""} — ${copy.lead}`,
       countLine(products, site.currencySymbol),
-      "Проверяем каждый комплект на стенде. Доставка по Минску и Беларуси",
+      copy.promise,
     ),
     path: generationUrl(
       mark.slug,

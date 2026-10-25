@@ -131,6 +131,11 @@ function deliveryNote(): string {
   return `Доставка по Минску — ${formatPrice(minsk.price, site.currencySymbol)}.${free} Самовывоз бесплатно.`;
 }
 
+function productWarranty(product: Product, siteWarranty: string): string {
+  const own = product.specs.find((spec) => spec.name.toLowerCase() === "гарантия")?.value;
+  return own ? `Гарантия — ${own}.` : siteWarranty;
+}
+
 export default async function ProductPage({ params }: PageProps) {
   const { slug } = await params;
   const product = getProductBySlug(slug);
@@ -229,7 +234,7 @@ export default async function ProductPage({ params }: PageProps) {
         currencySymbol={site.currencySymbol}
         currency={site.currency}
         deliveryNote={deliveryNote()}
-        warranty={site.warranty}
+        warranty={productWarranty(product, site.warranty)}
         orderEndpoint={site.orderEndpoint}
         quickDeliveryId={quickDelivery.id}
         quickPickupId={quickPickup?.id ?? null}
