@@ -720,6 +720,9 @@ export const MIGRATIONS = [
   `
     ALTER TABLE orders ADD COLUMN ready_sms_at INTEGER;
   `,
+  `
+    DROP TABLE product_copy;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

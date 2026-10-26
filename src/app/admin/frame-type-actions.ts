@@ -9,7 +9,6 @@ import {
   applyFrameType,
   copyFrameType,
   deleteFrameType,
-  frameRenderPlan,
   isFrameCategory,
   removeFromFrameType,
   saveFrameTypeInfo,
@@ -151,11 +150,4 @@ export async function setFrameTypeStorageCodeAction(
   await requireAdmin();
   if (typeof storageCode !== "string") return fail(["Складской номер указан неверно"]);
   return finishFrameChange(setFrameTypeStorageCode(categoryId, type, storageCode));
-}
-
-export async function frameRenderPlanAction(
-  categoryId: string,
-): Promise<Array<{ type: string; productIds: string[] }>> {
-  await requireAdmin();
-  return frameRenderPlan(categoryId);
 }

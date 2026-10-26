@@ -315,7 +315,6 @@ export interface FrameTypeSummary {
   productCount: number;
   uniform: boolean;
   stockQty: number | null;
-  renderable: boolean;
 }
 
 interface MemberStatsRow {
@@ -397,38 +396,10 @@ export function listFrameTypeSummaries(categoryId: string): FrameTypeSummary[] {
         productCount,
         uniform: (member?.variants ?? 0) <= 1,
         stockQty: values ? values.stockQty : (stock.get(type) ?? null),
-        renderable: Boolean(productCount && row?.has_frame_image === 1 && row.composer),
       };
     });
 }
 
-export function frameRenderPlan(categoryId: string): Array<{ type: string; productIds: string[] }> {
-  if (!isFrameCategory(categoryId)) return [];
-  ensureFrameMembership();
-  const rows = getDb()
-    .prepare(
-      `SELECT f.type, p.id, p.title
-         FROM frame_type_products f
-         JOIN products p ON p.id = f.product_id AND p.category_id = f.category_id
-         JOIN frame_types t ON t.category_id = f.category_id AND t.type = f.type
-        WHERE f.category_id = ?
-          AND t.frame_image_file IS NOT NULL
-          AND coalesce(t.composer, '') <> ''`,
-    )
-    .all(categoryId) as Array<{ type: string; id: string; title: string }>;
-  const plan = new Map<string, Array<{ id: string; title: string }>>();
-  for (const row of rows) {
-    const list = plan.get(row.type) ?? [];
-    list.push(row);
-    plan.set(row.type, list);
-  }
-  return [...plan.entries()]
-    .sort(([a], [b]) => typeOrder.compare(a, b))
-    .map(([type, products]) => ({
-      type,
-      productIds: products.sort((a, b) => titleOrder.compare(a.title, b.title)).map((product) => product.id),
-    }));
-}
 
 export function getFrameType(categoryId: string, type: string): FrameTypeGroup | null {
   if (!isFrameCategory(categoryId)) return null;

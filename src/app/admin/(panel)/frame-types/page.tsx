@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FrameTypeList, type FrameTypeListRow } from "@/components/admin/FrameTypeList";
-import { FrameTypesRenderAll } from "@/components/admin/FrameTypesRenderAll";
 import { PlusIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
 import { getSite } from "@/lib/catalog";
@@ -49,11 +48,6 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
     uniform: summary.uniform,
     stockQty: summary.stockQty,
   }));
-  const renderable = summaries.filter((summary) => summary.renderable);
-  const renderProductCount = renderable.reduce((sum, summary) => sum + summary.productCount, 0);
-  const notRenderable = summaries
-    .filter((summary) => summary.productCount && !summary.renderable)
-    .map((summary) => summary.type);
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
 
   return (
@@ -84,13 +78,6 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           названии.
         </p>
       ) : (
-        <>
-        <FrameTypesRenderAll
-          categoryId={categoryId}
-          typeCount={renderable.length}
-          productCount={renderProductCount}
-          missing={notRenderable}
-        />
         <FrameTypeList
           rows={rows}
           categories={categories}
@@ -98,7 +85,6 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           initialQuery={query}
           initialStockOnly={params.stock === "1"}
         />
-        </>
       )}
     </div>
   );
