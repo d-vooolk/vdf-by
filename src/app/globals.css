@@ -205,7 +205,7 @@
   }
 
   .prose-shop {
-    @apply text-[15px] leading-relaxed text-brand-600;
+    @apply text-[15px] leading-relaxed text-brand-600 break-words;
   }
 
   .prose-shop p + p {

@@ -247,7 +247,7 @@ export default async function ProductPage({ params }: PageProps) {
       />
 
       {/* -------------------- Описание и характеристики ------------------ */}
-      <div className="mt-14 grid gap-10 border-t border-brand-100 pt-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
+      <div className="mt-14 grid grid-cols-1 gap-10 border-t border-brand-100 pt-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
         {/* Описание под галереей, а не над ней: под заголовком оно
             отодвигало от первого экрана галерею, цену и кнопку заказа — то,
             за чем на страницу товара и приходят. В поиске от этого ничего не

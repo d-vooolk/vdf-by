@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   description: site.description,
   applicationName: site.name,
   authors: [{ name: site.legalName }],
-  formatDetection: { telephone: true },
+  formatDetection: { telephone: false, address: false, email: false },
   openGraph: {
     type: "website",
     siteName: site.name,
