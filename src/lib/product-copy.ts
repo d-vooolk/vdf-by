@@ -1,18 +1,13 @@
 import {
-  AiError,
   cleanPlainText,
   complete,
   describeProduct,
   finishRewrite,
-  promptFor,
   type AiProductInput,
 } from "./ai";
-import { WRITE_FROM_TITLE } from "./ai-import";
-import { getDb } from "./db";
 
 export const COPY_TARGET_SCORE = 85;
 export const COPY_MAX_REVIEWS = 3;
-export const COPY_STANDARD = "2026-10";
 
 const LIMITS = {
   product: { min: 1000, max: 3500 },
@@ -122,53 +117,4 @@ export async function reviewCopy(
   }
 
   return { text, score, reviews, notes };
-}
-
-export async function writeProductCopy(input: AiProductInput): Promise<CopyResult> {
-  const source = input.description.trim();
-  const draft = finishRewrite(
-    await complete(
-      promptFor("rewrite", input.prompt) + (source ? "" : WRITE_FROM_TITLE),
-      describeProduct(input, false),
-      "rewrite",
-    ),
-  );
-  if (!draft) throw new AiError("Нейросеть вернула пустой текст");
-  return reviewCopy(input, draft);
-}
-
-export function recordCopy(productId: string, result: CopyResult): void {
-  getDb()
-    .prepare(
-      `INSERT INTO product_copy (product_id, standard, score, reviews, notes, at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(product_id) DO UPDATE SET
-         standard = excluded.standard, score = excluded.score, reviews = excluded.reviews,
-         notes = excluded.notes, at = excluded.at`,
-    )
-    .run(productId, COPY_STANDARD, result.score, result.reviews, JSON.stringify(result.notes), Date.now());
-}
-
-export interface CopyQueue {
-  ids: string[];
-  total: number;
-  done: number;
-}
-
-export function copyQueue(skip: Set<string>): CopyQueue {
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT p.id FROM products p
-         LEFT JOIN product_copy c ON c.product_id = p.id AND c.standard = ?
-        WHERE c.product_id IS NULL
-        ORDER BY length(COALESCE(json_extract(p.data, '$.description'), '')), p.id`,
-    )
-    .all(COPY_STANDARD) as Array<{ id: string }>;
-  const total = (db.prepare("SELECT COUNT(*) AS n FROM products").get() as { n: number }).n;
-  return {
-    ids: rows.map((row) => row.id).filter((id) => !skip.has(id)),
-    total,
-    done: total - rows.length,
-  };
 }
