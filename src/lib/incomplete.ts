@@ -52,10 +52,10 @@ export interface TwinProduct {
 function gapsOf(product: Partial<Product>, carFitment: boolean, cars: number): Gap[] {
   const values = (product.optionGroups ?? []).flatMap((group) => group.values);
   const gaps: Gap[] = [];
-  if (!((product.price ?? 0) > 0 || values.some((value) => (value.price ?? 0) > 0))) {
-    gaps.push("price");
-  }
-  if (product.inStock !== false && !((product.wholesalePrice ?? 0) > 0)) gaps.push("wholesale");
+  const priced = (product.price ?? 0) > 0 || values.some((value) => (value.price ?? 0) > 0 || (value.priceDelta ?? 0) > 0);
+  if (!priced) gaps.push("price");
+  const wholesaled = (product.wholesalePrice ?? 0) > 0 || values.some((value) => (value.wholesalePrice ?? 0) > 0);
+  if (product.inStock !== false && !wholesaled) gaps.push("wholesale");
   if (!product.description?.trim()) gaps.push("description");
   if (!product.images?.length && !values.some((value) => value.images?.length)) {
     gaps.push("photo");

@@ -16,7 +16,6 @@ import type { Site } from "./schema";
 export type ChannelId =
   | "phone"
   | "telegram"
-  | "viber"
   | "whatsapp"
   | "instagram";
 
@@ -57,15 +56,6 @@ function telegramUrl(value: string): string {
   return `https://t.me/${name}`;
 }
 
-/** Viber: из номера собираем viber://chat?number=%2B… */
-function viberUrl(value: string, fallbackPhone: string): string {
-  const raw = value.trim();
-  if (!raw) return "";
-  if (raw.startsWith("viber:") || isUrl(raw)) return raw;
-  const number = digits(raw) || digits(fallbackPhone);
-  return number ? `viber://chat?number=%2B${number}` : "";
-}
-
 /** WhatsApp: wa.me хочет номер без плюса и без разделителей. */
 function whatsappUrl(value: string): string {
   const raw = value.trim();
@@ -104,7 +94,6 @@ function withMessage(href: string, message: string): string {
 const ICONS: Record<ChannelId, string> = {
   phone: "/chatIcons/phone.svg",
   telegram: "/chatIcons/telegram.svg",
-  viber: "/chatIcons/viber.svg",
   whatsapp: "/chatIcons/whatsapp.svg",
   instagram: "/chatIcons/instagram.svg",
 };
@@ -112,7 +101,6 @@ const ICONS: Record<ChannelId, string> = {
 const LABELS: Record<ChannelId, string> = {
   phone: "Позвонить",
   telegram: "Написать в Telegram",
-  viber: "Написать в Viber",
   whatsapp: "Написать в WhatsApp",
   instagram: "Instagram",
 };
@@ -136,11 +124,6 @@ export function getChannels(site: Site, message = ""): Channel[] {
       external: true,
     },
     {
-      id: "viber",
-      href: withMessage(viberUrl(site.viber, site.phoneHref), message),
-      external: false,
-    },
-    {
       id: "whatsapp",
       href: withMessage(whatsappUrl(site.whatsapp), message),
       external: true,
@@ -160,7 +143,7 @@ export function getChannels(site: Site, message = ""): Channel[] {
 /** Только мессенджеры: их кнопки стоят на карточке товара. */
 export function getMessengers(site: Site, message = ""): Channel[] {
   return getChannels(site, message).filter(
-    (channel) => channel.id === "telegram" || channel.id === "viber" || channel.id === "whatsapp",
+    (channel) => channel.id === "telegram" || channel.id === "whatsapp",
   );
 }
 

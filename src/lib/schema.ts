@@ -219,7 +219,6 @@ export const siteSchema = z.strictObject({
   phoneHref: z.string().min(1),
   email: z.string().email(),
   telegram: z.string().default(""),
-  viber: z.string().default(""),
   whatsapp: z.string().default(""),
   instagram: z.string().default(""),
   address: z.strictObject({
