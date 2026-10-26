@@ -376,7 +376,7 @@ export function ProductForm({
 
         {frameType && (
           <p className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">
-            Себестоимость, цена, оптовая цена, артикул и складской номер задаются в{" "}
+            Себестоимость, цена, оптовая цена, вес, артикул и складской номер задаются в{" "}
             <Link
               href={`/admin/frame-types/${frameType.type}/?category=${encodeURIComponent(frameType.categoryId)}`}
               className="font-medium underline"
@@ -582,23 +582,27 @@ export function ProductForm({
             />
           </Field>
 
-          <Field
-            label="Вес, кг"
-            hint={
-              draft.optionGroups.some(isSidesGroup)
-                ? "Вес одного стекла: у «Пары» умножается на 2 по кнопке «Пересчитать из полей товара»"
-                : draft.optionGroups.length
-                  ? "Вес по умолчанию: берётся для вариантов, у которых свой вес не указан"
-                  : "Для расчёта доставки по весу: 0.35 — это 350 г"
-            }
-          >
-            <NumberInput
-              value={draft.weight ?? null}
-              onChange={(weight) => patch({ weight: weight && weight > 0 ? weight : null })}
-              placeholder="не указан"
-              className="field tnum"
-            />
-          </Field>
+          {frameType ? (
+            <LockedField label="Вес, кг" value={draft.weight ? String(draft.weight) : "—"} />
+          ) : (
+            <Field
+              label="Вес, кг"
+              hint={
+                draft.optionGroups.some(isSidesGroup)
+                  ? "Вес одного стекла: у «Пары» умножается на 2 по кнопке «Пересчитать из полей товара»"
+                  : draft.optionGroups.length
+                    ? "Вес по умолчанию: берётся для вариантов, у которых свой вес не указан"
+                    : "Для расчёта доставки по весу: 0.35 — это 350 г"
+              }
+            >
+              <NumberInput
+                value={draft.weight ?? null}
+                onChange={(weight) => patch({ weight: weight && weight > 0 ? weight : null })}
+                placeholder="не указан"
+                className="field tnum"
+              />
+            </Field>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-5">

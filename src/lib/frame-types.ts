@@ -24,6 +24,7 @@ export interface FrameTypeValues {
   costPrice: number | null;
   price: number | null;
   wholesalePrice: number | null;
+  weight: number | null;
   stockQty: number | null;
   inStock: boolean;
   priceSource: MoneySource | null;
@@ -39,6 +40,7 @@ export interface FrameTypeProduct {
   price: number;
   costPrice: number | null;
   wholesalePrice: number | null;
+  weight: number | null;
   stockQty: number | null;
   inStock: boolean;
   priceSource: MoneySource | null;
@@ -87,6 +89,7 @@ interface TypeRow {
   cost_price: number | null;
   price: number | null;
   wholesale_price: number | null;
+  weight: number | null;
   stock_qty: number | null;
   in_stock: number;
   price_source: string | null;
@@ -96,13 +99,14 @@ interface TypeRow {
   composer: string | null;
 }
 
-const TYPE_COLUMNS = `type, name, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, stock_qty, in_stock,
+const TYPE_COLUMNS = `type, name, storage_code, brief, specs, title_template, cost_price, price, wholesale_price, weight, stock_qty, in_stock,
   price_source, cost_source, wholesale_source, frame_image_file IS NOT NULL AS has_frame_image, composer`;
 
 const EMPTY_VALUES: FrameTypeValues = {
   costPrice: null,
   price: null,
   wholesalePrice: null,
+  weight: null,
   stockQty: null,
   inStock: false,
   priceSource: null,
@@ -119,6 +123,7 @@ function toValues(row: TypeRow): FrameTypeValues {
     costPrice: row.cost_price,
     price: row.price,
     wholesalePrice: row.wholesale_price,
+    weight: row.weight,
     stockQty: row.stock_qty,
     inStock: stockedByQty(row.stock_qty),
     priceSource: parseSource(row.price_source),
@@ -132,6 +137,7 @@ function productValues(product: FrameTypeProduct): FrameTypeValues {
     costPrice: product.costPrice,
     price: product.price > 0 ? product.price : null,
     wholesalePrice: product.wholesalePrice,
+    weight: product.weight,
     stockQty: product.stockQty,
     inStock: product.inStock,
     priceSource: product.priceSource,
@@ -145,6 +151,7 @@ function sameValues(a: FrameTypeValues, b: FrameTypeValues): boolean {
     a.costPrice === b.costPrice &&
     a.price === b.price &&
     a.wholesalePrice === b.wholesalePrice &&
+    a.weight === b.weight &&
     a.stockQty === b.stockQty &&
     a.inStock === b.inStock &&
     JSON.stringify([a.priceSource, a.costSource, a.wholesaleSource]) ===
@@ -196,6 +203,7 @@ function prevailingValues(products: FrameTypeProduct[]): FrameTypeValues {
     costPrice: pick("costPrice"),
     price: pick("price"),
     wholesalePrice: pick("wholesalePrice"),
+    weight: pick("weight"),
     stockQty,
     inStock: stockedByQty(stockQty),
     priceSource: pick("priceSource"),
@@ -211,7 +219,7 @@ export function initialFrameValues(group: FrameTypeGroup | null | undefined): Fr
 
 const PRODUCT_COLUMNS = `p.id, p.slug, p.title, p.price, p.in_stock,
   json_extract(p.data, '$.sku', '$.costPrice', '$.wholesalePrice', '$.stockQty',
-    '$.priceSource', '$.costSource', '$.wholesaleSource', '$.storageCode') AS fields`;
+    '$.priceSource', '$.costSource', '$.wholesaleSource', '$.storageCode', '$.weight') AS fields`;
 
 interface ProductRow {
   id: string;
@@ -232,13 +240,14 @@ type ProductFields = [
   MoneySource | null,
   MoneySource | null,
   string | null,
+  number | null,
 ];
 
 const titleOrder = new Intl.Collator("ru");
 const typeOrder = new Intl.Collator("ru", { numeric: true });
 
 function toProduct(row: ProductRow): FrameTypeProduct {
-  const [sku, costPrice, wholesalePrice, stockQty, priceSource, costSource, wholesaleSource, storageCode] =
+  const [sku, costPrice, wholesalePrice, stockQty, priceSource, costSource, wholesaleSource, storageCode, weight] =
     JSON.parse(row.fields) as ProductFields;
   return {
     id: row.id,
@@ -254,6 +263,7 @@ function toProduct(row: ProductRow): FrameTypeProduct {
     costSource,
     wholesaleSource,
     storageCode: storageCode ?? "",
+    weight,
   };
 }
 
@@ -350,7 +360,8 @@ function memberStats(categoryId: string): Map<string, MemberStatsRow> {
                 p.in_stock,
                 json_extract(p.data, '$.priceSource'),
                 json_extract(p.data, '$.costSource'),
-                json_extract(p.data, '$.wholesaleSource')
+                json_extract(p.data, '$.wholesaleSource'),
+                json_extract(p.data, '$.weight')
               )) AS variants
          ${MEMBER_JOIN}
         GROUP BY f.type`,
@@ -435,6 +446,13 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
   const costPrice = money(value.costPrice, "Себестоимость");
   const price = money(value.price, "Цена");
   const wholesalePrice = money(value.wholesalePrice, "Оптовая цена");
+  const weightRaw = value.weight;
+  const weight =
+    weightRaw === null || weightRaw === undefined || weightRaw === "" || Number(weightRaw) === 0
+      ? null
+      : Number.isFinite(Number(weightRaw)) && Number(weightRaw) > 0
+        ? Number(weightRaw)
+        : "Вес: нужно число больше нуля";
   const stockRaw = value.stockQty;
   const stockQty =
     stockRaw === null || stockRaw === undefined || stockRaw === ""
@@ -442,7 +460,7 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
       : Number.isInteger(Number(stockRaw)) && Number(stockRaw) >= 0
         ? Number(stockRaw)
         : "Остаток: нужно целое число не меньше нуля";
-  for (const item of [costPrice, price, wholesalePrice, stockQty]) {
+  for (const item of [costPrice, price, wholesalePrice, weight, stockQty]) {
     if (typeof item === "string") return item;
   }
   const source = (raw: unknown): MoneySource | null | string => {
@@ -460,6 +478,7 @@ export function validFrameTypeValues(input: unknown): FrameTypeValues | string {
     costPrice: costPrice as number | null,
     price: price as number | null,
     wholesalePrice: wholesalePrice as number | null,
+    weight: weight as number | null,
     stockQty: stockQty as number | null,
     inStock: stockedByQty(stockQty as number | null),
     priceSource: priceSource as MoneySource | null,
@@ -500,6 +519,8 @@ function writeValues(product: Product, values: FrameTypeValues): Product {
   else next.costPrice = values.costPrice;
   if (values.wholesalePrice === null) delete next.wholesalePrice;
   else next.wholesalePrice = values.wholesalePrice;
+  if (values.weight === null) delete next.weight;
+  else next.weight = values.weight;
   if (values.stockQty === null) delete next.stockQty;
   else next.stockQty = values.stockQty;
   return next;
@@ -521,13 +542,13 @@ function upsertValues(categoryId: string, type: string, values: FrameTypeValues)
   getDb()
     .prepare(
       `INSERT INTO frame_types
-         (category_id, type, cost_price, price, wholesale_price, stock_qty, in_stock,
+         (category_id, type, cost_price, price, wholesale_price, weight, stock_qty, in_stock,
           price_source, cost_source, wholesale_source, updated_at)
-       VALUES (@categoryId, @type, @costPrice, @price, @wholesalePrice, @stockQty, @inStock,
+       VALUES (@categoryId, @type, @costPrice, @price, @wholesalePrice, @weight, @stockQty, @inStock,
           @priceSource, @costSource, @wholesaleSource, @now)
        ON CONFLICT(category_id, type) DO UPDATE SET
          cost_price = excluded.cost_price, price = excluded.price,
-         wholesale_price = excluded.wholesale_price, stock_qty = excluded.stock_qty,
+         wholesale_price = excluded.wholesale_price, weight = excluded.weight, stock_qty = excluded.stock_qty,
          in_stock = excluded.in_stock, price_source = excluded.price_source,
          cost_source = excluded.cost_source, wholesale_source = excluded.wholesale_source,
          updated_at = excluded.updated_at`,
@@ -740,10 +761,10 @@ export function copyFrameType(
     db.prepare(
       `INSERT INTO frame_types
          (category_id, type, name, storage_code, brief, specs, title_template,
-          cost_price, price, wholesale_price, stock_qty, in_stock,
+          cost_price, price, wholesale_price, weight, stock_qty, in_stock,
           price_source, cost_source, wholesale_source, frame_image_file, composer, updated_at)
        SELECT category_id, @type, @name, @storageCode, @brief, @specs, @titleTemplate,
-              cost_price, price, wholesale_price, stock_qty, in_stock,
+              cost_price, price, wholesale_price, weight, stock_qty, in_stock,
               price_source, cost_source, wholesale_source, frame_image_file, composer, @now
          FROM frame_types
         WHERE category_id = @categoryId AND type = @sourceType`,

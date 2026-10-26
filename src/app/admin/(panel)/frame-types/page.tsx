@@ -34,6 +34,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
       `себест. ${money(values.costPrice)}`,
       `цена ${money(values.price)}`,
       `опт ${money(values.wholesalePrice)}`,
+      `вес ${values.weight === null ? "—" : `${values.weight} кг`}`,
     ].join(" · ");
 
   const summaries = categoryId ? listFrameTypeSummaries(categoryId) : [];
@@ -60,7 +61,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           </h1>
           <p className="mt-1 text-sm text-brand-500">
             Артикул товара собирается как «номер-складской номер-тип»: номер свой у каждого товара,
-            складской номер и тип общие. Себестоимость, цена, оптовая цена, остаток и наличие задаются
+            складской номер и тип общие. Себестоимость, цена, оптовая цена, вес, остаток и наличие задаются
             для типа целиком и записываются во все товары с этим типом.
           </p>
         </div>

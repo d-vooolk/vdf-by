@@ -43,7 +43,6 @@ type TextKey =
   | "email"
   | "workHours"
   | "telegram"
-  | "viber"
   | "whatsapp"
   | "instagram"
   | "warranty";
@@ -163,7 +162,6 @@ export function SettingsForm({ site: initial, part }: { site: Site; part: Settin
               hint: "Ссылка или @имя: https://t.me/autosvetby",
               placeholder: "https://t.me/autosvetby",
             })}
-            {text("viber", "Viber", { hint: "Номер телефона — ссылку соберём сами", placeholder: "+375291234567" })}
             {text("whatsapp", "WhatsApp", { hint: "Номер телефона или ссылка wa.me", placeholder: "+375291234567" })}
             {text("instagram", "Instagram", {
               hint: "Ссылка или @имя",

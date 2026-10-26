@@ -723,6 +723,22 @@ export const MIGRATIONS = [
   `
     DROP TABLE product_copy;
   `,
+  `
+    ALTER TABLE frame_types ADD COLUMN weight REAL;
+    UPDATE frame_types SET weight = (
+      SELECT json_extract(p.data, '$.weight') AS weight
+        FROM frame_type_products f
+        JOIN products p ON p.id = f.product_id AND p.category_id = f.category_id
+       WHERE f.category_id = frame_types.category_id AND f.type = frame_types.type
+         AND json_extract(p.data, '$.weight') > 0
+       GROUP BY weight
+       ORDER BY count(*) DESC
+       LIMIT 1
+    );
+  `,
+  `
+    UPDATE settings SET value = json_remove(value, '$.viber') WHERE key = 'site';
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

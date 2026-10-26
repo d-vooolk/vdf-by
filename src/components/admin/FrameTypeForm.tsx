@@ -53,7 +53,7 @@ export function FrameTypeForm({
         if (!pending) apply();
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <MoneyField
           label="Себестоимость"
           value={values.costPrice}
@@ -78,6 +78,14 @@ export function FrameTypeForm({
           currencySymbol={currencySymbol}
           onChange={(wholesalePrice, wholesaleSource) => patch({ wholesalePrice, wholesaleSource })}
         />
+        <label className="block">
+          <span className="label">Вес, кг</span>
+          <NumberInput
+            value={values.weight}
+            onChange={(weight) => patch({ weight: weight && weight > 0 ? weight : null })}
+            placeholder="не указан"
+          />
+        </label>
         <label className="block">
           <span className="label">Остаток на складе, шт.</span>
           <NumberInput

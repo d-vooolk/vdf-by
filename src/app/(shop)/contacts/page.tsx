@@ -65,15 +65,6 @@ export default function ContactsPage() {
                 Telegram
               </a>
             )}
-            {site.viber && (
-              <a
-                href={site.viber}
-                rel="noopener noreferrer nofollow"
-                className="btn-secondary py-2 text-xs"
-              >
-                Viber
-              </a>
-            )}
           </div>
         </div>
 
