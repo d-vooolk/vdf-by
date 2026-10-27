@@ -62,10 +62,19 @@ function baseName(name: string): string {
   return (dot > 0 ? name.slice(0, dot) : name) || "photo";
 }
 
-export function PhotoEditor() {
+export type PlacementMode = "replace" | "add";
+
+interface PhotoEditorProps {
+  initial?: { image: Blob; name: string };
+  canAdd?: boolean;
+  onPlace?: (image: Blob, name: string, mode: PlacementMode) => Promise<void>;
+  onCancel?: () => void;
+}
+
+export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: PhotoEditorProps = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("photo");
-  const [history, setHistory] = useState<Blob[]>([]);
+  const [name, setName] = useState(initial?.name ?? "photo");
+  const [history, setHistory] = useState<Blob[]>(initial ? [initial.image] : []);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [erasing, setErasing] = useState(false);
@@ -138,6 +147,18 @@ export function PhotoEditor() {
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
+      setBusy("");
+    }
+  };
+
+  const place = async (mode: PlacementMode) => {
+    if (!current || busy || !onPlace) return;
+    setBusy("Сохраняем");
+    setError("");
+    try {
+      await onPlace(await onWhite(current), name, mode);
+    } catch (problem) {
+      setError((problem as Error).message);
       setBusy("");
     }
   };
@@ -257,15 +278,35 @@ export function PhotoEditor() {
             onChange={(event) => setName(event.target.value || "photo")}
             className="field py-2 text-sm"
           />
-          <div className="grid gap-2">
-            <button type="button" disabled={!!busy} onClick={download} className="btn-primary py-2 text-sm">
-              <DownloadIcon className="h-4 w-4" />
-              Скачать PNG
-            </button>
-            <button type="button" disabled={!!busy || !!saved} onClick={save} className="btn-secondary py-2 text-sm">
-              {saved ? "Сохранено на сайте" : "Сохранить в фото сайта"}
-            </button>
-          </div>
+          {onPlace ? (
+            <div className="grid gap-2">
+              <button type="button" disabled={!!busy} onClick={() => place("replace")} className="btn-primary py-2 text-sm">
+                Заменить фото в галерее
+              </button>
+              {canAdd && (
+                <button type="button" disabled={!!busy} onClick={() => place("add")} className="btn-secondary py-2 text-sm">
+                  Добавить рядом
+                </button>
+              )}
+              <button type="button" disabled={!!busy} onClick={download} className="btn-ghost py-2 text-sm">
+                <DownloadIcon className="h-4 w-4" />
+                Скачать PNG
+              </button>
+              <p className="text-xs text-brand-500">
+                Прозрачный фон станет белым. Сохраняется новым файлом, исходное фото не меняется.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <button type="button" disabled={!!busy} onClick={download} className="btn-primary py-2 text-sm">
+                <DownloadIcon className="h-4 w-4" />
+                Скачать PNG
+              </button>
+              <button type="button" disabled={!!busy || !!saved} onClick={save} className="btn-secondary py-2 text-sm">
+                {saved ? "Сохранено на сайте" : "Сохранить в фото сайта"}
+              </button>
+            </div>
+          )}
           {saved && (
             <p className="text-xs text-brand-500">
               Путь: <span className="tnum break-all text-brand-800">{saved.path}</span> — его можно выбрать в
@@ -276,13 +317,17 @@ export function PhotoEditor() {
             type="button"
             disabled={!!busy}
             onClick={() => {
+              if (onCancel) {
+                onCancel();
+                return;
+              }
               setHistory([]);
               setSaved(null);
               setError("");
             }}
             className="btn-ghost w-full py-2 text-sm"
           >
-            Открыть другое фото
+            {onCancel ? "Отмена" : "Открыть другое фото"}
           </button>
         </div>
 
