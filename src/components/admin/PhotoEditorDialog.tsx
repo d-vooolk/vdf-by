@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { AlertIcon, CloseIcon, SpinnerIcon } from "@/components/icons";
+import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 import type { CutoutImage } from "./BackgroundRemover";
 import { PhotoEditor, type PlacementMode } from "./PhotoEditor";
@@ -53,6 +54,7 @@ export function PhotoEditorDialog({
 }: PhotoEditorDialogProps) {
   const [source, setSource] = useState<Blob | null>(null);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +70,18 @@ export function PhotoEditorDialog({
     };
   }, [imagePath]);
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, saving]);
+
+  const backdrop = useBackdropClose(() => !saving && onClose());
+
   const place = async (image: Blob, name: string, mode: PlacementMode) => {
+    setSaving(true);
     onSavingChange?.(true);
     try {
       const stored = await upload(image, folder, `${name}.png`);
@@ -76,17 +89,18 @@ export function PhotoEditorDialog({
       else onReplace(stored);
       onClose();
     } finally {
+      setSaving(false);
       onSavingChange?.(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-900/50 p-4" {...backdrop}>
       <div className="flex max-h-[94vh] w-full max-w-6xl flex-col rounded-card bg-brand-50 shadow-xl">
         <div className="flex items-center gap-3 border-b border-brand-100 bg-white p-4">
           <h2 className="text-sm font-bold text-brand-900">Обработка фото</h2>
           <span className="min-w-0 truncate text-xs text-brand-400">{imagePath}</span>
-          <button type="button" onClick={onClose} className="btn-ghost ml-auto px-2 py-1.5" aria-label="Закрыть">
+          <button type="button" onClick={onClose} disabled={saving} className="btn-ghost ml-auto px-2 py-1.5" aria-label="Закрыть">
             <CloseIcon className="h-5 w-5" />
           </button>
         </div>
