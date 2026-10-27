@@ -8,6 +8,7 @@ import {
   convertToByn,
   describeRate,
   FOREIGN_CURRENCIES,
+  roundingFor,
   type CurrencyRates,
   type ForeignCurrency,
   type MoneySource,
@@ -64,7 +65,7 @@ export function MoneyField({
       return;
     }
     if (!entry) return;
-    const byn = convertToByn(next.amount, entry.rate, rounding);
+    const byn = convertToByn(next.amount, entry.rate, roundingFor(next.currency, rounding));
     onChange(byn, next.linked ? { amount: next.amount, currency: next.currency } : null);
   };
 
