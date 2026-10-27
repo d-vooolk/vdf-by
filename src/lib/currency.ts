@@ -104,12 +104,16 @@ export function convertToByn(amount: number, rate: number, rounding: Rounding): 
   return rounding === "ruble" ? Math.ceil(exact) : exact;
 }
 
+export function roundingFor(currency: ForeignCurrency, rounding: Rounding): Rounding {
+  return currency === "USD" ? "ruble" : rounding;
+}
+
 export function relinkValues<T extends LinkedValues>(values: T, rates: CurrencyRates): T {
   const next = { ...values };
   for (const field of LINKED_FIELDS) {
     const source = next[field.source];
     const rate = source ? rates[source.currency] : null;
-    if (source && rate) next[field.value] = convertToByn(source.amount, rate.rate, field.rounding);
+    if (source && rate) next[field.value] = convertToByn(source.amount, rate.rate, roundingFor(source.currency, field.rounding));
   }
   if (next.optionGroups && hasLinkedOptions(next)) {
     next.optionGroups = next.optionGroups.map((group) => relinkGroup(group, rates));
