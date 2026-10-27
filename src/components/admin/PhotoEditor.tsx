@@ -2,13 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { AlertIcon, DownloadIcon, EraserIcon, FlipIcon, SpinnerIcon, UndoIcon, UploadIcon } from "@/components/icons";
+import {
+  AlertIcon,
+  CropIcon,
+  DownloadIcon,
+  EraserIcon,
+  FlipIcon,
+  PhotoIcon,
+  SpinnerIcon,
+  UndoIcon,
+  UploadIcon,
+} from "@/components/icons";
 
 import { WatermarkEraser } from "./WatermarkEraser";
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const HISTORY_LIMIT = 20;
 const SAVE_FOLDER = "obrabotka";
+const CATALOG_SIDE = 1600;
 
 interface UploadReply {
   error?: string;
@@ -49,6 +60,34 @@ const mirrored = (image: Blob) =>
     context.drawImage(bitmap, 0, 0);
   });
 
+const fittedToCatalog = async (image: Blob): Promise<Blob> => {
+  const bitmap = await createImageBitmap(image);
+  const canvas = document.createElement("canvas");
+  canvas.width = CATALOG_SIDE;
+  canvas.height = CATALOG_SIDE;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Браузер не умеет рисовать картинки");
+  const scale = Math.min(CATALOG_SIDE / bitmap.width, CATALOG_SIDE / bitmap.height);
+  const width = Math.round(bitmap.width * scale);
+  const height = Math.round(bitmap.height * scale);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, CATALOG_SIDE, CATALOG_SIDE);
+  context.imageSmoothingQuality = "high";
+  context.drawImage(bitmap, Math.round((CATALOG_SIDE - width) / 2), Math.round((CATALOG_SIDE - height) / 2), width, height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Не удалось собрать картинку"))), "image/png"),
+  );
+};
+
+async function withWatermark(image: Blob): Promise<Blob> {
+  const form = new FormData();
+  form.set("image", image, "photo.png");
+  const response = await fetch("/admin/api/composer/watermark/", { method: "POST", body: form });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.blob();
+}
+
 async function cutBackground(image: Blob): Promise<Blob> {
   const form = new FormData();
   form.set("image", image, "photo.png");
@@ -64,6 +103,13 @@ function baseName(name: string): string {
 
 export type PlacementMode = "replace" | "add";
 
+type StepKind = "source" | "edit" | "crop" | "resize";
+
+interface Step {
+  image: Blob;
+  kind: StepKind;
+}
+
 interface PhotoEditorProps {
   initial?: { image: Blob; name: string };
   canAdd?: boolean;
@@ -74,13 +120,16 @@ interface PhotoEditorProps {
 export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: PhotoEditorProps = {}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initial?.name ?? "photo");
-  const [history, setHistory] = useState<Blob[]>(initial ? [initial.image] : []);
+  const [history, setHistory] = useState<Step[]>(initial ? [{ image: initial.image, kind: "source" }] : []);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [erasing, setErasing] = useState(false);
   const [saved, setSaved] = useState<{ path: string; thumb: string } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const current = history[history.length - 1] ?? null;
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const current = history[history.length - 1]?.image ?? null;
+  const lastStep = (kind: StepKind) => history.findLastIndex((step) => step.kind === kind);
+  const croppedSinceResize = lastStep("crop") > lastStep("resize");
 
   const preview = useMemo(() => (current ? URL.createObjectURL(current) : ""), [current]);
 
@@ -102,20 +151,20 @@ export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: Phot
     setError("");
     setSaved(null);
     setName(baseName(file.name));
-    setHistory([file]);
+    setHistory([{ image: file, kind: "source" }]);
   };
 
-  const push = (image: Blob) => {
+  const push = (image: Blob, kind: StepKind = "edit") => {
     setSaved(null);
-    setHistory((list) => [...list, image].slice(-HISTORY_LIMIT));
+    setHistory((list) => [...list, { image, kind }].slice(-HISTORY_LIMIT));
   };
 
-  const run = async (label: string, step: (image: Blob) => Promise<Blob>) => {
+  const run = async (label: string, step: (image: Blob) => Promise<Blob>, kind: StepKind = "edit") => {
     if (!current || busy) return;
     setBusy(label);
     setError("");
     try {
-      push(await step(current));
+      push(await step(current), kind);
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -207,7 +256,7 @@ export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: Phot
             setErasing(false);
           }}
           onCrop={(cropped) => {
-            push(cropped);
+            push(cropped, "crop");
             setErasing(false);
           }}
           onCancel={() => setErasing(false)}
@@ -221,7 +270,14 @@ export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: Phot
       <div className="card overflow-hidden p-3">
         <div className="relative flex min-h-80 items-center justify-center rounded-xl bg-[repeating-conic-gradient(#e8eeee_0_25%,#ffffff_0_50%)] bg-[length:24px_24px]">
           {preview && (
-            <img src={preview} alt="Обрабатываемое фото" className="max-h-[70vh] max-w-full object-contain" />
+            <img
+              src={preview}
+              alt="Обрабатываемое фото"
+              onLoad={(event) =>
+                setSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })
+              }
+              className="max-h-[70vh] max-w-full object-contain"
+            />
           )}
           {busy && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -232,6 +288,11 @@ export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: Phot
             </div>
           )}
         </div>
+        {size && (
+          <p className="tnum mt-2 text-center text-xs text-brand-500">
+            {size.width} × {size.height} px
+          </p>
+        )}
       </div>
 
       <div className="card space-y-4 p-4">
@@ -247,6 +308,21 @@ export function PhotoEditor({ initial, canAdd = false, onPlace, onCancel }: Phot
             <button type="button" disabled={!!busy} onClick={() => setErasing(true)} className="btn-secondary justify-start py-2 text-sm">
               <EraserIcon className="h-4 w-4" />
               Стереть надпись или обрезать
+            </button>
+            {croppedSinceResize && (
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => run("Восстанавливаем размер", fittedToCatalog, "resize")}
+                className="btn-secondary justify-start py-2 text-sm"
+              >
+                <CropIcon className="h-4 w-4" />
+                Восстановить размер фото ({CATALOG_SIDE}×{CATALOG_SIDE})
+              </button>
+            )}
+            <button type="button" disabled={!!busy} onClick={() => run("Накладываем водяной знак", withWatermark)} className="btn-secondary justify-start py-2 text-sm">
+              <PhotoIcon className="h-4 w-4" />
+              Наложить водяной знак
             </button>
             <button type="button" disabled={!!busy} onClick={() => run("Отражаем", mirrored)} className="btn-secondary justify-start py-2 text-sm">
               <FlipIcon className="h-4 w-4" />

@@ -430,6 +430,18 @@ function flagLayer(market: Market | ""): Buffer | null {
   );
 }
 
+export async function watermarkPhoto(photo: Buffer): Promise<Buffer> {
+  const upright = await sharp(photo).rotate().ensureAlpha().png().toBuffer({ resolveWithObject: true });
+  const { width, height } = upright.info;
+  const side = Math.max(width, height);
+  const layer = await sharp(await watermarkLayer())
+    .resize(side, side)
+    .extract({ left: Math.floor((side - width) / 2), top: Math.floor((side - height) / 2), width, height })
+    .png()
+    .toBuffer();
+  return sharp(upright.data).composite([{ input: layer }]).webp({ quality: 95 }).toBuffer();
+}
+
 export async function composeProductImage(options: ComposeOptions): Promise<Buffer> {
   const shape = layout(options.slope);
 
