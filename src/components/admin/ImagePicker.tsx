@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-import { AlertIcon, CloseIcon, EraserIcon, SpinnerIcon } from "@/components/icons";
+import { AlertIcon, CloseIcon, EraserIcon, PencilIcon, SpinnerIcon } from "@/components/icons";
 import { runPool, sendWithProgress } from "@/lib/upload-client";
 import { useBackdropClose } from "@/lib/use-backdrop-close";
 
 import { BackgroundRemover, type CutoutImage } from "./BackgroundRemover";
+import { PhotoEditorDialog } from "./PhotoEditorDialog";
 
 /**
  * Выбор фотографий: загрузка новых и подбор уже загруженных.
@@ -87,6 +88,7 @@ export function ImagePicker({
   const [problems, setProblems] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
   const [cleaning, setCleaning] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const trackUpload = useContext(UploadTrackerContext);
 
   useEffect(() => {
@@ -240,27 +242,40 @@ export function ImagePicker({
                 </span>
               )}
 
-              {removableBackground && (
+              <span className="absolute top-0 right-0 flex opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                {removableBackground && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(path)}
+                      disabled={uploading}
+                      title="Обработать фото"
+                      aria-label="Обработать фото"
+                      className="bg-brand-700/90 px-1 py-0.5 text-white"
+                    >
+                      <PencilIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCleaning(path)}
+                      disabled={uploading}
+                      title="Убрать фон"
+                      aria-label="Убрать фон"
+                      className="bg-brand-700/90 px-1 py-0.5 text-white"
+                    >
+                      <EraserIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
-                  onClick={() => setCleaning(path)}
-                  disabled={uploading}
-                  title="Убрать фон"
-                  aria-label="Убрать фон"
-                  className="absolute top-0 right-4 bg-brand-700/90 px-1 py-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                  onClick={() => onChange(value.filter((_, i) => i !== index))}
+                  title="Убрать"
+                  className="bg-red-600/90 px-1 text-xs text-white"
                 >
-                  <EraserIcon className="h-3.5 w-3.5" />
+                  ×
                 </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((_, i) => i !== index))}
-                title="Убрать"
-                className="absolute top-0 right-0 bg-red-600/90 px-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-              >
-                ×
-              </button>
+              </span>
 
               {max > 1 && value.length > 1 && (
                 <span className="absolute right-0 bottom-0 left-0 flex justify-between bg-brand-900/70 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -348,6 +363,18 @@ export function ImagePicker({
           onAdd={(image) => addAfter(cleaning, image)}
           onSavingChange={setUploading}
           onClose={() => setCleaning(null)}
+        />
+      )}
+
+      {editing && (
+        <PhotoEditorDialog
+          imagePath={editing}
+          folder={folder}
+          canAdd={!full}
+          onReplace={(image) => replaceWith(editing, image)}
+          onAdd={(image) => addAfter(editing, image)}
+          onSavingChange={setUploading}
+          onClose={() => setEditing(null)}
         />
       )}
 
