@@ -31,7 +31,7 @@ export function periods(days, lagDays) {
   };
 }
 
-async function requestJson(url, init = {}, timeout = 60000) {
+export async function requestJson(url, init = {}, timeout = 60000) {
   const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeout) });
   const text = await response.text();
   let body;
@@ -55,7 +55,7 @@ async function section(task) {
   }
 }
 
-async function googleToken(keyFile) {
+export async function googleToken(keyFile) {
   const key = JSON.parse(fs.readFileSync(keyFile, "utf8"));
   const now = Math.floor(Date.now() / 1000);
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
