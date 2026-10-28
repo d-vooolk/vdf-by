@@ -6,8 +6,9 @@ import { deliveryPrice, parcelOf } from "@/lib/delivery-quote";
 import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
-import { getCustomer } from "@/lib/customer-auth";
+import { getActingCustomer, getCustomer, getSellerMode } from "@/lib/customer-auth";
 import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
+import { SELLER_MODES } from "@/lib/seller-mode";
 import { describeShortage, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildCostList, buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
@@ -353,10 +354,12 @@ export async function POST(request: Request) {
   }
   recordHit(`order-try:${ip}`);
 
-  const customer = await getCustomer();
+  const signed = await getCustomer();
+  const customer = await getActingCustomer();
   const staffBuyer = customer?.staff === true;
+  const sellerMode = signed?.seller && !staffBuyer ? await getSellerMode() : null;
 
-  if (!staffBuyer && isLimited(`order:${ip}`, rateLimit, RATE_WINDOW_MS)) {
+  if (!signed?.staff && isLimited(`order:${ip}`, rateLimit, RATE_WINDOW_MS)) {
     return Response.json(
       { error: "Слишком много заявок. Позвоните нам — оформим по телефону." },
       { status: 429 },
@@ -409,6 +412,10 @@ export async function POST(request: Request) {
   try {
     if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — по себестоимости");
     else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
+    if (sellerMode) {
+      const label = SELLER_MODES.find((mode) => mode.id === sellerMode)?.label ?? sellerMode;
+      order.notes.unshift(`оформил продавец в режиме «${label}»`);
+    }
     const created = createOrder({
       ...order,
       ip,

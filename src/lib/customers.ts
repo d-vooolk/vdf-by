@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { getDb } from "./db";
 import { localPart } from "./phone";
+import type { SellerMode } from "./seller-mode";
 
 export type CustomerKind = "retail" | "wholesale";
 export type WholesaleStatus = "none" | "pending" | "approved" | "rejected";
@@ -27,6 +28,7 @@ export interface Customer {
   reviewedAt: number | null;
   adminNote: string;
   staff: boolean;
+  seller: boolean;
 }
 
 export interface Registration {
@@ -56,6 +58,7 @@ interface CustomerRow {
   reviewed_at: number | null;
   admin_note: string;
   staff: number;
+  seller: number;
 }
 
 function toCustomer(row: CustomerRow): Customer {
@@ -72,6 +75,18 @@ function toCustomer(row: CustomerRow): Customer {
     reviewedAt: row.reviewed_at,
     adminNote: row.admin_note,
     staff: row.staff === 1,
+    seller: row.staff === 1 && row.seller === 1,
+  };
+}
+
+export function actingAs(customer: Customer, mode: SellerMode): Customer {
+  if (!customer.seller || mode === "staff") return customer;
+  const wholesale = mode === "wholesale";
+  return {
+    ...customer,
+    staff: false,
+    kind: wholesale ? "wholesale" : "retail",
+    wholesaleStatus: wholesale ? "approved" : "none",
   };
 }
 
@@ -336,7 +351,17 @@ export function setCustomerStaff(id: number, staff: boolean): void {
     .prepare(
       staff
         ? "UPDATE customers SET staff = 1, wholesale_status = 'none', kind = 'retail' WHERE id = ?"
-        : "UPDATE customers SET staff = 0 WHERE id = ?",
+        : "UPDATE customers SET staff = 0, seller = 0 WHERE id = ?",
+    )
+    .run(id);
+}
+
+export function setCustomerSeller(id: number, seller: boolean): void {
+  getDb()
+    .prepare(
+      seller
+        ? "UPDATE customers SET staff = 1, seller = 1, wholesale_status = 'none', kind = 'retail' WHERE id = ?"
+        : "UPDATE customers SET seller = 0 WHERE id = ?",
     )
     .run(id);
 }

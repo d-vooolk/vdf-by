@@ -9,6 +9,7 @@ import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTool
 import { cleanCollections, CollectionsEditor } from "@/components/admin/CollectionsEditor";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { ImagePicker } from "@/components/admin/ImagePicker";
+import { ListBackLink } from "@/components/admin/ListBackLink";
 import {
   Field,
   Problems,
@@ -147,9 +148,7 @@ export function CategoryForm({
   return (
     <div className="space-y-5 pb-24">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/categories/" className="btn-ghost py-2 text-sm">
-          ← К разделам
-        </Link>
+        <ListBackLink fallback="/admin/categories/">← К разделам</ListBackLink>
         <h1 className="text-xl font-semibold text-brand-900">
           {creating ? "Новая категория" : draft.name || "Без названия"}
         </h1>

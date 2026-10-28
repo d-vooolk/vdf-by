@@ -6,6 +6,8 @@ import { revalidateProduct, revalidateSite } from "@/lib/revalidate";
 import { deleteProducts, getProductRaw } from "@/lib/product-store";
 import {
   addToFrameType,
+  getFrameType,
+  initialFrameValues,
   applyFrameType,
   copyFrameType,
   deleteFrameType,
@@ -140,6 +142,45 @@ export async function setFrameTypeStockAction(
     return fail(["Количество — целое число не меньше нуля"]);
   }
   return finishFrameChange(setFrameTypeStock(categoryId, type, stockQty));
+}
+
+export type FrameTypePriceField = "costPrice" | "price" | "wholesalePrice";
+
+export async function saveFrameTypePricesAction(
+  categoryId: string,
+  type: string,
+  amounts: Partial<Record<FrameTypePriceField, number | null>>,
+): Promise<FormState> {
+  await requireAdmin();
+  if (!isFrameCategory(categoryId)) return fail(["Раздел рамок не найден"]);
+  const group = getFrameType(categoryId, type);
+  if (!group) return fail([`Типа ${type} нет`]);
+  const values = { ...initialFrameValues(group) };
+  const sourceOf = { costPrice: "costSource", price: "priceSource", wholesalePrice: "wholesaleSource" } as const;
+  for (const field of Object.keys(sourceOf) as FrameTypePriceField[]) {
+    if (!(field in amounts)) continue;
+    const amount = amounts[field];
+    if (amount !== null && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) {
+      return fail(["Цена — число не меньше нуля"]);
+    }
+    const source = values[sourceOf[field]];
+    if (amount === null) {
+      values[field] = null;
+      values[sourceOf[field]] = null;
+    } else if (source) {
+      values[sourceOf[field]] = { ...source, amount };
+    } else {
+      values[field] = amount;
+    }
+  }
+  const checked = validFrameTypeValues(values);
+  if (typeof checked === "string") return fail([checked]);
+  const linked = checked.priceSource || checked.costSource || checked.wholesaleSource;
+  const priced = linked ? relinkValues(checked, await currentRates()) : checked;
+  applyFrameType(categoryId, type, priced);
+  invalidateCatalog();
+  revalidateSite();
+  return ok();
 }
 
 export async function setFrameTypeStorageCodeAction(

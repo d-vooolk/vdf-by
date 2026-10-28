@@ -7,6 +7,7 @@ import { HomeLink } from "@/components/HomeLink";
 import { PhoneIcon } from "@/components/icons";
 import { MobileMenu } from "@/components/MobileMenu";
 import { SearchBox } from "@/components/SearchBox";
+import { SellerModeSwitch } from "@/components/SellerModeSwitch";
 import { getCarTree } from "@/lib/cars";
 import {
   categoryUrl,
@@ -72,10 +73,13 @@ export function Header() {
           </nav>
           <span className="flex shrink-0 items-center gap-5">
             <span>{site.workHours}</span>
+            <SellerModeSwitch />
             <AccountLink />
           </span>
         </div>
       </div>
+
+      <SellerModeSwitch className="mx-auto mt-2 w-fit lg:hidden" />
 
       <div className="container-page flex h-16 items-center gap-3 lg:h-[4.5rem] lg:gap-6">
         <MobileMenu

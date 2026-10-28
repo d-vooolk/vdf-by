@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
+import { OrderBulk, OrderCheckbox } from "@/components/admin/OrderBulk";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { moneyStatuses } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
@@ -88,6 +89,63 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     );
   };
 
+  const orderList = (
+    <div className="card divide-y divide-brand-100 overflow-hidden">
+      {rows.map((order) => (
+        <div key={order.id} className="flex items-center gap-3 pl-4 hover:bg-brand-50">
+          {staff && <OrderCheckbox id={order.id} />}
+          <Link
+            href={`/admin/orders/${order.id}/`}
+            prefetch={false}
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 py-3 pr-4"
+          >
+            <span className="tnum w-12 shrink-0 text-xs text-brand-300">
+              №{order.id}
+            </span>
+            <OrderStatusBadge status={order.status} />
+
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-brand-900">
+                {order.name}{" "}
+                <span className="tnum font-normal text-brand-400">
+                  {order.phone}
+                </span>
+              </span>
+              <span className="block truncate text-xs text-brand-400">
+                {formatDate(order.createdAt)} · {order.items.length} поз. ·{" "}
+                {order.deliveryName || "доставка не указана"}
+              </span>
+            </span>
+
+            {staff && (order.status === "done" || money.get(order.id) !== "awaiting") && (
+              <MoneyStatusBadge status={money.get(order.id) ?? "awaiting"} />
+            )}
+            {order.notes.length > 0 && (
+              <span
+                className="badge order-status order-status-new"
+                title={order.notes.join("; ")}
+              >
+                проверить
+              </span>
+            )}
+            {!order.telegramSent && (
+              <span
+                className="badge bg-brand-100 text-brand-500"
+                title="Не ушёл в Telegram — заказ сохранён только здесь"
+              >
+                не отправлен
+              </span>
+            )}
+
+            <span className="tnum shrink-0 text-sm font-semibold text-brand-900">
+              {formatPrice(order.total, site.currencySymbol)}
+            </span>
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-semibold text-brand-900">
@@ -129,58 +187,10 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         <p className="card p-10 text-center text-sm text-brand-400">
           {query || status ? "Ничего не нашлось." : staff ? "Заказов сотрудников пока нет." : "Заказов пока нет."}
         </p>
+      ) : staff ? (
+        <OrderBulk ids={rows.map((order) => order.id)}>{orderList}</OrderBulk>
       ) : (
-        <div className="card divide-y divide-brand-100 overflow-hidden">
-          {rows.map((order) => (
-            <Link
-              key={order.id}
-              href={`/admin/orders/${order.id}/`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-brand-50"
-            >
-              <span className="tnum w-12 shrink-0 text-xs text-brand-300">
-                №{order.id}
-              </span>
-              <OrderStatusBadge status={order.status} />
-
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-brand-900">
-                  {order.name}{" "}
-                  <span className="tnum font-normal text-brand-400">
-                    {order.phone}
-                  </span>
-                </span>
-                <span className="block truncate text-xs text-brand-400">
-                  {formatDate(order.createdAt)} · {order.items.length} поз. ·{" "}
-                  {order.deliveryName || "доставка не указана"}
-                </span>
-              </span>
-
-              {staff && (order.status === "done" || money.get(order.id) !== "awaiting") && (
-                <MoneyStatusBadge status={money.get(order.id) ?? "awaiting"} />
-              )}
-              {order.notes.length > 0 && (
-                <span
-                  className="badge order-status order-status-new"
-                  title={order.notes.join("; ")}
-                >
-                  проверить
-                </span>
-              )}
-              {!order.telegramSent && (
-                <span
-                  className="badge bg-brand-100 text-brand-500"
-                  title="Не ушёл в Telegram — заказ сохранён только здесь"
-                >
-                  не отправлен
-                </span>
-              )}
-
-              <span className="tnum shrink-0 text-sm font-semibold text-brand-900">
-                {formatPrice(order.total, site.currencySymbol)}
-              </span>
-            </Link>
-          ))}
-        </div>
+        orderList
       )}
 
       {pages > 1 && (

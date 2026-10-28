@@ -54,6 +54,26 @@ export async function setOrderStatusAction(
   return ok();
 }
 
+export async function setOrdersStatusAction(
+  ids: number[],
+  status: string,
+): Promise<FormState> {
+  await requireAdmin();
+  if (!isOrderStatus(status)) return fail(["Неизвестный статус"]);
+  if (!Array.isArray(ids)) return fail(["Не выбраны заказы"]);
+  const orderIds = [...new Set(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))].slice(0, 500);
+  if (!orderIds.length) return fail(["Не выбраны заказы"]);
+
+  const moved = orderIds.flatMap((id) => setOrderStatus(id, status));
+  if (moved.length) {
+    invalidateCatalog();
+    revalidateProductsById([...new Set(moved.flatMap(({ productId }) => productsSharingStock(productId)))]);
+  }
+  after(syncCrm);
+  revalidatePath("/admin", "layout");
+  return ok();
+}
+
 export async function setOrderNoteAction(
   id: number,
   note: string,

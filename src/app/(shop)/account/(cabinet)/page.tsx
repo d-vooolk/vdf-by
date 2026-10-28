@@ -58,7 +58,7 @@ export default async function AccountDataPage() {
     { label: "Телефон", value: formatPhone(customer.phone), numeric: true },
     {
       label: "Тип покупателя",
-      value: customer.staff ? "Сотрудник магазина" : company ? "Оптовый покупатель" : "Частный покупатель",
+      value: customer.seller ? "Продавец магазина" : customer.staff ? "Сотрудник магазина" : company ? "Оптовый покупатель" : "Частный покупатель",
     },
     { label: "Цены", value: customer.staff ? "Для сотрудников" : PRICE_LABELS[customer.wholesaleStatus] },
     ...(customer.address ? [{ label: "Адрес магазина или мастерской", value: customer.address }] : []),

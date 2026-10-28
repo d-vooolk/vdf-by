@@ -14,7 +14,7 @@ const TABS = [
   { id: "pending", label: "Заявки на опт" },
   { id: "approved", label: "Оптовики" },
   { id: "rejected", label: "Отклонённые" },
-  { id: "staff", label: "Сотрудники" },
+  { id: "staff", label: "Сотрудники и продавцы" },
   { id: "all", label: "Все покупатели" },
 ] as const;
 
@@ -97,7 +97,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-base font-semibold text-brand-900">{customer.name}</span>
                   {customer.staff ? (
-                    <span className="badge bg-sky-100 text-sky-800">сотрудник</span>
+                    <span className="badge bg-sky-100 text-sky-800">
+                      {customer.seller ? "продавец" : "сотрудник"}
+                    </span>
                   ) : (
                     <>
                       <span className={`badge ${STATUS_TONE[customer.wholesaleStatus]}`}>
@@ -148,6 +150,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 status={customer.wholesaleStatus}
                 note={customer.adminNote}
                 staff={customer.staff}
+                seller={customer.seller}
               />
             </li>
           ))}

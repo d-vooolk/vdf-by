@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FrameTypeComposer } from "@/components/admin/FrameTypeComposer";
@@ -6,6 +5,7 @@ import { FrameTypeCreator } from "@/components/admin/FrameTypeCreator";
 import { FrameTypeForm } from "@/components/admin/FrameTypeForm";
 import { FrameTypeInfoForm } from "@/components/admin/FrameTypeInfoForm";
 import { FrameTypeProducts } from "@/components/admin/FrameTypeProducts";
+import { ListBackLink } from "@/components/admin/ListBackLink";
 import { getProductCars } from "@/lib/cars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
@@ -63,12 +63,9 @@ export default async function FrameTypePage({ params, searchParams }: PageProps)
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/admin/frame-types/?category=${encodeURIComponent(categoryId)}`}
-          className="btn-ghost py-2 text-sm"
-        >
+        <ListBackLink fallback={`/admin/frame-types/?category=${encodeURIComponent(categoryId)}`} sources={["/admin/frame-types/"]}>
           ← Все типы
-        </Link>
+        </ListBackLink>
         <h1 className="text-xl font-semibold text-brand-900">
           Тип рамки {type}
           {group.name && <span className="font-normal text-brand-500"> · {group.name}</span>}

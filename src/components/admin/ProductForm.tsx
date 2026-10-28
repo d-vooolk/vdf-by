@@ -6,6 +6,7 @@ import { useCallback, useState, useTransition } from "react";
 import { deleteProductAction, generateSkuAction, saveProductAction } from "@/app/admin/product-actions";
 import { FaqTool, RewriteTool, type AiSettings } from "@/components/admin/AiTools";
 import { ImportFromUrl, type ImportTarget } from "@/components/admin/ImportFromUrl";
+import { ListBackLink } from "@/components/admin/ListBackLink";
 import { CarFitmentEditor } from "@/components/admin/CarFitmentEditor";
 import { CategoryPicker, type CategoryChoice } from "@/components/admin/CategoryPicker";
 import { ComposerDialog } from "@/components/admin/ComposerDialog";
@@ -282,9 +283,12 @@ export function ProductForm({
     <div className="space-y-5 pb-24">
       {/* --------------------------- Шапка --------------------------- */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/products/" className="btn-ghost py-2 text-sm">
+        <ListBackLink
+          fallback="/admin/products/"
+          sources={["/admin/products/", "/admin/incomplete/", "/admin/out-of-stock/", "/admin/frame-types/*"]}
+        >
           ← К списку
-        </Link>
+        </ListBackLink>
         <h1 className="text-xl font-semibold text-brand-900">
           {copiedFrom
             ? `Копия товара «${copiedFrom}»`

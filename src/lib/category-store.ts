@@ -435,6 +435,36 @@ export function listCategoriesBrief(): CategoryBrief[] {
   ]);
 }
 
+export interface CategoryListRow extends CategoryBrief {
+  order: number | null;
+  excerpt: string;
+  url: string;
+}
+
+export function listCategoryRows(): CategoryListRow[] {
+  const extras = new Map(
+    (
+      getDb()
+        .prepare(
+          `SELECT id, sort_order AS sortOrder, COALESCE(json_extract(data, '$.excerpt'), '') AS excerpt
+             FROM categories`,
+        )
+        .all() as Array<{ id: string; sortOrder: number | null; excerpt: string }>
+    ).map((row) => [row.id, row]),
+  );
+  const brief = listCategoriesBrief();
+  const slugs = new Map(brief.map((category) => [category.id, category.slug]));
+  return brief.map((category) => {
+    const parentSlug = category.parentId ? slugs.get(category.parentId) : undefined;
+    return {
+      ...category,
+      order: extras.get(category.id)?.sortOrder ?? null,
+      excerpt: extras.get(category.id)?.excerpt ?? "",
+      url: parentSlug ? `/catalog/${parentSlug}/${category.slug}/` : `/catalog/${category.slug}/`,
+    };
+  });
+}
+
 export interface CategoryFilterOption {
   id: string;
   label: string;

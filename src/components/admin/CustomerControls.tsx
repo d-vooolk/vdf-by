@@ -3,18 +3,26 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteCustomerAction, setCustomerNoteAction, setCustomerStaffAction, setWholesaleStatusAction } from "@/app/admin/customer-actions";
+import {
+  deleteCustomerAction,
+  setCustomerNoteAction,
+  setCustomerSellerAction,
+  setCustomerStaffAction,
+  setWholesaleStatusAction,
+} from "@/app/admin/customer-actions";
 
 export function CustomerControls({
   id,
   status,
   note: initialNote,
   staff,
+  seller,
 }: {
   id: number;
   status: "none" | "pending" | "approved" | "rejected";
   note: string;
   staff: boolean;
+  seller: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -73,6 +81,15 @@ export function CustomerControls({
             : status === "approved" || status === "pending"
               ? "Сделать сотрудником (опт снимется)"
               : "Сделать сотрудником"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(() => setCustomerSellerAction(id, !seller))}
+          title="Продавец — сотрудник с переключателем «Сотрудник / Покупатель / Оптовик» в шапке сайта"
+          className={`${seller ? "btn-secondary" : "btn-ghost"} px-3 py-1.5 text-xs`}
+        >
+          {seller ? "Снять роль продавца" : staff ? "Сделать продавцом" : "Сделать продавцом (станет сотрудником)"}
         </button>
         {confirmDelete ? (
           <>

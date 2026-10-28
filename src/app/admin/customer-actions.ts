@@ -6,6 +6,7 @@ import {
   deleteCustomer,
   getCustomerById,
   setCustomerNote,
+  setCustomerSeller,
   setCustomerStaff,
   setWholesaleStatus,
 } from "@/lib/customers";
@@ -54,6 +55,13 @@ export async function setCustomerStaffAction(customerId: number, staff: boolean)
   await requireAdmin();
   if (!getCustomerById(customerId)) return fail(["Покупатель не найден"]);
   setCustomerStaff(customerId, staff === true);
+  return ok();
+}
+
+export async function setCustomerSellerAction(customerId: number, seller: boolean): Promise<FormState> {
+  await requireAdmin();
+  if (!getCustomerById(customerId)) return fail(["Покупатель не найден"]);
+  setCustomerSeller(customerId, seller === true);
   return ok();
 }
 
