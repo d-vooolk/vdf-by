@@ -72,7 +72,7 @@ export function Header() {
             )}
           </nav>
           <span className="flex shrink-0 items-center gap-5">
-            <span>{site.workHours}</span>
+            <span>{site.workHours.split(",")[0]}</span>
             <SellerModeSwitch />
             <AccountLink />
           </span>
