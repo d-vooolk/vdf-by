@@ -6,6 +6,7 @@ import {
   getActingCustomer,
   getCustomer,
   getSellerMode,
+  excludeFromAnalytics,
   SIGNED_IN_COOKIE,
   signInCustomer,
   signOutCustomer,
@@ -59,6 +60,7 @@ export async function GET() {
     path: "/",
     maxAge: 60 * 60 * 24 * 90,
   });
+  if (signed.staff) await excludeFromAnalytics();
   return Response.json(
     {
       customer: publicCustomer(customer, await getSellerMode()),

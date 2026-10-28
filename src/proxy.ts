@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { NO_ANALYTICS_COOKIE, NO_ANALYTICS_MAX_AGE } from "@/lib/analytics";
+
 /**
  * Быстрая отсечка неавторизованных на подступах к админке.
  *
@@ -32,7 +34,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/", request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (signedIn && !request.cookies.has(NO_ANALYTICS_COOKIE)) {
+    response.cookies.set(NO_ANALYTICS_COOKIE, "1", {
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: NO_ANALYTICS_MAX_AGE,
+    });
+  }
+  return response;
 }
 
 export const config = {

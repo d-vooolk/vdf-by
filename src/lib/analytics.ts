@@ -1,5 +1,7 @@
 export const METRIKA_ID = 112885899;
 export const GA_MEASUREMENT_ID = "G-G25SPSVNRC";
+export const NO_ANALYTICS_COOKIE = "vdf_noanalytics";
+export const NO_ANALYTICS_MAX_AGE = 60 * 60 * 24 * 365;
 
 declare global {
   interface Window {
