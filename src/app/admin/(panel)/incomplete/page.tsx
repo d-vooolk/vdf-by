@@ -101,6 +101,7 @@ export default async function IncompletePage({ searchParams }: PageProps) {
               <li key={product.id}>
                 <Link
                   href={`/admin/products/${product.id}/`}
+                  prefetch={false}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-brand-50"
                 >
                   {thumb ? (
@@ -143,6 +144,7 @@ export default async function IncompletePage({ searchParams }: PageProps) {
                       <Link
                         key={twin.id}
                         href={`/admin/products/${twin.id}/`}
+                        prefetch={false}
                         className="font-medium text-brand-700 underline hover:text-brand-900"
                       >
                         {twin.sku || twin.id}

@@ -4,17 +4,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
+import { FrameTypePriceFields } from "@/components/admin/FrameTypePriceFields";
 import { FrameTypeStorageField } from "@/components/admin/FrameTypeStorageField";
 import { FrameTypeStockField } from "@/components/admin/FrameTypeStockField";
 import { startNavigationOverlay } from "@/components/admin/NavigationOverlay";
 import { PrintLabelButton } from "@/components/admin/PrintLabelButton";
 import { CopyIcon, SpinnerIcon } from "@/components/icons";
+import type { ProductsView } from "@/lib/admin-prefs";
+import type { FrameTypeValues } from "@/lib/frame-types";
 
 export interface FrameTypeListRow {
   type: string;
   name: string;
   sku: string;
   summary: string;
+  values: FrameTypeValues | null;
   storageCode: string;
   storageMixed: boolean;
   productCount: number;
@@ -28,6 +32,8 @@ interface FrameTypeListProps {
   categoryId: string;
   initialQuery: string;
   initialStockOnly: boolean;
+  view: ProductsView;
+  currencySymbol: string;
 }
 
 const QUERY_LENGTH = 10;
@@ -52,6 +58,8 @@ export function FrameTypeList({
   categoryId,
   initialQuery,
   initialStockOnly,
+  view,
+  currencySymbol,
 }: FrameTypeListProps) {
   const router = useRouter();
   const [input, setInput] = useState(initialQuery);
@@ -200,7 +208,7 @@ export function FrameTypeList({
         </p>
       ) : (
         <div className={`transition-opacity ${stale || switching ? "opacity-60" : ""}`}>
-          <FrameTypeRows chunks={visibleChunks} categoryId={categoryId} />
+          <FrameTypeRows chunks={visibleChunks} categoryId={categoryId} view={view} currencySymbol={currencySymbol} />
           {hasMore && (
             <div ref={sentinel} className="flex items-center justify-center gap-3 py-6 text-sm text-brand-500">
               <button type="button" onClick={() => setLimit((current) => current + PAGE_SIZE)} className="btn-ghost text-sm">
@@ -214,17 +222,22 @@ export function FrameTypeList({
   );
 }
 
+interface RowSettings {
+  categoryId: string;
+  view: ProductsView;
+  currencySymbol: string;
+}
+
 const FrameTypeRows = memo(function FrameTypeRows({
   chunks,
-  categoryId,
-}: {
+  ...settings
+}: RowSettings & {
   chunks: FrameTypeListRow[][];
-  categoryId: string;
 }) {
   return (
     <div className="card overflow-hidden">
       {chunks.map((chunk) => (
-        <FrameTypeChunk key={chunk[0].type} rows={chunk} categoryId={categoryId} />
+        <FrameTypeChunk key={chunk[0].type} rows={chunk} {...settings} />
       ))}
     </div>
   );
@@ -232,10 +245,9 @@ const FrameTypeRows = memo(function FrameTypeRows({
 
 const FrameTypeChunk = memo(function FrameTypeChunk({
   rows,
-  categoryId,
-}: {
+  ...settings
+}: RowSettings & {
   rows: FrameTypeListRow[];
-  categoryId: string;
 }) {
   const ref = useRef<HTMLUListElement>(null);
   const [placeholderHeight, setPlaceholderHeight] = useState<number | null>(null);
@@ -258,7 +270,7 @@ const FrameTypeChunk = memo(function FrameTypeChunk({
       style={placeholderHeight === null ? undefined : { height: placeholderHeight }}
     >
       {placeholderHeight === null &&
-        rows.map((row) => <FrameTypeRow key={row.type} row={row} categoryId={categoryId} />)}
+        rows.map((row) => <FrameTypeRow key={row.type} row={row} {...settings} />)}
     </ul>
   );
 });
@@ -266,9 +278,10 @@ const FrameTypeChunk = memo(function FrameTypeChunk({
 const FrameTypeRow = memo(function FrameTypeRow({
   row,
   categoryId,
-}: {
+  view,
+  currencySymbol,
+}: RowSettings & {
   row: FrameTypeListRow;
-  categoryId: string;
 }) {
   const categoryQuery = `?category=${encodeURIComponent(categoryId)}`;
   return (
@@ -288,20 +301,39 @@ const FrameTypeRow = memo(function FrameTypeRow({
             <span className="block truncate text-sm text-brand-900">
               {row.name || <span className="text-brand-400">без названия</span>}
             </span>
-            <span className="block text-xs text-brand-500">
-              <span className="tnum">{row.sku}</span>
-              {" · "}
-              {row.summary}
-            </span>
+            {view === "standard" && (
+              <span className="block text-xs text-brand-500">
+                <span className="tnum">{row.sku}</span>
+                {" · "}
+                {row.summary}
+              </span>
+            )}
           </span>
         </Link>
-        <FrameTypeStorageField
-          key={row.storageCode}
-          categoryId={categoryId}
-          type={row.type}
-          initial={row.storageCode}
-          mixed={row.storageMixed}
-        />
+        {view === "warehouse" && (
+          <span
+            title="Артикул"
+            className="tnum shrink-0 rounded-md bg-brand-100 px-2 py-1 text-xs font-medium text-brand-600"
+          >
+            {row.sku}
+          </span>
+        )}
+        {view === "wholesale" ? (
+          <FrameTypePriceFields
+            categoryId={categoryId}
+            type={row.type}
+            values={row.values}
+            currencySymbol={currencySymbol}
+          />
+        ) : (
+          <FrameTypeStorageField
+            key={row.storageCode}
+            categoryId={categoryId}
+            type={row.type}
+            initial={row.storageCode}
+            mixed={row.storageMixed}
+          />
+        )}
         <span className="tnum w-24 text-sm text-brand-500">
           {row.productCount} {row.productCount === 1 ? "товар" : "товаров"}
         </span>

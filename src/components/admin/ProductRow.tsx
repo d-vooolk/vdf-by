@@ -193,6 +193,7 @@ export function ProductRow({
       <div className="min-w-[12rem] flex-1">
         <Link
           href={`/admin/products/${product.id}/`}
+          prefetch={false}
           className="block truncate text-sm font-semibold text-brand-900 hover:text-brand-700"
         >
           {product.title}

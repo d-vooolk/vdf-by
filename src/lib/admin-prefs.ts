@@ -1,6 +1,7 @@
 export const LAST_CATEGORY_COOKIE = "admin-last-category";
 
 export const PRODUCTS_VIEW_COOKIE = "admin-products-view";
+export const FRAME_TYPES_VIEW_COOKIE = "admin-frame-types-view";
 
 export const PRODUCTS_VIEWS = [
   { id: "standard", label: "Стандартный" },

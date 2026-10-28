@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { AdminNav } from "@/components/admin/AdminNav";
 import { AdminRootTheme } from "@/components/admin/AdminRootTheme";
+import { ListMemory } from "@/components/admin/ListMemory";
 import { NavigationOverlay } from "@/components/admin/NavigationOverlay";
 import { ADMIN_THEME_COOKIE, BOTTOM_NAV_COOKIE, parseAdminTheme, parseBottomNav } from "@/lib/admin-prefs";
 import { countOpenServiceRequests } from "@/lib/service";
@@ -51,6 +52,7 @@ export default async function PanelLayout({
       />
       <Suspense fallback={null}>
         <NavigationOverlay />
+        <ListMemory />
       </Suspense>
       <main className="admin-main min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mx-auto w-full max-w-[1400px]">{children}</div>

@@ -6,7 +6,13 @@ import { setProductsViewAction } from "@/app/admin/product-actions";
 import { SpinnerIcon } from "@/components/icons";
 import { PRODUCTS_VIEWS, type ProductsView } from "@/lib/admin-prefs";
 
-export function ProductsViewSwitch({ view }: { view: ProductsView }) {
+export function ProductsViewSwitch({
+  view,
+  scope = "products",
+}: {
+  view: ProductsView;
+  scope?: "products" | "frame-types";
+}) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -19,7 +25,7 @@ export function ProductsViewSwitch({ view }: { view: ProductsView }) {
             type="button"
             aria-pressed={entry.id === view}
             disabled={pending}
-            onClick={() => startTransition(() => setProductsViewAction(entry.id))}
+            onClick={() => startTransition(() => setProductsViewAction(entry.id, scope))}
             className={`rounded-control px-3 py-1.5 text-sm ${
               entry.id === view
                 ? "bg-brand-900 font-semibold text-white"

@@ -19,14 +19,23 @@ export function stopNavigationOverlay(): void {
 }
 
 function isInternalNavigation(event: MouseEvent): boolean {
-  if (event.defaultPrevented || event.button !== 0) return false;
+  if (event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
-  const anchor = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+  const target = event.target as Element | null;
+  const anchor = target?.closest?.("a[href]") as HTMLAnchorElement | null;
   if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return false;
+  if (target?.closest("a[href], button, input, select, textarea, label, summary") !== anchor) return false;
   const url = new URL(anchor.href, window.location.href);
   if (url.origin !== window.location.origin || !url.pathname.startsWith("/admin")) return false;
   if (url.pathname.startsWith("/admin/api/")) return false;
   return url.pathname + url.search !== window.location.pathname + window.location.search;
+}
+
+function isSearchFormSubmit(event: SubmitEvent): boolean {
+  const form = event.target as HTMLFormElement | null;
+  if (event.defaultPrevented || !form || form.method.toLowerCase() !== "get" || form.target === "_blank") return false;
+  const url = new URL(form.action || window.location.href, window.location.href);
+  return url.origin === window.location.origin && url.pathname.startsWith("/admin");
 }
 
 export function NavigationOverlay() {
@@ -45,14 +54,19 @@ export function NavigationOverlay() {
     const onClick = (event: MouseEvent) => {
       if (isInternalNavigation(event)) setPending(true);
     };
+    const onSubmit = (event: SubmitEvent) => {
+      if (isSearchFormSubmit(event)) setPending(true);
+    };
     const start = () => setPending(true);
     const stop = () => setPending(false);
-    document.addEventListener("click", onClick);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("submit", onSubmit);
     window.addEventListener(NAVIGATION_START_EVENT, start);
     window.addEventListener(NAVIGATION_END_EVENT, stop);
     window.addEventListener("popstate", stop);
     return () => {
-      document.removeEventListener("click", onClick);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("submit", onSubmit);
       window.removeEventListener(NAVIGATION_START_EVENT, start);
       window.removeEventListener(NAVIGATION_END_EVENT, stop);
       window.removeEventListener("popstate", stop);

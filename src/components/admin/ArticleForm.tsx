@@ -14,6 +14,7 @@ import {
 } from "@/app/admin/article-actions";
 import { cleanFaq, FaqEditor } from "@/components/admin/FaqEditor";
 import { guessThumb, ImagePicker } from "@/components/admin/ImagePicker";
+import { ListBackLink } from "@/components/admin/ListBackLink";
 import { Field, Problems, Section, SlugField } from "@/components/admin/form-parts";
 import { AlertIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
 import {
@@ -291,9 +292,7 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
   return (
     <div className="space-y-5 pb-24">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/articles/" className="btn-ghost py-2 text-sm">
-          ← К статьям
-        </Link>
+        <ListBackLink fallback="/admin/articles/">← К статьям</ListBackLink>
         <h1 className="text-xl font-semibold text-brand-900">{draft.title || "Без названия"}</h1>
         <span
           className={`badge ${published ? "bg-green-100 text-green-800" : "bg-brand-100 text-brand-600"}`}

@@ -20,7 +20,12 @@ import {
   setProductPrice,
   setProductStockQty,
 } from "@/lib/product-store";
-import { LAST_CATEGORY_COOKIE, parseProductsView, PRODUCTS_VIEW_COOKIE } from "@/lib/admin-prefs";
+import {
+  FRAME_TYPES_VIEW_COOKIE,
+  LAST_CATEGORY_COOKIE,
+  parseProductsView,
+  PRODUCTS_VIEW_COOKIE,
+} from "@/lib/admin-prefs";
 import { isFrameCategory, rememberVdfArticle } from "@/lib/frame-types";
 import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
@@ -239,9 +244,13 @@ export async function setProductStockQtyAction(
   return ok();
 }
 
-export async function setProductsViewAction(view: string): Promise<void> {
+export async function setProductsViewAction(
+  view: string,
+  scope: "products" | "frame-types" = "products",
+): Promise<void> {
   await requireAdmin();
-  (await cookies()).set(PRODUCTS_VIEW_COOKIE, parseProductsView(view), {
+  const cookie = scope === "frame-types" ? FRAME_TYPES_VIEW_COOKIE : PRODUCTS_VIEW_COOKIE;
+  (await cookies()).set(cookie, parseProductsView(view), {
     path: "/admin",
     httpOnly: true,
     sameSite: "lax",

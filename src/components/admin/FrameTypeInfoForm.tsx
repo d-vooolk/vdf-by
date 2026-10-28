@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { copyFrameTypeAction, deleteFrameTypeAction, saveFrameTypeInfoAction } from "@/app/admin/frame-type-actions";
+import { useListBackHref } from "@/components/admin/ListBackLink";
 import { AlertIcon, CheckIcon, TrashIcon } from "@/components/icons";
 import { buildFrameSku, normalizeFrameType } from "@/lib/frame-sku";
 import { storageSkuPart } from "@/lib/sku";
@@ -50,7 +51,7 @@ export function FrameTypeInfoForm({
   const skuChanges =
     previousType !== null &&
     (type !== initial.type || (storage !== storageSkuPart(initial.storageCode) && !(storageMixed && !storage)));
-  const listUrl = `/admin/frame-types/?category=${encodeURIComponent(categoryId)}`;
+  const listUrl = useListBackHref(`/admin/frame-types/?category=${encodeURIComponent(categoryId)}`, ["/admin/frame-types/"]);
 
   const patch = (changes: Partial<FrameTypeInfoValues>) => {
     setValues((current) => ({ ...current, ...changes }));

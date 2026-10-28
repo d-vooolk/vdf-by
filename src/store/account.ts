@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 
+import { SELLER_MODE_COOKIE, type SellerMode } from "@/lib/seller-mode";
+
 export interface AccountCustomer {
   name: string;
   phone: string;
@@ -9,6 +11,7 @@ export interface AccountCustomer {
   address: string;
   wholesaleStatus: "none" | "pending" | "approved" | "rejected";
   staff: boolean;
+  sellerMode: SellerMode | null;
 }
 
 interface AccountState {
@@ -17,6 +20,7 @@ interface AccountState {
   wholesale: Record<string, number> | null;
   load: (force?: boolean) => Promise<void>;
   reset: () => void;
+  setSellerMode: (mode: SellerMode) => Promise<void>;
 }
 
 const GUEST_KEY = "vdf_guest";
@@ -71,6 +75,10 @@ export const useAccount = create<AccountState>()((set, get) => ({
   reset: () => {
     rememberGuest(true);
     set({ status: "guest", customer: null, wholesale: null });
+  },
+  setSellerMode: async (mode) => {
+    document.cookie = `${SELLER_MODE_COOKIE}=${mode}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    await get().load(true);
   },
 }));
 

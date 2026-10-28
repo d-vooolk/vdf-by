@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ListBackLink } from "@/components/admin/ListBackLink";
 import { OrderControls } from "@/components/admin/OrderControls";
 import { OrderItems } from "@/components/admin/OrderItems";
 import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
@@ -33,9 +34,7 @@ export default async function OrderPage({ params }: PageProps) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/admin/orders/" className="btn-ghost py-2 text-sm">
-          ← К заказам
-        </Link>
+        <ListBackLink fallback="/admin/orders/">← К заказам</ListBackLink>
         <h1 className="text-xl font-semibold text-brand-900">
           Заказ №{order.id}
         </h1>

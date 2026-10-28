@@ -52,6 +52,7 @@ export function ProductCard({
   const href = `/product/${product.slug}/`;
 
   const variant = resolveVariant(product, defaultSelection(product));
+  const sku = product.sku || variant.sku;
 
   return (
     <article className="group card card-link reveal flex w-full flex-col overflow-hidden">
@@ -104,6 +105,12 @@ export function ProductCard({
             {product.title}
           </Link>
         </h3>
+
+        {sku && (
+          <p className="tnum mb-1.5 truncate text-[10px] text-brand-400 sm:mb-2 sm:text-xs">
+            Арт. {sku}
+          </p>
+        )}
 
         {hasOptions && (
           <p className="mb-2 line-clamp-1 text-[10px] text-brand-400 sm:text-xs">

@@ -3,7 +3,9 @@ import { clientIp } from "@/lib/client-ip";
 
 import { getSite } from "@/lib/catalog";
 import {
+  getActingCustomer,
   getCustomer,
+  getSellerMode,
   SIGNED_IN_COOKIE,
   signInCustomer,
   signOutCustomer,
@@ -22,6 +24,7 @@ import {
   type CustomerKind,
   type Registration,
 } from "@/lib/customers";
+import type { SellerMode } from "@/lib/seller-mode";
 import { formatPhone, normalizePhone } from "@/lib/phone";
 import { getSmsSettings, renderTemplate, sendSms, SmsError, smsConfigured } from "@/lib/sms";
 import { escapeTelegram, sendTelegram } from "@/lib/telegram";
@@ -32,7 +35,7 @@ export const dynamic = "force-dynamic";
 const text = (value: unknown, limit: number) =>
   typeof value === "string" ? value.trim().slice(0, limit) : "";
 
-function publicCustomer(customer: Customer) {
+function publicCustomer(customer: Customer, mode: SellerMode = "staff") {
   return {
     name: customer.name,
     phone: formatPhone(customer.phone),
@@ -40,14 +43,16 @@ function publicCustomer(customer: Customer) {
     address: customer.address,
     wholesaleStatus: customer.wholesaleStatus,
     staff: customer.staff,
+    sellerMode: customer.seller ? mode : null,
   };
 }
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
 export async function GET() {
-  const customer = await getCustomer();
-  if (!customer) return Response.json({ customer: null }, noStore);
+  const signed = await getCustomer();
+  if (!signed) return Response.json({ customer: null }, noStore);
+  const customer = (await getActingCustomer()) ?? signed;
   (await cookies()).set(SIGNED_IN_COOKIE, "1", {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -56,7 +61,7 @@ export async function GET() {
   });
   return Response.json(
     {
-      customer: publicCustomer(customer),
+      customer: publicCustomer(customer, await getSellerMode()),
       wholesale: customer.staff
         ? buildStaffList()
         : isWholesale(customer)

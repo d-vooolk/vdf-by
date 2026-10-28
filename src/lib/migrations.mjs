@@ -739,6 +739,9 @@ export const MIGRATIONS = [
   `
     UPDATE settings SET value = json_remove(value, '$.viber') WHERE key = 'site';
   `,
+  `
+    ALTER TABLE customers ADD COLUMN seller INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

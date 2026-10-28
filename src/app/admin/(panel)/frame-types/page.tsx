@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { FrameTypeList, type FrameTypeListRow } from "@/components/admin/FrameTypeList";
+import { ProductsViewSwitch } from "@/components/admin/ProductsViewSwitch";
 import { PlusIcon } from "@/components/icons";
+import { FRAME_TYPES_VIEW_COOKIE, parseProductsView } from "@/lib/admin-prefs";
 import { formatPrice } from "@/lib/format";
 import { getSite } from "@/lib/catalog";
 import { buildFrameSku } from "@/lib/frame-sku";
@@ -21,6 +24,7 @@ interface PageProps {
 
 export default async function FrameTypesPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const view = parseProductsView((await cookies()).get(FRAME_TYPES_VIEW_COOKIE)?.value);
   const categories = frameCategories();
   const categoryId =
     categories.find((category) => category.id === params.category)?.id ??
@@ -43,6 +47,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
     name: summary.name,
     sku: buildFrameSku({ number: "номер", storage: summary.storageCode, type: summary.type }),
     summary: summary.saved ? describe(summary.saved) : "цены для типа не заданы",
+    values: summary.saved,
     storageCode: summary.storageCode,
     storageMixed: summary.storageMixed,
     productCount: summary.productCount,
@@ -65,6 +70,7 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
             для типа целиком и записываются во все товары с этим типом.
           </p>
         </div>
+        <ProductsViewSwitch view={view} scope="frame-types" />
         {categoryId && (
           <Link href={`/admin/frame-types/new/${categoryQuery}`} className="btn-primary py-2 text-sm">
             <PlusIcon className="h-4 w-4" />
@@ -85,6 +91,8 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
           categoryId={categoryId}
           initialQuery={query}
           initialStockOnly={params.stock === "1"}
+          view={view}
+          currencySymbol={site.currencySymbol}
         />
       )}
     </div>

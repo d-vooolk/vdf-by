@@ -2,11 +2,13 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 
 import {
+  actingAs,
   createCustomerSession,
   customerBySession,
   deleteCustomerSession,
   type Customer,
 } from "./customers";
+import { parseSellerMode, SELLER_MODE_COOKIE, type SellerMode } from "./seller-mode";
 
 const COOKIE = "vdf_customer";
 export const SIGNED_IN_COOKIE = "vdf_signed";
@@ -14,6 +16,15 @@ export const SIGNED_IN_COOKIE = "vdf_signed";
 export const getCustomer = cache(async (): Promise<Customer | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   return token ? customerBySession(token) : null;
+});
+
+export const getSellerMode = cache(async (): Promise<SellerMode> =>
+  parseSellerMode((await cookies()).get(SELLER_MODE_COOKIE)?.value),
+);
+
+export const getActingCustomer = cache(async (): Promise<Customer | null> => {
+  const customer = await getCustomer();
+  return customer?.seller ? actingAs(customer, await getSellerMode()) : customer;
 });
 
 export async function signInCustomer(customerId: number): Promise<void> {

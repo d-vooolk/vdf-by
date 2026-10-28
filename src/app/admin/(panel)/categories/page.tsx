@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { categoryUrl, getCategories } from "@/lib/catalog";
-import { listCategoriesBrief } from "@/lib/category-store";
+import { listCategoryRows } from "@/lib/category-store";
 
 export const metadata = { title: "Категории" };
 
@@ -17,8 +16,7 @@ export const metadata = { title: "Категории" };
  * иерархию здесь не нужно.
  */
 export default function CategoriesPage() {
-  const brief = listCategoriesBrief();
-  const full = new Map(getCategories().map((category) => [category.id, category]));
+  const brief = listCategoryRows();
 
   return (
     <div className="space-y-5">
@@ -42,7 +40,6 @@ export default function CategoriesPage() {
       ) : (
         <div className="card divide-y divide-brand-100 overflow-hidden">
           {brief.map((category) => {
-            const details = full.get(category.id);
             return (
               <div
                 key={category.id}
@@ -51,12 +48,13 @@ export default function CategoriesPage() {
                 }`}
               >
                 <span className="tnum w-8 shrink-0 text-xs text-brand-300">
-                  {details?.order ?? "—"}
+                  {category.order ?? "—"}
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/admin/categories/${category.id}/`}
+                    prefetch={false}
                     className={`block truncate hover:text-brand-700 ${
                       category.parentId
                         ? "text-sm text-brand-700"
@@ -69,9 +67,9 @@ export default function CategoriesPage() {
                     {category.name}
                   </Link>
                   <p className="truncate text-xs text-brand-400">
-                    {details ? categoryUrl(details) : `/catalog/${category.slug}/`}
+                    {category.url}
                     {category.carFitment ? " · подбор по авто" : ""}
-                    {details?.excerpt ? ` · ${details.excerpt}` : ""}
+                    {category.excerpt ? ` · ${category.excerpt}` : ""}
                   </p>
                 </div>
 
@@ -84,6 +82,7 @@ export default function CategoriesPage() {
                 ) : (
                   <Link
                     href={`/admin/products/?category=${category.id}`}
+                    prefetch={false}
                     className="tnum shrink-0 text-sm text-brand-400 hover:text-brand-700"
                     title="Товары раздела"
                   >
@@ -92,7 +91,8 @@ export default function CategoriesPage() {
                 )}
 
                 <Link
-                  href={details ? categoryUrl(details) : `/catalog/${category.slug}/`}
+                  href={category.url}
+                  prefetch={false}
                   target="_blank"
                   rel="noopener"
                   title="Посмотреть на сайте"

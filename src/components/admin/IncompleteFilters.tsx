@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 
+import { startNavigationOverlay } from "@/components/admin/NavigationOverlay";
+
 interface FilterOption {
   value: string;
   label: string;
@@ -40,6 +42,10 @@ export function IncompleteFilters({
   categories,
 }: IncompleteFiltersProps) {
   const router = useRouter();
+  const go = (url: string) => {
+    startNavigationOverlay();
+    router.push(url);
+  };
 
   return (
     <div className="card grid gap-3 p-4 sm:grid-cols-2">
@@ -47,7 +53,7 @@ export function IncompleteFilters({
         <span className="label">Чего не хватает</span>
         <select
           value={gap}
-          onChange={(event) => router.push(filterUrl(event.target.value, category))}
+          onChange={(event) => go(filterUrl(event.target.value, category))}
           className="field py-2 text-sm"
         >
           <option value="">{`Все незаполненные — ${total}`}</option>
@@ -72,7 +78,7 @@ export function IncompleteFilters({
         <span className="label">Категория</span>
         <select
           value={category}
-          onChange={(event) => router.push(filterUrl(gap, event.target.value))}
+          onChange={(event) => go(filterUrl(gap, event.target.value))}
           className="field py-2 text-sm"
         >
           <option value="">{`Все категории — ${categoryTotal}`}</option>
