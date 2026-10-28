@@ -173,6 +173,13 @@ async function collectMetrika() {
       sort: "ym:s:startOfWeek",
       limit: "2000",
     }),
+    siteSearch: await stat({
+      metrics: "ym:pv:pageviews",
+      dimensions: "ym:pv:URL",
+      filters: "ym:pv:URL=@'/poisk/'",
+      sort: "-ym:pv:pageviews",
+      limit: "5000",
+    }),
     goalsBySource: goalMetrics
       ? await stat({ metrics: `ym:s:visits,${goalMetrics}`, dimensions: "ym:s:lastTrafficSource" })
       : null,
