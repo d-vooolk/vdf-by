@@ -8,6 +8,7 @@ import {
   deleteCustomerSession,
   type Customer,
 } from "./customers";
+import { NO_ANALYTICS_COOKIE, NO_ANALYTICS_MAX_AGE } from "./analytics";
 import { parseSellerMode, SELLER_MODE_COOKIE, type SellerMode } from "./seller-mode";
 
 const COOKIE = "vdf_customer";
@@ -50,4 +51,13 @@ export async function signOutCustomer(): Promise<void> {
   if (token) deleteCustomerSession(token);
   store.delete(COOKIE);
   store.delete(SIGNED_IN_COOKIE);
+}
+
+export async function excludeFromAnalytics(): Promise<void> {
+  (await cookies()).set(NO_ANALYTICS_COOKIE, "1", {
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: NO_ANALYTICS_MAX_AGE,
+  });
 }

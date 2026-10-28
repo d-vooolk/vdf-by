@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { excludeFromAnalytics } from "./customer-auth";
 import { getDb } from "./db";
 import { clearHits, isLimited, recordHit } from "./rate-limit";
 // Формат хеша описан один раз в password.mjs — оттуда же его берёт
@@ -161,6 +162,7 @@ export async function login(
     path: "/",
     expires: new Date(expiresAt),
   });
+  await excludeFromAnalytics();
 
   return { ok: true };
 }
