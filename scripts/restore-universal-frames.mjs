@@ -55,7 +55,7 @@ for (const product of products) {
   if (cars.length < 2) continue;
   if (titleMatchScore(homeBody(cars, product.title), product.title) >= NAMED_IN_TITLE) continue;
   const title = product.title.toLowerCase();
-  if (cars.some((car) => title.includes(car.markName.toLowerCase()))) continue;
+  if (cars.some((car) => title.includes(car.markName.toLowerCase().split(/[^0-9a-zа-яё]+/)[0]))) continue;
   const now = new Set(idsNow.all(product.id).map((row) => row.id));
   const wanted = cars.map((car) => car.generationId);
   if (wanted.length === now.size && wanted.every((id) => now.has(id))) continue;
