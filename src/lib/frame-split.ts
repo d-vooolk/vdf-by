@@ -246,15 +246,20 @@ export async function runFrameSplitBatch(budgetMs: number): Promise<SplitBatchRe
     }
     report.left = listFrameSplits().filter((plan) => plan.type).length;
 
-    const queue = [...pending].sort((a, b) => Number(b.render) - Number(a.render));
-    for (const work of queue) {
+    const queue = [
+      ...pending.filter((work) => work.render).map((work) => ({ work, step: "render" as const })),
+      ...pending.filter((work) => work.fill).map((work) => ({ work, step: "fill" as const })),
+    ];
+    for (const { work, step } of queue) {
       if (Date.now() > deadline) break;
+      if (!pending.includes(work) || (step === "fill" && work.render)) continue;
       try {
-        if (work.render) {
+        if (step === "render") {
           await renderStep(work);
           report.rendered.push(work.productId);
+        } else {
+          await fillStep(work);
         }
-        if (work.fill && Date.now() < deadline) await fillStep(work);
         invalidateCatalog();
         refresh(work.productId, work.categoryId);
         if (!work.render && !work.fill) pending = pending.filter((entry) => entry !== work);
