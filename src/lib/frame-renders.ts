@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { carForTitle } from "./car-body";
 import { getProductCars } from "./cars";
 import {
   composerLabel,
@@ -29,9 +30,8 @@ export interface FrameRenderResult {
   thumb: string;
 }
 
-function newestGeneration(productId: string): string | null {
-  const cars = [...getProductCars(productId)].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0));
-  return cars[0]?.generationId ?? null;
+function generationForTitle(productId: string, title: string): string | null {
+  return carForTitle(getProductCars(productId), title)?.generationId ?? null;
 }
 
 async function dropUnused(imagePath: string): Promise<void> {
@@ -100,7 +100,8 @@ async function renderUnlocked(
   const settings = frameComposerSettings(categoryId, type);
   if (!frame || !settings) throw new Error("Сначала сохраните фото рамки и оформление");
 
-  const generationId = newestGeneration(productId);
+  const title = group.products.find((product) => product.id === productId)?.title ?? "";
+  const generationId = generationForTitle(productId, title);
   if (!generationId) {
     return { status: "skipped", car: "", message: "у товара не указана машина", thumb: "" };
   }
@@ -118,7 +119,6 @@ async function renderUnlocked(
     };
   }
 
-  const title = group.products.find((product) => product.id === productId)?.title ?? "";
   const image = await composeInWorker({
     ...settings,
     market: marketFromTitle(title),

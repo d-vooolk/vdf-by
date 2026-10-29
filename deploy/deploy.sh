@@ -164,6 +164,13 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-crm
 
+echo "==> Разделение рамок с несколькими кузовами и фото по своему кузову"
+cat > /etc/cron.d/vdf-frame-split <<CRON
+SHELL=/bin/bash
+*/10 * * * * root curl -s -X POST --max-time 330 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/frame-split/ -o $APP/var/frame-split.log
+CRON
+chmod 644 /etc/cron.d/vdf-frame-split
+
 echo "==> SEO-сводка: поиск каждое утро, конкуренты по понедельникам"
 cat > /etc/cron.d/vdf-seo <<CRON
 SHELL=/bin/bash

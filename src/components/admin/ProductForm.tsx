@@ -29,6 +29,7 @@ import type { ProductCar } from "@/lib/car-types";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Product } from "@/lib/schema";
 import { isSidesGroup } from "@/lib/side-options";
+import { carForTitle } from "@/lib/car-body";
 import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { DESCRIPTION_LIMIT, productSnippet, TITLE_LIMIT } from "@/lib/snippet";
 import { toSlug } from "@/lib/slug.mjs";
@@ -72,10 +73,6 @@ interface ProductFormProps {
 }
 
 const UNITS = ["комплект", "шт."];
-
-function newestCar(cars: ProductCar[]): ProductCar | undefined {
-  return [...cars].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
-}
 
 export function ProductForm({
   product: initial,
@@ -706,7 +703,7 @@ export function ProductForm({
 
         {composerOpen && (
           <ComposerDialog
-            initialGenerationId={newestCar(cars)?.generationId}
+            initialGenerationId={carForTitle(cars, draft.title)?.generationId}
             productTitle={draft.title}
             productImages={draft.images.map((path) => ({
               path,
