@@ -7,6 +7,7 @@ import type { SellerMode } from "./seller-mode";
 export type CustomerKind = "retail" | "wholesale";
 export type WholesaleStatus = "none" | "pending" | "approved" | "rejected";
 export type CodePurpose = "register" | "login";
+export type CookieConsent = "" | "yes" | "no";
 
 export const WHOLESALE_LABELS: Record<WholesaleStatus, string> = {
   none: "розничный",
@@ -29,6 +30,7 @@ export interface Customer {
   adminNote: string;
   staff: boolean;
   seller: boolean;
+  cookieConsent: CookieConsent;
 }
 
 export interface Registration {
@@ -59,6 +61,7 @@ interface CustomerRow {
   admin_note: string;
   staff: number;
   seller: number;
+  cookie_consent: string;
 }
 
 function toCustomer(row: CustomerRow): Customer {
@@ -76,6 +79,7 @@ function toCustomer(row: CustomerRow): Customer {
     adminNote: row.admin_note,
     staff: row.staff === 1,
     seller: row.staff === 1 && row.seller === 1,
+    cookieConsent: row.cookie_consent === "yes" || row.cookie_consent === "no" ? row.cookie_consent : "",
   };
 }
 
@@ -296,6 +300,13 @@ export function updateCustomerProfile(
   );
 }
 
+export function setCookieConsent(id: number, consent: Exclude<CookieConsent, "">): void {
+  getDb().prepare("UPDATE customers SET cookie_consent = ? WHERE id = ?").run(consent, id);
+}
+
+const OWN_ORDER = `(o.customer_id = c.id OR substr(o.phone_digits, -9) = substr(c.phone, -9))`;
+const PLACED_ORDER = `${OWN_ORDER} AND o.status <> 'cancelled'`;
+
 export interface CustomerListEntry extends Customer {
   orders: number;
   ordersTotal: number;
@@ -314,9 +325,9 @@ export function listCustomers(filter: WholesaleStatus | "all" | "wholesale" | "s
   const rows = getDb()
     .prepare(
       `SELECT c.*,
-              (SELECT COUNT(*) FROM orders o WHERE substr(o.phone_digits, -9) = substr(c.phone, -9)) AS orders,
-              (SELECT COALESCE(SUM(total), 0) FROM orders o WHERE substr(o.phone_digits, -9) = substr(c.phone, -9)) AS orders_total,
-              (SELECT MAX(created_at) FROM orders o WHERE substr(o.phone_digits, -9) = substr(c.phone, -9)) AS last_order_at
+              (SELECT COUNT(*) FROM orders o WHERE ${PLACED_ORDER}) AS orders,
+              (SELECT COALESCE(SUM(total), 0) FROM orders o WHERE ${PLACED_ORDER}) AS orders_total,
+              (SELECT MAX(created_at) FROM orders o WHERE ${PLACED_ORDER}) AS last_order_at
          FROM customers c ${where}
         ORDER BY CASE c.wholesale_status WHEN 'pending' THEN 0 ELSE 1 END, c.created_at DESC`,
     )
@@ -329,6 +340,50 @@ export function listCustomers(filter: WholesaleStatus | "all" | "wholesale" | "s
     ordersTotal: row.orders_total,
     lastOrderAt: row.last_order_at,
   }));
+}
+
+export interface WholesaleCompany {
+  id: number;
+  name: string;
+  phone: string;
+  address: string;
+  orders: number;
+}
+
+export function listWholesaleCompanies(): WholesaleCompany[] {
+  return getDb()
+    .prepare(
+      `SELECT c.id, c.name, c.phone, c.address,
+              (SELECT COUNT(*) FROM orders o WHERE ${PLACED_ORDER}) AS orders
+         FROM customers c
+        WHERE c.wholesale_status = 'approved' AND c.staff = 0
+        ORDER BY orders DESC, c.name COLLATE NOCASE`,
+    )
+    .all() as WholesaleCompany[];
+}
+
+export type CompanyResult = { ok: true; customer: Customer } | { ok: false; error: string };
+
+export function createWholesaleCompany(phone: string, name: string, address: string): CompanyResult {
+  const existing = findCustomerByPhone(phone);
+  if (existing?.wholesaleStatus === "approved" && !existing.staff) return { ok: true, customer: existing };
+  if (existing) {
+    return {
+      ok: false,
+      error: existing.staff
+        ? `Номер принадлежит сотруднику «${existing.name}»`
+        : `Номер уже зарегистрирован: «${existing.name}», ${WHOLESALE_LABELS[existing.wholesaleStatus]}. Подтвердите опт в админке → «Покупатели»`,
+    };
+  }
+  const now = Date.now();
+  const result = getDb()
+    .prepare(
+      `INSERT INTO customers (phone, name, kind, address, wholesale_status, consent_at, created_at, reviewed_at)
+       VALUES (?, ?, 'wholesale', ?, 'approved', ?, ?, ?)`,
+    )
+    .run(phone, name, address, now, now, now);
+  const customer = getCustomerById(Number(result.lastInsertRowid));
+  return customer ? { ok: true, customer } : { ok: false, error: "Не удалось создать компанию" };
 }
 
 export function countPendingWholesale(): number {
@@ -385,13 +440,14 @@ export interface CustomerOrder {
   items: Array<{ title: string; options: string; sku: string | null; qty: number; price: number; sum: number; url: string }>;
 }
 
-export function customerOrders(phone: string): CustomerOrder[] {
+export function customerOrders(customer: Pick<Customer, "id" | "phone">): CustomerOrder[] {
   const rows = getDb()
     .prepare(
       `SELECT id, created_at, status, total, currency, delivery_name, wholesale, items
-         FROM orders WHERE substr(phone_digits, -9) = ? ORDER BY created_at DESC LIMIT 200`,
+         FROM orders WHERE customer_id = ? OR substr(phone_digits, -9) = ?
+        ORDER BY created_at DESC LIMIT 200`,
     )
-    .all(localPart(phone)) as Array<{
+    .all(customer.id, localPart(customer.phone)) as Array<{
     id: number;
     created_at: number;
     status: string;

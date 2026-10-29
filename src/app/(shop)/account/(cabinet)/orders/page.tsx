@@ -34,7 +34,7 @@ export default async function AccountOrdersPage() {
   if (!customer) redirect("/account/login/");
 
   const site = getSite();
-  const orders = customerOrders(customer.phone);
+  const orders = customerOrders(customer);
 
   return (
     <section className="space-y-3">

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { clientIp } from "@/lib/client-ip";
 
+import { CONSENT_COOKIE, CONSENT_MAX_AGE, parseConsent } from "@/lib/analytics";
 import { getSite } from "@/lib/catalog";
 import {
   getActingCustomer,
@@ -19,6 +20,7 @@ import {
   issueCode,
   markCodeSent,
   phoneRecentlyVerified,
+  setCookieConsent,
   updateCustomerProfile,
   verifyCode,
   type Customer,
@@ -45,15 +47,37 @@ function publicCustomer(customer: Customer, mode: SellerMode = "staff") {
     wholesaleStatus: customer.wholesaleStatus,
     staff: customer.staff,
     sellerMode: customer.seller ? mode : null,
+    cookieConsent: customer.cookieConsent || null,
   };
 }
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
+async function syncCookieConsent(customer: Customer): Promise<Customer> {
+  const store = await cookies();
+  const browser = parseConsent(store.get(CONSENT_COOKIE)?.value);
+  if (customer.cookieConsent) {
+    if (browser !== customer.cookieConsent) {
+      store.set(CONSENT_COOKIE, customer.cookieConsent, {
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: CONSENT_MAX_AGE,
+      });
+    }
+    return customer;
+  }
+  if (!browser) return customer;
+  setCookieConsent(customer.id, browser);
+  return { ...customer, cookieConsent: browser };
+}
+
 export async function GET() {
-  const signed = await getCustomer();
-  if (!signed) return Response.json({ customer: null }, noStore);
-  const customer = (await getActingCustomer()) ?? signed;
+  const found = await getCustomer();
+  if (!found) return Response.json({ customer: null }, noStore);
+  const signed = await syncCookieConsent(found);
+  const acting = (await getActingCustomer()) ?? signed;
+  const customer = { ...acting, cookieConsent: signed.cookieConsent };
   (await cookies()).set(SIGNED_IN_COOKIE, "1", {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -130,6 +154,14 @@ export async function POST(request: Request) {
   if (action === "logout") {
     await signOutCustomer();
     return Response.json({ ok: true });
+  }
+
+  if (action === "cookies") {
+    const consent = parseConsent(text(body.consent, 3));
+    if (!consent) return Response.json({ error: "Неизвестный выбор" }, { status: 400 });
+    const customer = await getCustomer();
+    if (customer) setCookieConsent(customer.id, consent);
+    return Response.json({ ok: true, saved: Boolean(customer) });
   }
 
   if (action === "profile") {

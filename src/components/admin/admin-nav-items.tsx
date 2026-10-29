@@ -2,6 +2,7 @@ import {
   CarIcon,
   CartIcon,
   ChartIcon,
+  ClockIcon,
   DocumentIcon,
   FolderIcon,
   GearIcon,
@@ -24,7 +25,7 @@ export interface NavLink {
   label: string;
   exact?: boolean;
   also?: string[];
-  badge?: "orders" | "customers" | "service";
+  badge?: "orders" | "customers" | "service" | "waitlist";
   icon: (props: React.SVGProps<SVGSVGElement>) => React.ReactElement;
 }
 
@@ -48,6 +49,7 @@ export const NAV: Array<NavLink | NavGroup> = [
   { href: "/admin/orders/", label: "Заказы", badge: "orders", icon: CartIcon },
   { href: "/admin/service-requests/", label: "Установка", badge: "service", icon: WrenchIcon },
   { href: "/admin/customers/", label: "Покупатели", badge: "customers", icon: UserIcon },
+  { href: "/admin/waitlist/", label: "Лист ожидания", badge: "waitlist", icon: ClockIcon },
   { href: "/admin/accounting/", label: "Бухгалтерия", icon: WalletIcon },
   { href: "/admin/articles/", label: "Статьи", icon: DocumentIcon },
   {
@@ -74,7 +76,7 @@ export const NAV_LINKS: NavLink[] = NAV.flatMap((item) => (isGroup(item) ? item.
 
 const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
   { label: "Главное", hrefs: ["/admin/"] },
-  { label: "Продажи", hrefs: ["/admin/orders/", "/admin/service-requests/", "/admin/customers/", "/admin/accounting/"] },
+  { label: "Продажи", hrefs: ["/admin/orders/", "/admin/service-requests/", "/admin/customers/", "/admin/waitlist/", "/admin/accounting/"] },
   {
     label: "Товары",
     hrefs: ["/admin/products/", "/admin/categories/", "/admin/frame-types/", "/admin/incomplete/", "/admin/out-of-stock/"],

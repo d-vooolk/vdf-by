@@ -23,6 +23,7 @@ interface AdminNavProps {
   newOrders: number;
   pendingWholesale: number;
   openService: number;
+  waitlistReady: number;
   theme: AdminTheme;
   bottomNav: string[] | null;
 }
@@ -33,6 +34,7 @@ export function AdminNav({
   newOrders,
   pendingWholesale,
   openService,
+  waitlistReady,
   theme,
   bottomNav,
 }: AdminNavProps) {
@@ -69,7 +71,9 @@ export function AdminNav({
         ? pendingWholesale
         : badge === "service"
           ? openService
-          : 0;
+          : badge === "waitlist"
+            ? waitlistReady
+            : 0;
 
   const switchTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
