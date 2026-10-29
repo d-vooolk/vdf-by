@@ -163,6 +163,7 @@ interface PendingWork {
   productId: string;
   categoryId: string;
   type: string;
+  render: boolean;
   fill: boolean;
   attempts: number;
 }
@@ -179,14 +180,15 @@ export interface SplitBatchReport {
 }
 
 const PENDING_KEY = "frameSplitPending";
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 5;
 let running = false;
 
 function readPending(): PendingWork[] {
   const row = getDb().prepare("SELECT value FROM settings WHERE key = ?").get(PENDING_KEY) as
     | { value: string }
     | undefined;
-  return row ? (JSON.parse(row.value) as PendingWork[]) : [];
+  const stored = row ? (JSON.parse(row.value) as Array<PendingWork & { render?: boolean }>) : [];
+  return stored.map((work) => ({ ...work, render: work.render ?? true }));
 }
 
 function writePending(pending: PendingWork[]): void {
@@ -198,18 +200,18 @@ function writePending(pending: PendingWork[]): void {
     .run(PENDING_KEY, JSON.stringify(pending));
 }
 
-async function finish(work: PendingWork): Promise<string> {
-  if (work.fill) {
-    for (const part of ["description", "faq"] as const) {
-      const filled = await fillFrameProduct(work.productId, part);
-      if (filled.status === "skipped" && filled.message === "нейросеть не подключена") break;
-    }
-  }
+async function renderStep(work: PendingWork): Promise<void> {
   const result = await renderFrameProduct(work.categoryId, work.type, work.productId);
   if (result.status === "skipped") throw new Error(`фото не сделано: ${result.message}`);
-  invalidateCatalog();
-  refresh(work.productId, work.categoryId);
-  return result.car;
+  work.render = false;
+}
+
+async function fillStep(work: PendingWork): Promise<void> {
+  for (const part of ["description", "faq"] as const) {
+    const filled = await fillFrameProduct(work.productId, part);
+    if (filled.status === "skipped" && filled.message === "нейросеть не подключена") break;
+  }
+  work.fill = false;
 }
 
 export async function runFrameSplitBatch(budgetMs: number): Promise<SplitBatchReport> {
@@ -230,11 +232,12 @@ export async function runFrameSplitBatch(budgetMs: number): Promise<SplitBatchRe
       report.split.push(result);
       pending = [
         ...pending.filter((work) => work.productId !== plan.productId),
-        { productId: plan.productId, categoryId: plan.categoryId, type: plan.type, fill: false, attempts: 0 },
+        { productId: plan.productId, categoryId: plan.categoryId, type: plan.type, render: true, fill: false, attempts: 0 },
         ...result.created.map((created) => ({
           productId: created.productId,
           categoryId: plan.categoryId,
           type: plan.type as string,
+          render: true,
           fill: true,
           attempts: 0,
         })),
@@ -243,20 +246,28 @@ export async function runFrameSplitBatch(budgetMs: number): Promise<SplitBatchRe
     }
     report.left = listFrameSplits().filter((plan) => plan.type).length;
 
-    for (const work of [...pending]) {
+    const queue = [...pending].sort((a, b) => Number(b.render) - Number(a.render));
+    for (const work of queue) {
       if (Date.now() > deadline) break;
       try {
-        await finish(work);
-        report.rendered.push(work.productId);
-        pending = pending.filter((entry) => entry !== work);
+        if (work.render) {
+          await renderStep(work);
+          report.rendered.push(work.productId);
+        }
+        if (work.fill && Date.now() < deadline) await fillStep(work);
+        invalidateCatalog();
+        refresh(work.productId, work.categoryId);
+        if (!work.render && !work.fill) pending = pending.filter((entry) => entry !== work);
       } catch (error) {
         const message = (error as Error).message;
         work.attempts += 1;
         report.failed.push({ productId: work.productId, message });
+        pending = pending.filter((entry) => entry !== work);
         if (work.attempts >= MAX_ATTEMPTS) {
           report.dropped.push(work.productId);
-          pending = pending.filter((entry) => entry !== work);
           console.error(`[frame-split] ${work.productId}: ${message} — больше не пробуем`);
+        } else {
+          pending.push(work);
         }
       }
       writePending(pending);
