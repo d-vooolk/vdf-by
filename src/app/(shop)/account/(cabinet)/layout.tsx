@@ -20,7 +20,7 @@ export default async function CabinetLayout({ children }: { children: React.Reac
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
         <aside className="lg:sticky lg:top-28">
-          <AccountNav orderCount={customerOrders(customer.phone).length} />
+          <AccountNav orderCount={customerOrders(customer).length} />
         </aside>
         <div className="min-w-0 space-y-6">{children}</div>
       </div>

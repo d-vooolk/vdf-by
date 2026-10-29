@@ -2,6 +2,13 @@ export const METRIKA_ID = 112885899;
 export const GA_MEASUREMENT_ID = "G-G25SPSVNRC";
 export const NO_ANALYTICS_COOKIE = "vdf_noanalytics";
 export const NO_ANALYTICS_MAX_AGE = 60 * 60 * 24 * 365;
+export const CONSENT_COOKIE = "vdf_consent";
+export const CONSENT_MAX_AGE = 60 * 60 * 24 * 400;
+export type ConsentChoice = "yes" | "no";
+
+export function parseConsent(value: string | null | undefined): ConsentChoice | null {
+  return value === "yes" || value === "no" ? value : null;
+}
 
 declare global {
   interface Window {

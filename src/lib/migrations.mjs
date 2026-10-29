@@ -742,6 +742,25 @@ export const MIGRATIONS = [
   `
     ALTER TABLE customers ADD COLUMN seller INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+    ALTER TABLE customers ADD COLUMN cookie_consent TEXT NOT NULL DEFAULT '';
+    ALTER TABLE orders ADD COLUMN seller_id INTEGER;
+    CREATE INDEX orders_by_customer ON orders(customer_id);
+    CREATE TABLE waitlist (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at    INTEGER NOT NULL,
+      customer_id   INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      name          TEXT NOT NULL DEFAULT '',
+      phone         TEXT NOT NULL DEFAULT '',
+      product_id    TEXT,
+      product_title TEXT NOT NULL,
+      qty           INTEGER NOT NULL DEFAULT 1,
+      note          TEXT NOT NULL DEFAULT '',
+      status        TEXT NOT NULL DEFAULT 'waiting',
+      closed_at     INTEGER
+    );
+    CREATE INDEX waitlist_by_status ON waitlist(status, created_at DESC);
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

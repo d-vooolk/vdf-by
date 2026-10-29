@@ -7,7 +7,7 @@ import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getActingCustomer, getCustomer, getSellerMode } from "@/lib/customer-auth";
-import { fillCustomerAddress, isWholesale, type Customer } from "@/lib/customers";
+import { fillCustomerAddress, getCustomerById, isWholesale, type Customer } from "@/lib/customers";
 import { SELLER_MODES } from "@/lib/seller-mode";
 import { describeShortage, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
@@ -387,12 +387,23 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
+  const companyId = Number((payload as Record<string, unknown>)?.companyId) || 0;
+  const company = sellerMode === "wholesale" && companyId ? getCustomerById(companyId) : null;
+  if (companyId && (!company || company.wholesaleStatus !== "approved" || company.staff)) {
+    return Response.json({ error: "Компания не найдена среди оптовиков" }, { status: 400 });
+  }
+  if (company) {
+    const body = payload as Record<string, unknown>;
+    body.customer = { ...(body.customer as Record<string, unknown>), name: "", phone: "", phoneDigits: "" };
+  }
+  const buyer = company ?? customer;
+
   const wholesaleBuyer = isWholesale(customer);
   const { order, error } = validate(
     payload,
     wholesaleBuyer ? buildWholesaleList() : null,
     staffBuyer ? buildCostList() : null,
-    customer,
+    buyer,
   );
   if (error || !order) {
     // Квоту на заказы не списываем: опечатка в телефоне не должна приближать
@@ -402,8 +413,8 @@ export async function POST(request: Request) {
 
   recordHit(`order:${ip}`);
 
-  if (customer && !customer.address && order.address && order.addressRequired) {
-    fillCustomerAddress(customer.id, order.address);
+  if (buyer && !buyer.address && order.address && order.addressRequired) {
+    fillCustomerAddress(buyer.id, order.address);
   }
 
   const referer = request.headers.get("referer") ?? "";
@@ -414,13 +425,18 @@ export async function POST(request: Request) {
     else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
     if (sellerMode) {
       const label = SELLER_MODES.find((mode) => mode.id === sellerMode)?.label ?? sellerMode;
-      order.notes.unshift(`оформил продавец в режиме «${label}»`);
+      order.notes.unshift(
+        company
+          ? `оформил продавец ${signed?.name ?? ""} в режиме «${label}» для компании`
+          : `оформил продавец в режиме «${label}»`,
+      );
     }
     const created = createOrder({
       ...order,
       ip,
       referer,
-      customerId: customer?.id ?? null,
+      customerId: buyer?.id ?? null,
+      sellerId: sellerMode && signed ? signed.id : null,
       wholesale: wholesaleBuyer,
       staff: staffBuyer,
     });

@@ -116,6 +116,7 @@ export interface NewOrder {
   ip: string;
   referer: string;
   customerId?: number | null;
+  sellerId?: number | null;
   wholesale?: boolean;
   staff?: boolean;
 }
@@ -134,11 +135,11 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       `INSERT INTO orders
          (created_at, status, name, phone, phone_digits, email, consent_at, comment,
           delivery_id, delivery_name, address, delivery_cost,
-          subtotal, total, currency, items, notes, ip, referer, customer_id, wholesale, staff)
+          subtotal, total, currency, items, notes, ip, referer, customer_id, seller_id, wholesale, staff)
        VALUES
          (@createdAt, 'new', @name, @phone, @phoneDigits, @email, @consentAt, @comment,
           @deliveryId, @deliveryName, @address, @deliveryCost,
-          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @wholesale, @staff)`,
+          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @sellerId, @wholesale, @staff)`,
     )
     .run({
       createdAt: Date.now(),
@@ -157,6 +158,7 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       currency: order.currency,
       items: JSON.stringify(order.items),
       customerId: order.customerId ?? null,
+      sellerId: order.sellerId ?? null,
       wholesale: order.wholesale ? 1 : 0,
       staff: order.staff ? 1 : 0,
       notes: JSON.stringify(order.notes),

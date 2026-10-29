@@ -12,6 +12,7 @@ export interface AccountCustomer {
   wholesaleStatus: "none" | "pending" | "approved" | "rejected";
   staff: boolean;
   sellerMode: SellerMode | null;
+  cookieConsent: "yes" | "no" | null;
 }
 
 interface AccountState {

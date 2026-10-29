@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CustomerControls } from "@/components/admin/CustomerControls";
 import { getSite } from "@/lib/catalog";
 import { listCustomers, WHOLESALE_LABELS, type WholesaleStatus } from "@/lib/customers";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, pluralize } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { smsConfigured } from "@/lib/sms";
 
@@ -87,6 +87,28 @@ export default async function CustomersPage({ searchParams }: PageProps) {
         ))}
       </nav>
 
+      {tab === "approved" && customers.length > 0 && (
+        <p className="text-sm text-brand-600">
+          У оптовиков оформлено{" "}
+          <span className="tnum font-semibold text-brand-900">
+            {pluralize(
+              customers.reduce((sum, customer) => sum + customer.orders, 0),
+              "заказ",
+              "заказа",
+              "заказов",
+            )}
+          </span>{" "}
+          на{" "}
+          <span className="tnum font-semibold text-brand-900">
+            {formatPrice(
+              customers.reduce((sum, customer) => sum + customer.ordersTotal, 0),
+              site.currencySymbol,
+            )}
+          </span>
+          , отменённые не считаются. Заказы, которые продавец оформил на компанию, входят в её счёт.
+        </p>
+      )}
+
       {customers.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">Здесь пока никого нет.</p>
       ) : (
@@ -96,6 +118,11 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               <div className="space-y-1.5 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-base font-semibold text-brand-900">{customer.name}</span>
+                  <span
+                    className={`badge tnum ${customer.orders > 0 ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-500"}`}
+                  >
+                    {pluralize(customer.orders, "заказ", "заказа", "заказов")}
+                  </span>
                   {customer.staff ? (
                     <span className="badge bg-sky-100 text-sky-800">
                       {customer.seller ? "продавец" : "сотрудник"}
@@ -129,7 +156,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   {customer.reviewedAt ? ` · Проверен: ${date(customer.reviewedAt)}` : ""}
                 </p>
                 <p className="text-xs text-brand-500">
-                  Заказов: {customer.orders}
+                  Оформлено заказов: {customer.orders}
                   {customer.orders > 0 &&
                     ` на ${formatPrice(customer.ordersTotal, site.currencySymbol)}, последний ${date(customer.lastOrderAt)}`}
                   {customer.orders > 0 && (

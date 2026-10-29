@@ -11,6 +11,7 @@ import {
 import { ConsentCheckbox, SavedConsentNote } from "@/components/ConsentCheckbox";
 import { OrderCelebration } from "@/components/OrderCelebration";
 import { CartLines } from "@/components/CartLines";
+import { SellerCompanyPicker, type SellerCompany } from "@/components/SellerCompanyPicker";
 import { AlertIcon, CartIcon, CheckIcon } from "@/components/icons";
 import { trackOrder } from "@/lib/analytics";
 import { formatPrice, pluralize } from "@/lib/format";
@@ -93,6 +94,7 @@ export function CartCheckout({
   const customer = useAccount((state) => state.customer);
   const loadAccount = useAccount((state) => state.load);
   const signedIn = accountStatus === "customer";
+  const sellerWholesale = customer?.sellerMode === "wholesale";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [prefilled, setPrefilled] = useState(false);
@@ -105,6 +107,16 @@ export function CartCheckout({
       address: current.address || customer.address,
     }));
   }
+  const [company, setCompany] = useState<SellerCompany | null>(null);
+  const chooseCompany = (next: SellerCompany | null) => {
+    setCompany(next);
+    setForm((current) => ({
+      ...current,
+      name: next?.name ?? customer?.name ?? "",
+      phone: next?.phone ?? customer?.phone ?? "",
+      address: next?.address ?? customer?.address ?? "",
+    }));
+  };
   const [methodId, setMethodId] = useState(deliveryMethods[0]?.id ?? "");
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>(
     {},
@@ -263,6 +275,7 @@ export function CartCheckout({
             comment: form.comment.trim(),
           },
           consent: form.consent,
+          ...(sellerWholesale && company ? { companyId: company.id } : {}),
           delivery: {
             id: method?.id ?? "",
             name: method?.name ?? "",
@@ -440,6 +453,8 @@ export function CartCheckout({
             Оформление заказа
           </h2>
 
+          {sellerWholesale && <SellerCompanyPicker value={company} onChange={chooseCompany} />}
+
           <fieldset className="card mb-5 p-4">
             <legend className="px-1 text-sm font-semibold text-brand-900">
               Способ получения
@@ -519,6 +534,7 @@ export function CartCheckout({
                   name="name"
                   autoComplete="name"
                   value={form.name}
+                  readOnly={Boolean(sellerWholesale && company)}
                   onChange={(event) =>
                     setForm({ ...form, name: event.target.value })
                   }
@@ -545,6 +561,7 @@ export function CartCheckout({
                   inputMode="tel"
                   autoComplete="tel"
                   value={form.phone}
+                  readOnly={Boolean(sellerWholesale && company)}
                   onChange={(event) =>
                     setForm({ ...form, phone: event.target.value })
                   }

@@ -12,6 +12,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
 import { countPendingWholesale } from "@/lib/customers";
 import { countNewOrders } from "@/lib/orders";
+import { countWaitlistReady } from "@/lib/waitlist";
 
 
 /**
@@ -47,6 +48,7 @@ export default async function PanelLayout({
         newOrders={countNewOrders()}
         pendingWholesale={countPendingWholesale()}
         openService={countOpenServiceRequests()}
+        waitlistReady={countWaitlistReady()}
         theme={theme}
         bottomNav={parseBottomNav(store.get(BOTTOM_NAV_COOKIE)?.value)}
       />
