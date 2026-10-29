@@ -1,6 +1,7 @@
 import { AiError, aiConfigured, complete, describeProduct, finishRewrite, parseFaq, promptFor } from "./ai";
 import { WRITE_FROM_TITLE } from "./ai-import";
 import { fetchCarImages, getProductCars, setProductCars } from "./cars";
+import { bodyName, carForTitle } from "./car-body";
 import { getGenerationInfo, type GenerationInfo } from "./car-photos";
 import { getCategoryById, invalidateCatalog } from "./catalog";
 import { bumpCatalogVersion, getDb } from "./db";
@@ -44,8 +45,13 @@ function shortModel(info: GenerationInfo): string {
     : model;
 }
 
+const ROMAN = /^[IVX]+$/i;
+
 function bodyCode(generationName: string): string {
-  return generationName.match(/\(([^)]+)\)/)?.[1]?.split(/[/,]/)[0]?.trim() ?? "";
+  const inside = generationName.match(/\(([^)]+)\)/)?.[1]?.split(/[/,]/)[0]?.trim();
+  if (inside) return inside;
+  const name = bodyName(generationName);
+  return ROMAN.test(name) || /\s/.test(name) ? "" : name;
 }
 
 function yearSpan(info: GenerationInfo, now: number): string {
@@ -190,7 +196,7 @@ export function fillFrameProduct(productId: string, part: FramePart): Promise<Fr
     const group = membership ? getFrameType(membership.categoryId, membership.type) : null;
     if (!group || !membership) throw new Error("Товар не относится к типу рамки");
     const category = getCategoryById(membership.categoryId);
-    const car = [...getProductCars(productId)].sort((a, b) => (b.yearFrom ?? 0) - (a.yearFrom ?? 0))[0];
+    const car = carForTitle(getProductCars(productId), product.title);
     const info = car ? getGenerationInfo(car.generationId) : null;
 
     const source = stripSupplierBrand(
