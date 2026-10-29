@@ -1,4 +1,4 @@
-import { bodyKey, bodyName, groupByBody, homeBody } from "./car-body";
+import { bodyKey, bodyName, groupByBody, homeBody, NAMED_IN_TITLE, titleMatchScore } from "./car-body";
 import type { ProductCar } from "./car-types";
 import { carPathsForProduct, getProductCars, setProductCars } from "./cars";
 import { categoryPaths, invalidateCatalog } from "./catalog";
@@ -84,6 +84,7 @@ function planFor(product: { id: string; title: string; categoryId: string; type:
   const bodies = groupByBody(cars);
   if (bodies.length < 2) return null;
   const home = homeBody(cars, product.title);
+  if (titleMatchScore(home, product.title) < NAMED_IN_TITLE) return null;
   const homeKey = home[0] ? bodyKey(home[0]) : "";
   const siblings = product.type
     ? typeSiblings(product.categoryId, product.type, product.id).map((sibling) => ({

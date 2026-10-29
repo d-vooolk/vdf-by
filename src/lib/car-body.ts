@@ -44,12 +44,14 @@ function overlap(car: ProductCar, span: [number, number] | null): number {
   return Math.max(0, to - Math.max(car.yearFrom, span[0]) + 1);
 }
 
+export const NAMED_IN_TITLE = 100;
+
 export function titleMatchScore(cars: ProductCar[], title: string): number {
   const tokens = words(title);
   const span = titleYears(title);
   const named = cars.some((car) => bodyCodes(car).some((code) => tokens.has(code)));
   const modelNamed = cars.some((car) => [...words(car.modelName)].every((word) => tokens.has(word)));
-  return (named ? 1000 : 0) + (modelNamed ? 100 : 0) + Math.max(0, ...cars.map((car) => overlap(car, span)));
+  return (named ? 10 * NAMED_IN_TITLE : 0) + (modelNamed ? NAMED_IN_TITLE : 0) + Math.max(0, ...cars.map((car) => overlap(car, span)));
 }
 
 export function carForTitle(cars: ProductCar[], title: string): ProductCar | undefined {
