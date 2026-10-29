@@ -68,6 +68,19 @@ interface TreeRow {
 }
 
 const treeCache = new Map<string, FitMark[]>();
+
+const SHOWN_FOR_GENERATION = `NOT EXISTS (
+  SELECT 1
+    FROM frame_type_products own
+    JOIN frame_type_products sibling
+      ON sibling.category_id = own.category_id AND sibling.type = own.type
+     AND sibling.product_id <> own.product_id
+    JOIN product_cars fits
+      ON fits.product_id = sibling.product_id AND fits.generation_id = pc.generation_id
+   WHERE own.product_id = pc.product_id
+     AND (SELECT COUNT(*) FROM product_cars WHERE product_id = sibling.product_id)
+       < (SELECT COUNT(*) FROM product_cars WHERE product_id = pc.product_id)
+)`;
 let treeVersion = -1;
 
 export function fitmentCategories(): Category[] {
@@ -130,6 +143,7 @@ export function getCarTree(categoryId?: string): FitMark[] {
          JOIN car_models      m ON m.id = g.model_id
          JOIN car_marks       k ON k.id = m.mark_id
         WHERE p.category_id IN (${scope.map(() => "?").join(",")})
+          AND ${SHOWN_FOR_GENERATION}
         GROUP BY g.id
         ORDER BY k.name, m.name, g.year_from DESC, g.name`,
     )
@@ -231,7 +245,7 @@ export function getProductsForGeneration(
   const ids = new Set(
     (
       getDb()
-        .prepare("SELECT product_id FROM product_cars WHERE generation_id = ?")
+        .prepare(`SELECT pc.product_id FROM product_cars pc WHERE pc.generation_id = ? AND ${SHOWN_FOR_GENERATION}`)
         .all(generationId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
   );
@@ -250,7 +264,7 @@ export function getProductsForModel(
           `SELECT DISTINCT pc.product_id
              FROM product_cars pc
              JOIN car_generations g ON g.id = pc.generation_id
-            WHERE g.model_id = ?`,
+            WHERE g.model_id = ? AND ${SHOWN_FOR_GENERATION}`,
         )
         .all(modelId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),
@@ -271,7 +285,7 @@ export function getProductsForMark(
              FROM product_cars pc
              JOIN car_generations g ON g.id = pc.generation_id
              JOIN car_models      m ON m.id = g.model_id
-            WHERE m.mark_id = ?`,
+            WHERE m.mark_id = ? AND ${SHOWN_FOR_GENERATION}`,
         )
         .all(markId) as Array<{ product_id: string }>
     ).map((row) => row.product_id),

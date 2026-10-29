@@ -15,7 +15,7 @@ import {
 } from "@/lib/catalog";
 import { pluralize } from "@/lib/format";
 import type { Product } from "@/lib/schema";
-import { normalize, searchProducts } from "@/lib/search";
+import { normalize, preferNamedInTitle, searchProducts } from "@/lib/search";
 import { buildSearchIndex } from "@/lib/search-index";
 
 interface PageProps {
@@ -61,7 +61,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const query = queryOf(params.q);
   const site = getSite();
   const all = query.length >= 2
-    ? searchProducts(buildSearchIndex(), query, Infinity)
+    ? preferNamedInTitle(searchProducts(buildSearchIndex(), query, Infinity), query)
         .map((entry) => getProductBySlug(entry.s))
         .filter((product): product is Product => Boolean(product))
     : [];
