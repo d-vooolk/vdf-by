@@ -25,6 +25,7 @@ export interface SearchEntry {
   /** URL миниатюры */
   i?: string;
   k?: string;
+  f?: string;
   /** нормализованная строка, по которой ищем */
   q: string;
 }
@@ -96,6 +97,19 @@ function asLatinLayout(text: string, table: Record<string, string> = LAYOUT): st
     }
   }
   return changed ? converted : "";
+}
+
+export function preferNamedInTitle(entries: SearchEntry[], query: string): SearchEntry[] {
+  const tokens = normalize(query).split(" ").filter(Boolean);
+  const hits = (entry: SearchEntry) => {
+    const title = normalize(entry.t);
+    return tokens.filter((token) => title.includes(token)).length;
+  };
+  const best = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.f) best.set(entry.f, Math.max(best.get(entry.f) ?? 0, hits(entry)));
+  }
+  return entries.filter((entry) => !entry.f || hits(entry) >= (best.get(entry.f) ?? 0));
 }
 
 /**

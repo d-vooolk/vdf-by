@@ -85,6 +85,7 @@ export function buildSearchIndex(): SearchEntry[] {
       a: hasAnyInStock(product) ? 1 : 0,
       ...(entry ? { i: pickUrl(entry, 96) ?? undefined } : {}),
       ...(compactCodes ? { k: compactCodes } : {}),
+      ...(frameTypes.get(product.id) ? { f: `${product.categoryId}:${frameTypes.get(product.id)}` } : {}),
       q: dedupeWords(normalize(haystack)),
     };
   });
