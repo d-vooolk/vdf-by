@@ -9,7 +9,7 @@ import {
   type ResolvedVariant,
   type Selection,
 } from "./variant";
-import { costFor, wholesaleFor } from "./wholesale";
+import { wholesaleFor } from "./wholesale";
 
 export interface OrderBuyer {
   staff: boolean;
@@ -40,11 +40,7 @@ function buyerPrice(
   variant: ResolvedVariant,
   buyer: OrderBuyer,
 ): number {
-  const special = buyer.staff
-    ? costFor(product, selection)
-    : buyer.wholesale
-      ? wholesaleFor(product, selection)
-      : null;
+  const special = buyer.staff || buyer.wholesale ? wholesaleFor(product, selection) : null;
   return special ?? variant.price;
 }
 

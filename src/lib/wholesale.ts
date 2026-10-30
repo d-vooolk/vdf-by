@@ -30,10 +30,6 @@ export function wholesaleFor(product: Product, selection: Selection): number | n
   return roundMoney(own + delta);
 }
 
-export function costFor(product: Product, selection: Selection): number | null {
-  return derivedFrom(product, product.costPrice, resolveVariant(product, selection));
-}
-
 function buildSpecialList(
   filter: string,
   priceFor: (product: Product, selection: Selection) => number | null,
@@ -60,12 +56,4 @@ export function buildWholesaleList(): WholesaleList {
     `COALESCE(json_extract(data, '$.wholesalePrice'), 0) > 0 OR data LIKE '%"wholesalePrice"%'`,
     wholesaleFor,
   );
-}
-
-export function buildCostList(): WholesaleList {
-  return buildSpecialList(`COALESCE(json_extract(data, '$.costPrice'), 0) > 0`, costFor);
-}
-
-export function buildStaffList(): WholesaleList {
-  return { ...buildWholesaleList(), ...buildCostList() };
 }

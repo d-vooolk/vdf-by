@@ -128,7 +128,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                 проверить
               </span>
             )}
-            {!order.telegramSent && (
+            {!order.telegramSent && !order.staff && (
               <span
                 className="badge bg-brand-100 text-brand-500"
                 title="Не ушёл в Telegram — заказ сохранён только здесь"

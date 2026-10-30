@@ -761,6 +761,36 @@ export const MIGRATIONS = [
     );
     CREATE INDEX waitlist_by_status ON waitlist(status, created_at DESC);
   `,
+  `
+    CREATE TABLE ai_bot_hits (
+      day  TEXT NOT NULL,
+      bot  TEXT NOT NULL,
+      path TEXT NOT NULL,
+      hits INTEGER NOT NULL,
+      PRIMARY KEY (day, bot, path)
+    );
+    CREATE TABLE ai_questions (
+      day         TEXT PRIMARY KEY,
+      snapshot_id INTEGER NOT NULL,
+      data        TEXT NOT NULL
+    );
+    CREATE TABLE ai_checks (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      run       TEXT NOT NULL,
+      ts        INTEGER NOT NULL,
+      engine    TEXT NOT NULL,
+      query     TEXT NOT NULL,
+      mentioned INTEGER NOT NULL DEFAULT 0,
+      linked    INTEGER NOT NULL DEFAULT 0,
+      cited_url TEXT NOT NULL DEFAULT '',
+      rank      INTEGER,
+      sources   TEXT NOT NULL DEFAULT '[]',
+      answer    TEXT NOT NULL DEFAULT '',
+      error     TEXT NOT NULL DEFAULT '',
+      manual    INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (run, engine, query)
+    );
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

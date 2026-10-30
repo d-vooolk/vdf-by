@@ -17,6 +17,7 @@ const TASK_LABEL: Record<string, string> = {
   article: "Статья",
   check: "Проверка",
   import: "Разбор страницы",
+  aiseo: "AI-SEO",
 };
 
 function usd(value: number | null | undefined): string {

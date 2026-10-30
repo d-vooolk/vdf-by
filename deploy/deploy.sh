@@ -174,6 +174,13 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-seo
 
+echo "==> AI-SEO: заходы ИИ-ботов по логам nginx каждое утро"
+cat > /etc/cron.d/vdf-ai-seo <<CRON
+SHELL=/bin/bash
+10 7 * * * root cd $APP && docker compose run --rm --no-deps tools node scripts/ai-seo-collect.mjs >> $APP/var/ai-seo.log 2>&1
+CRON
+chmod 644 /etc/cron.d/vdf-ai-seo
+
 echo "==> Прокси нейросети"
 # Служба хоста (deploy/vdf-ai-proxy.service). Ставится, только если на
 # сервере есть сам wireproxy и его конфиг с ключом WireGuard: без них

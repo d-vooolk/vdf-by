@@ -3,6 +3,7 @@ import Link from "next/link";
 const TABS = [
   { href: "/admin/seo/", label: "Обзор", id: "overview" },
   { href: "/admin/seo/keywords/", label: "Ключевые фразы", id: "keywords" },
+  { href: "/admin/seo/ai/", label: "AI-SEO", id: "ai" },
 ] as const;
 
 export type SeoTab = (typeof TABS)[number]["id"];
