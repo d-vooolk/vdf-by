@@ -11,7 +11,7 @@ import { fillCustomerAddress, getCustomerById, isWholesale, type Customer } from
 import { SELLER_MODES } from "@/lib/seller-mode";
 import { describeShortage, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
-import { buildCostList, buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
+import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
 /**
  * Приём заказа с витрины.
@@ -100,7 +100,6 @@ interface ValidatedOrder {
 function validate(
   payload: unknown,
   wholesale: WholesaleList | null,
-  cost: WholesaleList | null,
   account: Customer | null,
 ): { order?: ValidatedOrder; error?: string } {
   if (typeof payload !== "object" || payload === null) {
@@ -154,7 +153,7 @@ function validate(
     const title = clean(line.title, 200);
 
     const retail = variantPrice(key);
-    const special = cost?.[key] || wholesale?.[key];
+    const special = wholesale?.[key];
     const actual = retail && special ? { ...retail, price: special } : retail;
     const price = actual?.price ?? 0;
 
@@ -163,11 +162,6 @@ function validate(
     }
     if (actual && !actual.inStock) {
       notes.push(`«${title}» помечен как отсутствующий`);
-    }
-    if (cost && retail && !cost[key]) {
-      notes.push(
-        `у «${title}» не указана себестоимость — взята ${wholesale?.[key] ? "оптовая" : "розничная"} цена`,
-      );
     }
     if (actual && actual.price <= 0) {
       notes.push(`у «${title}» не указана цена — назвать её клиенту`);
@@ -295,12 +289,9 @@ function buildMessage(
   id: number,
   order: ValidatedOrder,
   referer: string,
-  staff: boolean,
 ): string {
   const lines = [
-    staff
-      ? `<b>🧰 Внутренняя покупка №${id} — сотрудник</b>`
-      : `<b>🚗 Заказ №${id} с сайта</b>`,
+    `<b>🚗 Заказ №${id} с сайта</b>`,
     "",
     ...order.items.map(
       (item) =>
@@ -402,7 +393,6 @@ export async function POST(request: Request) {
   const { order, error } = validate(
     payload,
     wholesaleBuyer ? buildWholesaleList() : null,
-    staffBuyer ? buildCostList() : null,
     buyer,
   );
   if (error || !order) {
@@ -421,7 +411,7 @@ export async function POST(request: Request) {
 
   let id: number;
   try {
-    if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — по себестоимости");
+    if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — цены оптовые");
     else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
     if (sellerMode) {
       const label = SELLER_MODES.find((mode) => mode.id === sellerMode)?.label ?? sellerMode;
@@ -450,17 +440,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const sent = await sendTelegram(buildMessage(id, order, referer, staffBuyer));
-  if (sent.ok) {
+  const sent = staffBuyer ? null : await sendTelegram(buildMessage(id, order, referer));
+  if (sent?.ok) {
     markTelegramSent(id);
-  } else {
+  } else if (sent) {
     // Заказ уже в базе и виден в админке — это не повод отвечать ошибкой.
     console.error(`[order] Telegram не принял заказ №${id}: ${sent.reason}`);
   }
 
   console.log(
     `[order] №${id} · ${order.phone} · ${order.items.length} поз. · ` +
-      `${order.total} ${order.currency} · telegram:${sent.ok ? "да" : "нет"}`,
+      `${order.total} ${order.currency} · telegram:${sent ? (sent.ok ? "да" : "нет") : "сотрудник"}`,
   );
 
   return Response.json({ ok: true, id, total: order.total });

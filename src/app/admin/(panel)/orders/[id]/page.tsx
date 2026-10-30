@@ -109,7 +109,7 @@ export default async function OrderPage({ params }: PageProps) {
         </div>
       )}
 
-      {!order.telegramSent && (
+      {!order.telegramSent && !order.staff && (
         <p className="rounded-card border border-brand-200 bg-brand-50 p-4 text-sm text-brand-600">
           Этот заказ не ушёл в Telegram — проверьте бота в разделе{" "}
           <Link href="/admin/settings/telegram/" className="font-medium text-brand-900 underline">

@@ -45,3 +45,6 @@ services:
   tools:
     <<: *app
     profiles: ["tools"]
+    volumes:
+      - .:/app
+      - /var/log/nginx:/var/log/nginx:ro

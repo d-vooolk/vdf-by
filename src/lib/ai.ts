@@ -161,7 +161,7 @@ export function aiConfigured(): boolean {
   return Boolean(env("AI_API_KEY", ""));
 }
 
-export type AiLogTask = AiTask | "check" | "import";
+export type AiLogTask = AiTask | "check" | "import" | "aiseo";
 
 interface Usage {
   prompt_tokens?: number;
@@ -177,7 +177,13 @@ interface ResponseMeta {
 }
 
 interface ChatResponse extends ResponseMeta {
-  choices?: Array<{ message?: { content?: string | null } }>;
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+      annotations?: Array<{ type?: string; url_citation?: { url?: string } }>;
+    };
+  }>;
+  citations?: string[];
 }
 
 interface StreamChunk extends ResponseMeta {
@@ -290,6 +296,7 @@ export interface AiRequestOptions {
   maxTokens?: number;
   models?: string[];
   temperature?: number;
+  extra?: Record<string, unknown>;
 }
 
 async function request(
@@ -328,6 +335,7 @@ async function request(
   } else if (stream) {
     body.stream_options = { include_usage: true };
   }
+  Object.assign(body, options.extra);
 
   const send = async () => {
     try {
@@ -390,6 +398,36 @@ export async function completeTraced(
     trace.firstTokenMs = Date.now() - trace.startedAt;
     record(trace, null);
     return { text: stripThinking(text), trace };
+  } catch (error) {
+    record(trace, (error as Error).message);
+    throw error;
+  }
+}
+
+export async function completeWithSources(
+  system: string,
+  user: string,
+  task: AiLogTask,
+  options: AiRequestOptions = {},
+): Promise<{ text: string; sources: string[] }> {
+  const trace = startTrace(task);
+  try {
+    const response = await request(system, user, false, options);
+    const data = (await response.json().catch(() => ({}))) as ChatResponse;
+    noteMeta(trace, data);
+    if (data.error) {
+      throw failure(Number(data.error.code) || 500, data.error.message ?? "неизвестная ошибка");
+    }
+    const message = data.choices?.[0]?.message;
+    const text = stripThinking(message?.content?.trim() ?? "");
+    if (!text) throw new AiError("Нейросеть вернула пустой ответ");
+    const sources = [
+      ...(message?.annotations ?? []).map((annotation) => annotation.url_citation?.url ?? ""),
+      ...(data.citations ?? []),
+    ].filter(Boolean);
+    trace.firstTokenMs = Date.now() - trace.startedAt;
+    record(trace, null);
+    return { text, sources: [...new Set(sources)] };
   } catch (error) {
     record(trace, (error as Error).message);
     throw error;

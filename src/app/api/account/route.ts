@@ -31,7 +31,7 @@ import type { SellerMode } from "@/lib/seller-mode";
 import { formatPhone, normalizePhone } from "@/lib/phone";
 import { getSmsSettings, renderTemplate, sendSms, SmsError, smsConfigured } from "@/lib/sms";
 import { escapeTelegram, sendTelegram } from "@/lib/telegram";
-import { buildStaffList, buildWholesaleList } from "@/lib/wholesale";
+import { buildWholesaleList } from "@/lib/wholesale";
 
 export const dynamic = "force-dynamic";
 
@@ -88,11 +88,7 @@ export async function GET() {
   return Response.json(
     {
       customer: publicCustomer(customer, await getSellerMode()),
-      wholesale: customer.staff
-        ? buildStaffList()
-        : isWholesale(customer)
-          ? buildWholesaleList()
-          : null,
+      wholesale: isWholesale(customer) ? buildWholesaleList() : null,
     },
     noStore,
   );
