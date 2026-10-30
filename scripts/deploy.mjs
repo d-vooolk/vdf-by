@@ -19,7 +19,7 @@
  *   DEPLOY_HOST    93.125.12.160
  *   DEPLOY_USER    root
  *   DEPLOY_PATH    /var/www/vdf.by
- *   DEPLOY_KEY     ~/.ssh/vdf_home
+ *   DEPLOY_KEY     ~/.ssh/vdf_deploy
  *   DEPLOY_BRANCH  main
  *   DEPLOY_SSH     ssh            (если нужен конкретный клиент)
  *
@@ -40,7 +40,7 @@ const USER = env("DEPLOY_USER", "root");
 const APP_PATH = env("DEPLOY_PATH", "/var/www/vdf.by");
 const BRANCH = env("DEPLOY_BRANCH", "main");
 const SSH = env("DEPLOY_SSH", "ssh");
-const KEY = env("DEPLOY_KEY", path.join(os.homedir(), ".ssh", "vdf_home"));
+const KEY = env("DEPLOY_KEY", path.join(os.homedir(), ".ssh", "vdf_deploy"));
 
 const force = process.argv.includes("--force");
 const localFlag = process.argv.includes("--local");
