@@ -6,6 +6,7 @@ import { LedgerEntryActions, LedgerEntryButton, RefreshCrmPaymentsButton } from 
 import { MonthPicker } from "@/components/admin/MonthPicker";
 import { cashMonth, expenseCategories, ledgerBalance, rsMonth, type CashIncome } from "@/lib/accounting";
 import { requireAdmin } from "@/lib/auth";
+import { capitalOutboxState } from "@/lib/crm-capital";
 import { getSite } from "@/lib/catalog";
 import { debtPaidTotal, formatMoney, type Debt, type DebtPayment } from "@/lib/debt-types";
 import { listDebts } from "@/lib/debts";
@@ -235,11 +236,24 @@ function CashflowTab({
         </TableCard>
       )}
 
+      <CapitalOutboxNote />
+
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <CrmPullNote />
         <RefreshCrmPaymentsButton />
       </div>
     </div>
+  );
+}
+
+function CapitalOutboxNote() {
+  const outbox = capitalOutboxState();
+  if (!outbox.count) return null;
+  return (
+    <p className="rounded-card border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      Ждут отправки в капитал CRM: {outbox.count} — повтор каждые 5 минут.
+      {outbox.lastError && <span className="mt-1 block text-xs text-amber-800">Последняя ошибка: {outbox.lastError}</span>}
+    </p>
   );
 }
 

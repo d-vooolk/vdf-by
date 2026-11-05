@@ -14,6 +14,7 @@ const WIPE_TABLES = [
   "crm_payments",
   "crm_cancellations",
   "crm_outbox",
+  "crm_capital_outbox",
   "crm_pull",
   "orders",
   "service_requests",

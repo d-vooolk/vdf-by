@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { fail, type FormState, ok } from "@/app/admin/form-state";
@@ -119,6 +120,7 @@ export async function deleteLedgerEntryAction(id: number): Promise<FormState> {
   await requireAdmin();
   if (!validId(id)) return fail(["Запись не найдена"]);
   deleteLedgerEntry(id);
+  after(syncCrm);
   return done();
 }
 
@@ -148,7 +150,9 @@ export async function payDebtAction(id: number, input: unknown): Promise<FormSta
   if (!validId(id)) return fail(["Долг не найден"]);
   const parsed = debtPaymentSchema.safeParse(input);
   if (!parsed.success) return issues(parsed.error);
-  return result(payDebt(id, parsed.data, admin.login));
+  const problems = payDebt(id, parsed.data, admin.login);
+  if (!problems.length) after(syncCrm);
+  return result(problems);
 }
 
 export async function currencyRatesAction(): Promise<{ USD: number | null; EUR: number | null }> {

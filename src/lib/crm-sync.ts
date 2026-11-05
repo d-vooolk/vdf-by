@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { recordCrmPull, replaceCrmStates } from "./accounting";
+import type { CapitalOutboxRow } from "./crm-capital";
 import { getDb } from "./db";
 import { env } from "./env.mjs";
 import type { OrderItem } from "./order-types";
@@ -184,6 +185,43 @@ async function syncPayments(
   }
 }
 
+async function sendCapital(config: { url: string; key: string }, row: CapitalOutboxRow): Promise<void> {
+  const response = row.payload
+    ? await fetch(`${config.url}/api/integrations/vdf/capital`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-integration-key": config.key },
+        body: row.payload,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+    : await fetch(`${config.url}/api/integrations/vdf/capital/${encodeURIComponent(row.ref)}`, {
+        method: "DELETE",
+        headers: { "x-integration-key": config.key },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+  if (!response.ok) {
+    const body = (await response.text().catch(() => "")).slice(0, ERROR_LENGTH);
+    throw new Error(`CRM ответила ${response.status}${body ? `: ${body}` : ""}`);
+  }
+}
+
+async function flushCapital(config: { url: string; key: string }): Promise<void> {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT * FROM crm_capital_outbox ORDER BY queued_at LIMIT ?")
+    .all(SEND_LIMIT) as CapitalOutboxRow[];
+  for (const row of rows) {
+    try {
+      await sendCapital(config, row);
+      db.prepare("DELETE FROM crm_capital_outbox WHERE ref = ? AND queued_at = ?").run(row.ref, row.queued_at);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      db.prepare(
+        "UPDATE crm_capital_outbox SET attempts = attempts + 1, last_error = ? WHERE ref = ? AND queued_at = ?",
+      ).run(message.slice(0, ERROR_LENGTH), row.ref, row.queued_at);
+    }
+  }
+}
+
 async function exchangeWithCrm(): Promise<CrmSyncReport> {
   const config = crmConfig();
   if (!config) {
@@ -206,6 +244,7 @@ async function exchangeWithCrm(): Promise<CrmSyncReport> {
       failed += 1;
     }
   }
+  await flushCapital(config);
   return { configured: true, sent, failed, left: queuedCount(), ...(await syncPayments(config)) };
 }
 

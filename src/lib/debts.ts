@@ -1,6 +1,8 @@
 import { addLedgerEntry, resolveCategory } from "./accounting";
+import { capitalRef, queueCapital } from "./crm-capital";
 import { getDb } from "./db";
 import {
+  CAPITAL_TRANSFER_PREFIX,
   cashAmountInByn,
   type Debt,
   type DebtCurrency,
@@ -170,26 +172,54 @@ export function payDebt(id: number, input: DebtPaymentInput, person: string): st
   const cash = cashAmountInByn(input.currency, paid, rate);
   const foreignNote = input.currency === "BYN" ? "" : ` (${formatMoney(paid, input.currency)} по ${rate})`;
 
+  const description = `${settles ? "Погашение" : "Частичное погашение"} долга — ${debt.description}`;
+  const capitalCurrency = debt.direction === "owed_to_us" && input.currency !== "BYN" ? input.currency : null;
+  const toCapital = capitalCurrency !== null && rate !== null;
+
   const db = getDb();
   db.transaction(() => {
     const entryId = addLedgerEntry({
       kind: debt.direction === "we_owe" ? "out" : "in",
       date: now,
-      description: `${settles ? "Погашение" : "Частичное погашение"} долга — ${debt.description}${foreignNote}`,
+      description: `${description}${foreignNote}`,
       category: debt.category,
       amount: cash,
       person,
     });
-    db.prepare(
-      `INSERT INTO debt_payments (debt_id, amount, paid_currency, paid_amount, rate, paid_at, entry_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, settles ? debt.remainingAmount : reduce, input.currency, paid, rate, now, entryId);
+    const capitalEntryId = toCapital
+      ? addLedgerEntry({
+          kind: "out",
+          date: now,
+          description: `${CAPITAL_TRANSFER_PREFIX}: ${formatMoney(paid, input.currency)} по курсу ${rate}`,
+          category: "",
+          amount: cash,
+          person,
+        })
+      : null;
+    const payment = db
+      .prepare(
+        `INSERT INTO debt_payments (debt_id, amount, paid_currency, paid_amount, rate, paid_at, entry_id, capital_entry_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, settles ? debt.remainingAmount : reduce, input.currency, paid, rate, now, entryId, capitalEntryId);
     db.prepare("UPDATE debts SET remaining_amount = ?, status = ?, settled_at = ? WHERE id = ?").run(
       settles ? 0 : remaining,
       settles ? "settled" : "active",
       settles ? now : null,
       id,
     );
+    if (capitalCurrency !== null && rate !== null) {
+      const paymentId = Number(payment.lastInsertRowid);
+      queueCapital(capitalRef(paymentId), {
+        ref: capitalRef(paymentId),
+        currency: capitalCurrency,
+        amount: paid,
+        rate,
+        date: new Date(now).toISOString(),
+        description,
+        person,
+      });
+    }
   })();
   return [];
 }

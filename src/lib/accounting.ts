@@ -1,3 +1,4 @@
+import { capitalRef, queueCapital } from "./crm-capital";
 import { getDb } from "./db";
 
 export interface CrmPayment {
@@ -212,7 +213,8 @@ const total = (rows: Array<{ amount: number }>) => roundMoney(rows.reduce((sum, 
 const ENTRY_COLUMNS = `
   w.id, w.kind, w.date, w.description, w.category, w.amount, w.person, dp.debt_id AS debtId`;
 
-const ENTRY_FROM = `ledger_writeoffs w LEFT JOIN debt_payments dp ON dp.entry_id = w.id`;
+const ENTRY_FROM = `ledger_writeoffs w
+  LEFT JOIN debt_payments dp ON dp.entry_id = w.id OR dp.capital_entry_id = w.id`;
 
 export function cashMonth(year: number, month: number): CashMonth {
   const [from, to] = monthRange(year, month);
@@ -341,8 +343,13 @@ export function updateLedgerEntry(id: number, update: LedgerEntryUpdate): string
 export function deleteLedgerEntry(id: number): void {
   const db = getDb();
   db.transaction(() => {
-    const payment = db.prepare("SELECT id, debt_id, amount FROM debt_payments WHERE entry_id = ?").get(id) as
-      | { id: number; debt_id: number; amount: number }
+    const payment = db
+      .prepare(
+        `SELECT id, debt_id, amount, entry_id, capital_entry_id FROM debt_payments
+         WHERE entry_id = ? OR capital_entry_id = ?`,
+      )
+      .get(id, id) as
+      | { id: number; debt_id: number; amount: number; entry_id: number | null; capital_entry_id: number | null }
       | undefined;
     if (payment) {
       db.prepare(
@@ -350,6 +357,10 @@ export function deleteLedgerEntry(id: number): void {
          WHERE id = ?`,
       ).run(payment.amount, payment.debt_id);
       db.prepare("DELETE FROM debt_payments WHERE id = ?").run(payment.id);
+      for (const linked of [payment.entry_id, payment.capital_entry_id]) {
+        if (linked !== null) db.prepare("DELETE FROM ledger_writeoffs WHERE id = ?").run(linked);
+      }
+      if (payment.capital_entry_id !== null) queueCapital(capitalRef(payment.id), null);
     }
     db.prepare("DELETE FROM ledger_writeoffs WHERE id = ?").run(id);
   })();
