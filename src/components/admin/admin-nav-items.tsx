@@ -13,6 +13,7 @@ import {
   ImagePlusIcon,
   ListIcon,
   PackageIcon,
+  SendIcon,
   SparkIcon,
   SparkleListIcon,
   TrashIcon,
@@ -57,6 +58,7 @@ export const NAV: Array<NavLink | NavGroup> = [
   { href: "/admin/customers/", label: "Покупатели", badge: "customers", icon: UserIcon },
   { href: "/admin/waitlist/", label: "Лист ожидания", badge: "waitlist", icon: ClockIcon },
   { href: "/admin/articles/", label: "Статьи", icon: DocumentIcon },
+  { href: "/admin/business-posts/", label: "Посты в Яндексе", icon: SendIcon },
   {
     label: "Импорт",
     icon: DownloadIcon,
@@ -88,7 +90,7 @@ const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
     label: "Товары",
     hrefs: ["/admin/products/", "/admin/categories/", "/admin/frame-types/", "/admin/incomplete/", "/admin/out-of-stock/"],
   },
-  { label: "Контент", hrefs: ["/admin/articles/", "/admin/composer/", "/admin/ai/"] },
+  { label: "Контент", hrefs: ["/admin/articles/", "/admin/business-posts/", "/admin/composer/", "/admin/ai/"] },
   { label: "Справочник", hrefs: ["/admin/cars/", "/admin/vdf-prices/", "/admin/unused-photos/"] },
   { label: "Система", hrefs: ["/admin/settings/"] },
 ];
