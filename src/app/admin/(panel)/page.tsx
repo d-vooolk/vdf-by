@@ -1,16 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import { DailyBars, Panel } from "@/components/admin/SeoParts";
 import { StockBars } from "@/components/admin/StockBars";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
+import { isLiteMode } from "@/lib/lite-mode";
 import { orderStats, orderTimeline } from "@/lib/orders";
 import { listCategoriesBrief } from "@/lib/category-store";
 import { countOutOfStock, listProducts, stockByCategory } from "@/lib/product-store";
 
 /** Сводка: с чего начинается рабочий день — сколько новых заказов и что в каталоге. */
 export default function DashboardPage() {
+  if (isLiteMode()) redirect("/admin/seo/");
   const site = getSite();
   const stats = orderStats();
   const categories = listCategoriesBrief();

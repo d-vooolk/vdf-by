@@ -107,16 +107,18 @@ export function AdminNav({
   const renderLink = (link: NavLink, nested: boolean) => {
     const active = isActive(link.href, link.exact, link.also);
     const count = badgeCount(link.badge);
+    const Icon = link.icon;
     return (
       <Link
         key={link.href}
         href={link.href}
         aria-current={active ? "page" : undefined}
-        className={`flex items-center gap-2 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${
+        className={`flex items-center gap-2.5 rounded-xl py-2 pr-3 text-sm font-medium transition-colors ${
           nested ? "pl-7" : "pl-3"
         } ${active ? "bg-brand-700 text-white" : "text-brand-600 hover:bg-brand-100"}`}
       >
-        {link.label}
+        <Icon className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-brand-400"}`} />
+        <span className="min-w-0 flex-1 truncate">{link.label}</span>
         {count > 0 && (
           <span
             className={`badge tnum ${
@@ -133,16 +135,18 @@ export function AdminNav({
   const renderGroup = (group: NavGroup) => {
     const containsActive = group.links.some((link) => isActive(link.href, link.exact, link.also));
     const expanded = toggled[group.label] ?? containsActive;
+    const GroupIcon = group.icon;
     return (
       <div key={group.label}>
         <button
           type="button"
           onClick={() => setToggled((current) => ({ ...current, [group.label]: !expanded }))}
           aria-expanded={expanded}
-          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-brand-100 ${
+          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-brand-100 ${
             containsActive ? "text-brand-900" : "text-brand-600"
           }`}
         >
+          {GroupIcon && <GroupIcon className="h-4 w-4 shrink-0 text-brand-400" />}
           {group.label}
           <ChevronDownIcon
             className={`ml-auto h-4 w-4 text-brand-400 transition-transform ${expanded ? "rotate-180" : ""}`}

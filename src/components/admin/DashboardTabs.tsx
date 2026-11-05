@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { isLiteMode } from "@/lib/lite-mode";
+
 const TABS = [
   { href: "/admin/", label: "Общая", id: "overview" },
   { href: "/admin/traffic/", label: "Посещаемость", id: "traffic" },
@@ -9,9 +11,10 @@ const TABS = [
 export type DashboardTab = (typeof TABS)[number]["id"];
 
 export function DashboardTabs({ active }: { active: DashboardTab }) {
+  const tabs = isLiteMode() ? TABS.filter((tab) => tab.id === "seo") : TABS;
   return (
     <nav className="mb-5 flex flex-wrap gap-2" aria-label="Разделы сводки">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <Link
           key={tab.id}
           href={tab.href}

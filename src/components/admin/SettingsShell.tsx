@@ -16,6 +16,7 @@ import {
 } from "@/components/icons";
 
 const INDEX = "/admin/settings/";
+const SECURITY_HREF = "/admin/settings/security/";
 
 const GROUPS = [
   {
@@ -38,12 +39,15 @@ const GROUPS = [
     label: "Админка",
     items: [
       { href: "/admin/settings/view/", label: "Вид админки", icon: GearIcon },
-      { href: "/admin/settings/security/", label: "Протокол AID", icon: ShieldIcon },
+      { href: SECURITY_HREF, label: "Протокол AID", icon: ShieldIcon },
     ],
   },
 ];
 
-export function SettingsShell({ children }: { children: React.ReactNode }) {
+export function SettingsShell({ children, lite }: { children: React.ReactNode; lite: boolean }) {
+  const groups = lite
+    ? GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => item.href !== SECURITY_HREF) }))
+    : GROUPS;
   const pathname = usePathname();
   const current = pathname.endsWith("/") ? pathname : `${pathname}/`;
   const isIndex = current === INDEX;
@@ -54,7 +58,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
       <aside className={`${isIndex ? "" : "hidden"} lg:sticky lg:top-6 lg:block`}>
         <h1 className="mb-4 text-xl font-semibold text-brand-900 lg:hidden">Настройки</h1>
         <nav className="space-y-5" aria-label="Разделы настроек">
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.label}>
               <p className="px-3 pb-1.5 text-[11px] font-bold tracking-[0.1em] text-brand-400 uppercase">
                 {group.label}

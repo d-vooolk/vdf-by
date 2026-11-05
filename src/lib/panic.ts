@@ -6,6 +6,7 @@ import { pipeline } from "node:stream/promises";
 import { bumpCatalogVersion, bumpImagesVersion, DB_PATH, getDb } from "./db";
 import { env } from "./env.mjs";
 import { invalidateCatalog } from "./catalog";
+import { enableLiteMode, isLiteMode } from "./lite-mode";
 import { createPanicEncryptStream, panicKeyUsable, verifyPanicPin } from "./panic-crypto";
 import { panicGuard } from "./panic-guard";
 import { revalidateSite } from "./revalidate";
@@ -16,16 +17,23 @@ const WIPE_TABLES = [
   "crm_outbox",
   "crm_capital_outbox",
   "crm_pull",
-  "orders",
-  "service_requests",
   "sms_codes",
   "customer_sessions",
   "customers",
   "sessions",
-  "debt_payments",
-  "debts",
   "ledger_writeoffs",
 ] as const;
+
+export const PANIC_STEPS = [
+  "Шифрование базы",
+  "Очистка данных",
+  "Очистка диска",
+  "Обновление витрины",
+  "Удаление резервных копий",
+  "Передача протокола в CRM",
+] as const;
+
+export type PanicProgress = (step: number) => void;
 
 const PROPAGATE_TIMEOUT_MS = 10_000;
 
@@ -66,12 +74,15 @@ async function encryptDatabase(outPath: string): Promise<void> {
   }
 }
 
-function wipeDatabase(): void {
+function wipeForLiteMode(): void {
   const db = getDb();
   db.transaction(() => {
+    db.prepare("DELETE FROM orders WHERE rs_at IS NULL").run();
+    db.prepare("UPDATE orders SET customer_id = NULL, seller_id = NULL").run();
     for (const table of WIPE_TABLES) db.prepare(`DELETE FROM ${table}`).run();
     db.prepare("UPDATE products SET data = json_remove(data, '$.costPrice', '$.costSource')").run();
     db.prepare("UPDATE frame_types SET cost_price = NULL, cost_source = NULL").run();
+    enableLiteMode();
   })();
 }
 
@@ -120,7 +131,15 @@ export function panicConfigured(): boolean {
   return isConfigured();
 }
 
-export async function triggerPanic(pin: string, options: { propagate: boolean }): Promise<boolean> {
+export async function triggerPanic(
+  pin: string,
+  options: { propagate: boolean; onStep?: PanicProgress },
+): Promise<boolean> {
+  const onStep = options.onStep ?? (() => undefined);
+  if (isLiteMode()) {
+    console.warn("panic: облегчённый режим уже включён");
+    return false;
+  }
   if (!isConfigured()) {
     console.error("panic: протокол не настроен (PANIC_PUBLIC_KEY / PANIC_PIN_HASH)");
     return false;
@@ -141,6 +160,7 @@ export async function triggerPanic(pin: string, options: { propagate: boolean })
   const dir = path.join(panicRoot(), new Date().toISOString().replace(/[:.]/g, "-"));
 
   try {
+    onStep(0);
     await fs.promises.mkdir(dir, { recursive: true });
     await encryptDatabase(path.join(dir, "database.db.gz.enc"));
   } catch (error) {
@@ -151,7 +171,8 @@ export async function triggerPanic(pin: string, options: { propagate: boolean })
   }
 
   try {
-    wipeDatabase();
+    onStep(1);
+    wipeForLiteMode();
   } catch (error) {
     running = false;
     console.error("panic: не удалось очистить базу", error);
@@ -166,18 +187,22 @@ export async function triggerPanic(pin: string, options: { propagate: boolean })
     }
   };
 
+  onStep(2);
   await step("очистка диска", () => scrubDisk());
+  onStep(3);
   await step("сброс кеша каталога", () => {
     invalidateCatalog();
     bumpCatalogVersion();
     bumpImagesVersion();
     revalidateSite();
   });
+  onStep(4);
   await step("удаление локальных копий", () => deleteLocalBackups());
   await step("заявка на удаление копий в Google Drive", () => requestRemoteWipe());
+  onStep(5);
   if (options.propagate) await step("передача протокола в CRM", () => propagate(pin));
 
-  console.warn("panic: база зашифрована и очищена");
+  console.warn("panic: база зашифрована, включён облегчённый режим");
   running = false;
   return true;
 }

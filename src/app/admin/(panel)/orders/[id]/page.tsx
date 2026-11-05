@@ -10,6 +10,7 @@ import { orderMoney } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
 import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
+import { isLiteMode } from "@/lib/lite-mode";
 import { getOrder } from "@/lib/orders";
 import { smsConfigured } from "@/lib/sms";
 
@@ -29,8 +30,9 @@ export default async function OrderPage({ params }: PageProps) {
 
   const site = getSite();
   const price = (value: number) => formatPrice(value, site.currencySymbol);
-  const crm = order.staff ? crmSyncState(order.id) : null;
-  const money = order.staff ? orderMoney(order.id) : null;
+  const withCrm = order.staff && !isLiteMode();
+  const crm = withCrm ? crmSyncState(order.id) : null;
+  const money = withCrm ? orderMoney(order.id) : null;
 
   return (
     <div className="space-y-5">
