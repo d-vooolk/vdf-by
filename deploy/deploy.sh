@@ -166,6 +166,13 @@ chmod 644 /etc/cron.d/vdf-crm
 
 rm -f /etc/cron.d/vdf-frame-split
 
+echo "==> Напоминания о постах в Яндекс Бизнесе в Telegram"
+cat > /etc/cron.d/vdf-business-posts <<CRON
+SHELL=/bin/bash
+* * * * * root curl -s -X POST --max-time 55 -H "x-cron-key: \$(cat $APP/var/cron-key)" localhost:$PORT/api/cron/business-posts/ -o $APP/var/business-posts.log
+CRON
+chmod 644 /etc/cron.d/vdf-business-posts
+
 echo "==> SEO-сводка: поиск каждое утро, конкуренты по понедельникам"
 cat > /etc/cron.d/vdf-seo <<CRON
 SHELL=/bin/bash

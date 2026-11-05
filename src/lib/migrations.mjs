@@ -842,6 +842,21 @@ export const MIGRATIONS = [
       last_error TEXT
     );
   `,
+  `
+    CREATE TABLE business_posts (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      publish_at INTEGER NOT NULL,
+      title      TEXT NOT NULL,
+      body       TEXT NOT NULL,
+      image_url  TEXT NOT NULL DEFAULT '',
+      link_url   TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      sent_at    INTEGER,
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT
+    );
+    CREATE INDEX business_posts_by_time ON business_posts(publish_at);
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

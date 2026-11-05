@@ -157,6 +157,16 @@ export async function sendTelegramTo(token: string, chatId: string, text: string
   });
 }
 
+export async function sendTelegramPhotoTo(token: string, chatId: string, photo: string, caption: string): Promise<void> {
+  if (!chatId) throw new TelegramError("Выберите чат, куда присылать заказы");
+  await call(token, "sendPhoto", {
+    chat_id: chatId,
+    photo,
+    caption,
+    parse_mode: "HTML",
+  });
+}
+
 export async function sendTelegram(text: string): Promise<{ ok: boolean; reason?: string }> {
   const settings = getTelegramSettings();
   if (!settings.enabled || !settings.token || !settings.chatId) {
