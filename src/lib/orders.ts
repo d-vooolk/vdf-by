@@ -53,6 +53,7 @@ interface OrderRow {
   edited_at: number | null;
   review_sms_at: number | null;
   ready_sms_at: number | null;
+  rs_at: number | null;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -85,13 +86,14 @@ function toOrder(row: OrderRow): Order {
     editedAt: row.edited_at,
     reviewSmsAt: row.review_sms_at,
     readySmsAt: row.ready_sms_at,
+    rsAt: row.rs_at,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total, total_manual,
   currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
-  wholesale, edited_at, review_sms_at, ready_sms_at`;
+  wholesale, edited_at, review_sms_at, ready_sms_at, rs_at`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -453,6 +455,11 @@ export function orderStatusCounts(staff: boolean): Record<string, number> {
     .all(staff ? 1 : 0) as Array<{ status: string; n: number }>;
   for (const row of rows) counts[row.status] = row.n;
   return counts;
+}
+
+export function setOrderRs(id: number, at: number | null): boolean {
+  const result = getDb().prepare("UPDATE orders SET rs_at = ? WHERE id = ?").run(at, id);
+  return result.changes > 0;
 }
 
 export function countNewOrders(): number {

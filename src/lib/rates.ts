@@ -43,3 +43,7 @@ export function getUsdRate(): Promise<UsdRate | null> {
 export function getRubRate(): Promise<CurrencyRate | null> {
   return getNbrbRate("RUB");
 }
+
+export function getEurRate(): Promise<CurrencyRate | null> {
+  return getNbrbRate("EUR");
+}

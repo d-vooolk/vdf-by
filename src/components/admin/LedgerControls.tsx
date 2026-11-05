@@ -1,149 +1,262 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import {
-  addWriteoffAction,
-  deleteWriteoffAction,
+  addLedgerEntryAction,
+  deleteLedgerEntryAction,
   refreshCrmPaymentsAction,
+  updateLedgerEntryAction,
 } from "@/app/admin/accounting-actions";
+import { AdminModal, ModalActions } from "@/components/admin/AdminModal";
 import { Field, NumberInput, Problems } from "@/components/admin/form-parts";
-import { SpinnerIcon, TrashIcon } from "@/components/icons";
+import { MinusIcon, PencilIcon, PlusIcon, SpinnerIcon, TrashIcon } from "@/components/icons";
+import type { LedgerEntry, LedgerKind } from "@/lib/accounting";
 
-function todayInput(): string {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const pad = (value: number) => String(value).padStart(2, "0");
+
+export function dateInput(timestamp: number = Date.now()): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-const LEDGER_FORMS = {
-  out: {
-    open: "− Списать средства",
-    title: "Списать средства",
-    purpose: "Цель списания",
-    placeholder: "Например: закупка рамок у поставщика",
-    person: "Изыматель",
-    submit: "Списать",
-    button: "btn-primary bg-red-700 py-2 text-sm hover:bg-red-800",
-  },
-  in: {
-    open: "+ Внести средства",
-    title: "Внести средства",
-    purpose: "Откуда деньги",
-    placeholder: "Например: остаток кассы на начало учёта",
-    person: "Вноситель",
-    submit: "Внести",
-    button: "btn-primary bg-green-800 py-2 text-sm hover:bg-green-900",
-  },
-} as const;
+const DANGER_BUTTON = "btn-primary bg-red-700 py-2 text-sm hover:bg-red-800";
+const SUCCESS_BUTTON = "btn-primary bg-green-800 py-2 text-sm hover:bg-green-900";
 
-export function WriteoffForm({ defaultPerson, kind }: { defaultPerson: string; kind: "in" | "out" }) {
-  const labels = LEDGER_FORMS[kind];
+export function CategoryInput({
+  value,
+  onChange,
+  categories,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  categories: string[];
+}) {
+  const listId = useId();
+  const query = value.trim().toLowerCase();
+  const isNew = Boolean(query) && !categories.some((category) => category.toLowerCase() === query);
+  return (
+    <>
+      <input
+        type="text"
+        list={listId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Например: расходники"
+        maxLength={60}
+        className="field"
+      />
+      <datalist id={listId}>
+        {categories.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
+      {isNew && <span className="mt-1 block text-xs text-brand-400">Новая категория «{value.trim()}» будет создана</span>}
+    </>
+  );
+}
+
+function useSubmit() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(todayInput);
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState<number | null>(null);
-  const [person, setPerson] = useState(defaultPerson);
   const [problems, setProblems] = useState<string[]>([]);
-
-  const close = () => {
-    setOpen(false);
-    setProblems([]);
-  };
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
+  const run = (action: () => Promise<{ ok: boolean; problems: string[] }>, onDone: () => void) => {
     startTransition(async () => {
-      const result = await addWriteoffAction({ kind, date, description, amount, person });
+      const result = await action();
       if (!result.ok) {
         setProblems(result.problems);
         return;
       }
-      setDescription("");
-      setAmount(null);
-      setDate(todayInput());
-      close();
+      setProblems([]);
+      onDone();
       router.refresh();
     });
   };
+  return { pending, problems, setProblems, run };
+}
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={labels.button}
-      >
-        {labels.open}
-      </button>
-    );
-  }
+const ENTRY_LABELS = {
+  out: { open: "Изъять средства", title: "Изъять средства", purpose: "Цель изъятия", placeholder: "Например: закупка расходников" },
+  in: { open: "Внести средства", title: "Внести средства", purpose: "Источник", placeholder: "Например: перевод от учредителя" },
+} as const;
+
+export function LedgerEntryButton({ kind, categories }: { kind: LedgerKind; categories: string[] }) {
+  const labels = ENTRY_LABELS[kind];
+  const [open, setOpen] = useState(false);
+  const { pending, problems, setProblems, run } = useSubmit();
+  const [date, setDate] = useState(dateInput);
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [amount, setAmount] = useState<number | null>(null);
+
+  const show = () => {
+    setDate(dateInput());
+    setDescription("");
+    setCategory("");
+    setAmount(null);
+    setProblems([]);
+    setOpen(true);
+  };
+  const close = () => setOpen(false);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    run(() => addLedgerEntryAction({ kind, date, description, category, amount }), close);
+  };
 
   return (
-    <form onSubmit={submit} className="card w-full space-y-4 p-4 sm:p-5">
-      <h2 className="text-sm font-bold text-brand-900">{labels.title}</h2>
-      <Problems items={problems} />
-      <div className="grid gap-4 sm:grid-cols-2">
+    <>
+      <button type="button" onClick={show} className={kind === "out" ? DANGER_BUTTON : SUCCESS_BUTTON}>
+        {kind === "out" ? <MinusIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
+        {labels.open}
+      </button>
+      {open && (
+        <AdminModal title={labels.title} onClose={close}>
+          <form onSubmit={submit} className="space-y-4">
+            <Problems items={problems} />
+            <Field label="Дата" required>
+              <input
+                type="date"
+                value={date}
+                max={dateInput()}
+                onChange={(event) => setDate(event.target.value)}
+                className="field"
+              />
+            </Field>
+            <Field label={labels.purpose} required>
+              <input
+                type="text"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder={labels.placeholder}
+                maxLength={300}
+                className="field"
+                autoFocus
+              />
+            </Field>
+            {kind === "out" && (
+              <Field label="Категория" required>
+                <CategoryInput value={category} onChange={setCategory} categories={categories} />
+              </Field>
+            )}
+            <Field label="Сумма, р." required>
+              <NumberInput value={amount} onChange={setAmount} placeholder="0,00" />
+            </Field>
+            <ModalActions
+              pending={pending}
+              submitLabel="Добавить"
+              submitClassName={kind === "out" ? DANGER_BUTTON : SUCCESS_BUTTON}
+              onCancel={close}
+            />
+          </form>
+        </AdminModal>
+      )}
+    </>
+  );
+}
+
+function EditLedgerEntryModal({
+  entry,
+  categories,
+  onClose,
+}: {
+  entry: LedgerEntry;
+  categories: string[];
+  onClose: () => void;
+}) {
+  const { pending, problems, run } = useSubmit();
+  const [date, setDate] = useState(() => dateInput(entry.date));
+  const [description, setDescription] = useState(entry.description);
+  const [category, setCategory] = useState(entry.category);
+  const [amount, setAmount] = useState<number | null>(entry.amount);
+  const linkedToDebt = entry.debtId !== null;
+  const withCategory = entry.kind === "out" && !linkedToDebt;
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    run(() => updateLedgerEntryAction(entry.id, { date, description, category, amount }), onClose);
+  };
+
+  return (
+    <AdminModal title="Редактировать запись" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Problems items={problems} />
         <Field label="Дата" required>
           <input
             type="date"
             value={date}
-            max={todayInput()}
+            max={dateInput()}
             onChange={(event) => setDate(event.target.value)}
             className="field"
           />
         </Field>
-        <Field label="Сумма, р." required>
-          <NumberInput value={amount} onChange={setAmount} placeholder="0,00" />
+        <Field
+          label="Сумма, р."
+          required
+          hint={linkedToDebt ? "Погашение долга — сумму не меняют, запись можно удалить" : undefined}
+        >
+          <NumberInput value={amount} onChange={setAmount} placeholder="0,00" disabled={linkedToDebt} />
         </Field>
-        <Field label={labels.purpose} required>
+        <Field label={entry.kind === "out" ? "Цель изъятия" : "Источник"} required>
           <input
             type="text"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder={labels.placeholder}
+            readOnly={linkedToDebt}
             maxLength={300}
             className="field"
           />
         </Field>
-        <Field label={labels.person} required>
-          <input
-            type="text"
-            value={person}
-            onChange={(event) => setPerson(event.target.value)}
-            maxLength={150}
-            className="field"
-          />
-        </Field>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className={labels.button}
-        >
-          {pending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
-          {labels.submit}
-        </button>
-        <button type="button" onClick={close} className="btn-ghost py-2 text-sm">
-          Отмена
-        </button>
-      </div>
-    </form>
+        {withCategory && (
+          <Field label="Категория" required>
+            <CategoryInput value={category} onChange={setCategory} categories={categories} />
+          </Field>
+        )}
+        <ModalActions pending={pending} submitLabel="Сохранить" onCancel={onClose} />
+      </form>
+    </AdminModal>
   );
 }
 
-export function DeleteWriteoffButton({ id }: { id: number }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+export function LedgerEntryActions({ entry, categories }: { entry: LedgerEntry; categories: string[] }) {
+  const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [problem, setProblem] = useState("");
+  const { pending, problems, run } = useSubmit();
 
-  if (!confirming) {
+  if (confirming) {
     return (
+      <span className="inline-flex flex-wrap items-center justify-end gap-1">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(() => deleteLedgerEntryAction(entry.id), () => setConfirming(false))}
+          className="btn-primary bg-red-700 px-2 py-1 text-xs hover:bg-red-800"
+        >
+          {pending && <SpinnerIcon className="h-3 w-3 animate-spin" />}
+          Удалить
+        </button>
+        <button type="button" onClick={() => setConfirming(false)} className="btn-ghost px-2 py-1 text-xs">
+          Нет
+        </button>
+        {entry.debtId !== null && (
+          <span className="w-full text-right text-xs text-brand-400">долг вернётся к прежнему остатку</span>
+        )}
+        {problems.length > 0 && <span className="w-full text-right text-xs text-red-700">{problems.join("; ")}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center justify-end gap-0.5">
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label="Редактировать запись"
+        className="btn-ghost px-2 py-1"
+      >
+        <PencilIcon className="h-3.5 w-3.5" />
+      </button>
       <button
         type="button"
         onClick={() => setConfirming(true)}
@@ -152,63 +265,30 @@ export function DeleteWriteoffButton({ id }: { id: number }) {
       >
         <TrashIcon className="h-3.5 w-3.5" />
       </button>
-    );
-  }
-
-  return (
-    <span className="inline-flex flex-wrap items-center justify-end gap-1">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const result = await deleteWriteoffAction(id);
-            if (!result.ok) {
-              setProblem(result.problems.join("; "));
-              return;
-            }
-            router.refresh();
-          })
-        }
-        className="btn-primary bg-red-700 px-2 py-1 text-xs hover:bg-red-800"
-      >
-        Удалить
-      </button>
-      <button type="button" onClick={() => setConfirming(false)} className="btn-ghost px-2 py-1 text-xs">
-        Нет
-      </button>
-      {problem && <span className="w-full text-right text-xs text-red-700">{problem}</span>}
+      {editing && <EditLedgerEntryModal entry={entry} categories={categories} onClose={() => setEditing(false)} />}
     </span>
   );
 }
 
 export function RefreshCrmPaymentsButton() {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [problems, setProblems] = useState<string[]>([]);
+  const { pending, problems, run } = useSubmit();
 
   return (
-    <div className="space-y-2">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <button
         type="button"
         disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const result = await refreshCrmPaymentsAction();
-            setProblems(result.ok ? [] : result.problems);
-            router.refresh();
-          })
-        }
-        className="btn-secondary py-2 text-sm"
+        onClick={() => run(refreshCrmPaymentsAction, () => undefined)}
+        className="btn-ghost px-2 py-1 text-xs underline"
       >
-        {pending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+        {pending && <SpinnerIcon className="h-3 w-3 animate-spin" />}
         Обновить из CRM
       </button>
       {problems.map((problem) => (
-        <p key={problem} role="alert" className="text-xs text-red-700">
+        <span key={problem} role="alert" className="text-xs text-red-700">
           {problem}
-        </p>
+        </span>
       ))}
-    </div>
+    </span>
   );
 }

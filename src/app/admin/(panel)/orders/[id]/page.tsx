@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ListBackLink } from "@/components/admin/ListBackLink";
 import { OrderControls } from "@/components/admin/OrderControls";
 import { OrderItems } from "@/components/admin/OrderItems";
+import { OrderRsToggle } from "@/components/admin/OrderRsToggle";
 import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
 import { orderMoney } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
@@ -182,6 +183,8 @@ export default async function OrderPage({ params }: PageProps) {
             readySmsAt={order.readySmsAt}
             smsReady={smsConfigured()}
           />
+
+          <OrderRsToggle orderId={order.id} rsAt={order.rsAt} />
         </div>
       </div>
     </div>

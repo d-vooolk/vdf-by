@@ -65,4 +65,5 @@ export interface Order {
   editedAt: number | null;
   reviewSmsAt: number | null;
   readySmsAt: number | null;
+  rsAt: number | null;
 }
