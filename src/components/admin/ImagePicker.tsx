@@ -605,6 +605,8 @@ function MediaBrowser({ exclude, limit, onPick, onClose }: MediaBrowserProps) {
                     <img
                       src={item.thumb}
                       alt={item.path}
+                      loading="lazy"
+                      decoding="async"
                       className="photo-bed aspect-square w-full object-contain"
                     />
                     <span className="block truncate px-1 py-1 text-[10px] text-brand-400">
