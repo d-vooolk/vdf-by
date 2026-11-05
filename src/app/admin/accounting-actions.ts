@@ -3,29 +3,75 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import type { FormState } from "@/app/admin/form-state";
-import { addWriteoff, deleteWriteoff } from "@/lib/accounting";
+import { fail, type FormState, ok } from "@/app/admin/form-state";
+import { addLedgerEntry, deleteLedgerEntry, updateLedgerEntry } from "@/lib/accounting";
 import { requireAdmin } from "@/lib/auth";
 import { syncCrm } from "@/lib/crm-sync";
+import { DEBT_CURRENCIES } from "@/lib/debt-types";
+import { createDebt, deleteDebt, payDebt, updateDebt } from "@/lib/debts";
+import { getEurRate, getUsdRate } from "@/lib/rates";
 
 const ACCOUNTING_PATH = "/admin/accounting";
 
-const ok = (): FormState => ({ ok: true, problems: [], at: Date.now() });
-const fail = (problems: string[]): FormState => ({ ok: false, problems, at: Date.now() });
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату");
 
-const writeoffSchema = z.object({
-  kind: z.enum(["in", "out"]),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату"),
-  description: z.string().trim().min(1, "Укажите назначение").max(300, "Назначение — не длиннее 300 знаков"),
-  amount: z
-    .number({ error: "Укажите сумму" })
-    .finite("Укажите сумму")
-    .positive("Сумма должна быть больше нуля")
-    .max(10_000_000, "Слишком большая сумма"),
-  person: z.string().trim().min(1, "Укажите, кто вносит или списывает").max(150, "Имя — не длиннее 150 знаков"),
+const amountSchema = z
+  .number({ error: "Укажите сумму" })
+  .finite("Укажите сумму")
+  .positive("Сумма должна быть больше нуля")
+  .max(10_000_000, "Слишком большая сумма");
+
+const categorySchema = z.string().trim().max(60, "Категория — не длиннее 60 знаков");
+
+const entrySchema = z
+  .object({
+    kind: z.enum(["in", "out"]),
+    date: dateSchema,
+    description: z.string().trim().max(300, "Описание — не длиннее 300 знаков"),
+    category: categorySchema,
+    amount: amountSchema,
+  })
+  .superRefine((value, context) => {
+    if (!value.description) {
+      context.addIssue({ code: "custom", message: value.kind === "out" ? "Укажите цель" : "Укажите источник" });
+    }
+    if (value.kind === "out" && !value.category) {
+      context.addIssue({ code: "custom", message: "Укажите категорию" });
+    }
+  });
+
+const entryUpdateSchema = z.object({
+  date: dateSchema,
+  description: z.string().trim().min(1, "Укажите описание").max(300, "Описание — не длиннее 300 знаков"),
+  category: categorySchema,
+  amount: amountSchema,
 });
 
-function writeoffTimestamp(date: string): number {
+const debtSchema = z.object({
+  description: z.string().trim().min(1, "Укажите, за что долг").max(300, "Описание — не длиннее 300 знаков"),
+  amount: amountSchema,
+  currency: z.enum(DEBT_CURRENCIES),
+  direction: z.enum(["we_owe", "owed_to_us"]),
+  category: categorySchema,
+});
+
+const debtUpdateSchema = z.object({
+  description: z.string().trim().min(1, "Укажите, за что долг").max(300, "Описание — не длиннее 300 знаков"),
+  amount: amountSchema,
+  category: categorySchema,
+});
+
+const debtPaymentSchema = z.object({
+  amount: amountSchema,
+  currency: z.enum(DEBT_CURRENCIES),
+  rate: z.number().finite().positive("Курс должен быть больше нуля").max(1000, "Слишком большой курс").nullable(),
+});
+
+const issues = (error: z.ZodError) => fail([...new Set(error.issues.map((issue) => issue.message))]);
+
+const validId = (id: unknown): id is number => Number.isInteger(id) && (id as number) > 0;
+
+function entryTimestamp(date: string): number {
   const [year, month, day] = date.split("-").map(Number);
   const today = new Date();
   if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) {
@@ -34,26 +80,81 @@ function writeoffTimestamp(date: string): number {
   return new Date(year, month - 1, day, 12).getTime();
 }
 
-export async function addWriteoffAction(input: unknown): Promise<FormState> {
-  await requireAdmin();
-  const parsed = writeoffSchema.safeParse(input);
-  if (!parsed.success) return fail([...new Set(parsed.error.issues.map((issue) => issue.message))]);
+function checkedTimestamp(date: string): number | null {
+  const timestamp = entryTimestamp(date);
+  if (Number.isNaN(timestamp) || timestamp > Date.now() + 24 * 60 * 60 * 1000) return null;
+  return timestamp;
+}
 
-  const timestamp = writeoffTimestamp(parsed.data.date);
-  if (Number.isNaN(timestamp) || timestamp > Date.now() + 24 * 60 * 60 * 1000) {
-    return fail(["Некорректная дата"]);
-  }
-  addWriteoff({ ...parsed.data, date: timestamp });
+function done(): FormState {
   revalidatePath(ACCOUNTING_PATH);
   return ok();
 }
 
-export async function deleteWriteoffAction(id: number): Promise<FormState> {
+function result(problems: string[]): FormState {
+  return problems.length ? fail(problems) : done();
+}
+
+export async function addLedgerEntryAction(input: unknown): Promise<FormState> {
+  const admin = await requireAdmin();
+  const parsed = entrySchema.safeParse(input);
+  if (!parsed.success) return issues(parsed.error);
+  const date = checkedTimestamp(parsed.data.date);
+  if (date === null) return fail(["Некорректная дата"]);
+  addLedgerEntry({ ...parsed.data, date, person: admin.login });
+  return done();
+}
+
+export async function updateLedgerEntryAction(id: number, input: unknown): Promise<FormState> {
   await requireAdmin();
-  if (!Number.isInteger(id) || id <= 0) return fail(["Запись не найдена"]);
-  deleteWriteoff(id);
-  revalidatePath(ACCOUNTING_PATH);
-  return ok();
+  if (!validId(id)) return fail(["Запись не найдена"]);
+  const parsed = entryUpdateSchema.safeParse(input);
+  if (!parsed.success) return issues(parsed.error);
+  const date = checkedTimestamp(parsed.data.date);
+  if (date === null) return fail(["Некорректная дата"]);
+  return result(updateLedgerEntry(id, { ...parsed.data, date }));
+}
+
+export async function deleteLedgerEntryAction(id: number): Promise<FormState> {
+  await requireAdmin();
+  if (!validId(id)) return fail(["Запись не найдена"]);
+  deleteLedgerEntry(id);
+  return done();
+}
+
+export async function createDebtAction(input: unknown): Promise<FormState> {
+  await requireAdmin();
+  const parsed = debtSchema.safeParse(input);
+  if (!parsed.success) return issues(parsed.error);
+  return result(createDebt(parsed.data));
+}
+
+export async function updateDebtAction(id: number, input: unknown): Promise<FormState> {
+  await requireAdmin();
+  if (!validId(id)) return fail(["Долг не найден"]);
+  const parsed = debtUpdateSchema.safeParse(input);
+  if (!parsed.success) return issues(parsed.error);
+  return result(updateDebt(id, parsed.data));
+}
+
+export async function deleteDebtAction(id: number): Promise<FormState> {
+  await requireAdmin();
+  if (!validId(id)) return fail(["Долг не найден"]);
+  return result(deleteDebt(id));
+}
+
+export async function payDebtAction(id: number, input: unknown): Promise<FormState> {
+  const admin = await requireAdmin();
+  if (!validId(id)) return fail(["Долг не найден"]);
+  const parsed = debtPaymentSchema.safeParse(input);
+  if (!parsed.success) return issues(parsed.error);
+  return result(payDebt(id, parsed.data, admin.login));
+}
+
+export async function currencyRatesAction(): Promise<{ USD: number | null; EUR: number | null }> {
+  await requireAdmin();
+  const [usd, eur] = await Promise.all([getUsdRate(), getEurRate()]);
+  return { USD: usd?.rate ?? null, EUR: eur?.rate ?? null };
 }
 
 export async function refreshCrmPaymentsAction(): Promise<FormState> {

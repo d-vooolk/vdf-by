@@ -1,25 +1,29 @@
 import Link from "next/link";
 
 import { CrmPullNote } from "@/components/admin/CrmPullNote";
-import {
-  DeleteWriteoffButton,
-  RefreshCrmPaymentsButton,
-  WriteoffForm,
-} from "@/components/admin/LedgerControls";
-import { ledgerBalance, ledgerMonth } from "@/lib/accounting";
+import { AddDebtButton, DebtActions } from "@/components/admin/DebtControls";
+import { LedgerEntryActions, LedgerEntryButton, RefreshCrmPaymentsButton } from "@/components/admin/LedgerControls";
+import { MonthPicker } from "@/components/admin/MonthPicker";
+import { cashMonth, expenseCategories, ledgerBalance, rsMonth, type CashIncome } from "@/lib/accounting";
 import { requireAdmin } from "@/lib/auth";
 import { getSite } from "@/lib/catalog";
-import { formatPrice, pluralize } from "@/lib/format";
+import { debtPaidTotal, formatMoney, type Debt, type DebtPayment } from "@/lib/debt-types";
+import { listDebts } from "@/lib/debts";
+import { formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Бухгалтерия" };
 
-const MONTHS = [
-  "январь", "февраль", "март", "апрель", "май", "июнь",
-  "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь",
-];
+const TABS = [
+  { id: "cashflow", label: "Приходно-расходный" },
+  { id: "rs", label: "Приход РС" },
+  { id: "debts", label: "Долги" },
+] as const;
+
+type Tab = (typeof TABS)[number]["id"];
+type CashView = "income" | "expenses";
 
 interface PageProps {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ tab?: string; month?: string; view?: string; archive?: string }>;
 }
 
 function parseMonth(value: string | undefined): { year: number; month: number } {
@@ -33,217 +37,365 @@ function parseMonth(value: string | undefined): { year: number; month: number } 
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-function monthHref(year: number, month: number): string {
-  const date = new Date(year, month - 1, 1);
-  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  return `/admin/accounting/?month=${key}`;
+function accountingHref(params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
+  const text = query.toString();
+  return text ? `/admin/accounting/?${text}` : "/admin/accounting/";
 }
 
 function formatDay(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  });
+  return new Date(timestamp).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 export default async function AccountingPage({ searchParams }: PageProps) {
-  const admin = await requireAdmin();
-  const { year, month } = parseMonth((await searchParams).month);
+  await requireAdmin();
+  const params = await searchParams;
+  const tab: Tab = TABS.some((item) => item.id === params.tab) ? (params.tab as Tab) : "cashflow";
+  const { year, month } = parseMonth(params.month);
+  const monthParam = params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : undefined;
   const site = getSite();
   const price = (value: number) => formatPrice(value, site.currencySymbol);
 
-  const balance = ledgerBalance();
-  const ledger = ledgerMonth(year, month);
-  const now = new Date();
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
-
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
-        <p className="mt-1 max-w-3xl text-sm text-brand-500">
-          Заказы сотрудников, оплаченные в бухгалтерии CRM: как только заказ исполнен на вкладке
-          «VDF», его сумма приходит сюда. Удалённый в CRM расход снимает поступление. Деньги не из CRM
-          вносятся вручную кнопкой «Внести средства».
-        </p>
-      </div>
+      <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card p-4">
-          <p className="text-xs text-brand-400">Баланс</p>
-          <p
-            className={`tnum mt-1 text-2xl font-semibold ${
-              balance >= 0 ? "text-green-800" : "text-red-700"
+      <nav className="flex flex-wrap gap-2 border-b border-brand-100 pb-3" aria-label="Разделы бухгалтерии">
+        {TABS.map((item) => (
+          <Link
+            key={item.id}
+            href={accountingHref({ tab: item.id === "cashflow" ? undefined : item.id, month: item.id === "debts" ? undefined : monthParam })}
+            aria-current={tab === item.id ? "page" : undefined}
+            className={`rounded-xl px-4 py-1.5 text-sm font-medium ${
+              tab === item.id ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-700"
             }`}
           >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "cashflow" && (
+        <CashflowTab
+          year={year}
+          month={month}
+          view={params.view === "expenses" ? "expenses" : "income"}
+          price={price}
+        />
+      )}
+      {tab === "rs" && <RsTab year={year} month={month} price={price} />}
+      {tab === "debts" && <DebtsTab archive={params.archive === "1"} />}
+    </div>
+  );
+}
+
+function TableCard({ children, footer }: { children: React.ReactNode; footer: React.ReactNode }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="overflow-x-auto">{children}</div>
+      <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">{footer}</p>
+    </section>
+  );
+}
+
+function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-8 text-center text-sm text-brand-400">
+        {text}
+      </td>
+    </tr>
+  );
+}
+
+const TH = "px-4 py-2 font-medium";
+const TD = "px-4 py-2";
+
+function CashflowTab({
+  year,
+  month,
+  view,
+  price,
+}: {
+  year: number;
+  month: number;
+  view: CashView;
+  price: (value: number) => string;
+}) {
+  const balance = ledgerBalance();
+  const cash = cashMonth(year, month);
+  const categories = expenseCategories();
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="card px-4 py-2.5">
+          <p className="text-xs text-brand-400">Баланс (наличные)</p>
+          <p className={`tnum text-xl font-semibold ${balance >= 0 ? "text-green-800" : "text-red-700"}`}>
             {price(balance)}
           </p>
-          <p className="mt-1 text-xs text-brand-400">поступления минус списания за всё время</p>
         </div>
-        <div className="card p-4">
-          <p className="text-xs text-brand-400">Поступило за месяц</p>
-          <p className="tnum mt-1 text-2xl font-semibold text-brand-900">{price(ledger.incomeTotal)}</p>
-          <p className="mt-1 text-xs text-brand-400">
-            {pluralize(new Set(ledger.payments.map((payment) => payment.orderId)).size, "заказ", "заказа", "заказов")} из CRM
-            {ledger.deposits.length > 0 &&
-              `, ${pluralize(ledger.deposits.length, "внесение", "внесения", "внесений")} на ${price(ledger.depositTotal)}`}
-          </p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-brand-400">Списано за месяц</p>
-          <p className="tnum mt-1 text-2xl font-semibold text-brand-900">{price(ledger.writeoffTotal)}</p>
+        <MonthPicker year={year} month={month} query={view === "expenses" ? { view } : {}} />
+        <div className="flex flex-wrap gap-2 sm:ml-auto">
+          <LedgerEntryButton kind="out" categories={categories} />
+          <LedgerEntryButton kind="in" categories={categories} />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-start gap-3">
-        <nav className="flex items-center gap-1" aria-label="Месяц">
-          <Link href={monthHref(year, month - 1)} className="btn-ghost px-3 py-2 text-sm" aria-label="Предыдущий месяц">
-            ←
+      <div className="inline-flex rounded-xl bg-brand-100 p-1" role="tablist" aria-label="Приход или расход">
+        {(
+          [
+            { id: "income", label: `Приход (наличные) · ${cash.income.length}` },
+            { id: "expenses", label: `Расход · ${cash.expenses.length}` },
+          ] as const
+        ).map((item) => (
+          <Link
+            key={item.id}
+            href={accountingHref({ month: monthKey, view: item.id === "expenses" ? "expenses" : undefined })}
+            role="tab"
+            aria-selected={view === item.id}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+              view === item.id ? "bg-white text-brand-900 shadow-sm" : "text-brand-600"
+            }`}
+          >
+            {item.label}
           </Link>
-          <span className="min-w-36 text-center text-sm font-medium text-brand-900">
-            {MONTHS[month - 1]} {year}
+        ))}
+      </div>
+
+      {view === "income" ? (
+        <TableCard footer={`Итого: ${price(cash.incomeTotal)}`}>
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-brand-400">
+              <tr className="border-b border-brand-100">
+                <th className={TH}>Дата</th>
+                <th className={TH}>Источник</th>
+                <th className={`${TH} text-right`}>Сумма</th>
+                <th className={TH}>Кто</th>
+                <th className="px-2 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-100">
+              {cash.income.length === 0 && <EmptyRow colSpan={5} text="За этот месяц прихода нет." />}
+              {cash.income.map((row) => (
+                <tr key={row.key}>
+                  <td className={`tnum whitespace-nowrap ${TD} text-brand-500`}>{formatDay(row.date)}</td>
+                  <td className={TD}>
+                    <IncomeSource row={row} price={price} />
+                  </td>
+                  <td className={`tnum whitespace-nowrap ${TD} text-right font-semibold text-green-800`}>
+                    {price(row.amount)}
+                  </td>
+                  <td className={`${TD} text-brand-500`}>
+                    {(row.source === "crm" ? row.payment.person : row.entry.person) || "—"}
+                  </td>
+                  <td className="px-2 py-1 text-right">
+                    {row.source === "entry" && <LedgerEntryActions entry={row.entry} categories={categories} />}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
+      ) : (
+        <TableCard footer={`Итого: ${price(cash.expenseTotal)}`}>
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-brand-400">
+              <tr className="border-b border-brand-100">
+                <th className={TH}>Дата</th>
+                <th className={TH}>Цель</th>
+                <th className={TH}>Категория</th>
+                <th className={`${TH} text-right`}>Сумма</th>
+                <th className={TH}>Изыматель</th>
+                <th className="px-2 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-100">
+              {cash.expenses.length === 0 && <EmptyRow colSpan={6} text="За этот месяц расходов нет." />}
+              {cash.expenses.map((entry) => (
+                <tr key={entry.id}>
+                  <td className={`tnum whitespace-nowrap ${TD} text-brand-500`}>{formatDay(entry.date)}</td>
+                  <td className={`${TD} text-brand-900`}>{entry.description}</td>
+                  <td className={TD}>
+                    {entry.category ? <span className="badge bg-brand-100 text-brand-700">{entry.category}</span> : "—"}
+                  </td>
+                  <td className={`tnum whitespace-nowrap ${TD} text-right font-semibold text-red-700`}>
+                    {price(entry.amount)}
+                  </td>
+                  <td className={`${TD} text-brand-500`}>{entry.person || "—"}</td>
+                  <td className="px-2 py-1 text-right">
+                    <LedgerEntryActions entry={entry} categories={categories} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <CrmPullNote />
+        <RefreshCrmPaymentsButton />
+      </div>
+    </div>
+  );
+}
+
+function IncomeSource({ row, price }: { row: CashIncome; price: (value: number) => string }) {
+  if (row.source === "crm") {
+    return (
+      <>
+        <Link href={`/admin/orders/${row.payment.orderId}/`} className="text-brand-700 underline">
+          Заказ №{row.payment.orderId}
+        </Link>{" "}
+        <span className="text-brand-900">— {row.payment.employeeName}</span>
+        {row.payment.remaining > 0 && (
+          <span className="block text-xs text-sky-900">частично, остаток {price(row.payment.remaining)}</span>
+        )}
+      </>
+    );
+  }
+  if (row.entry.debtId !== null) {
+    return <span className="badge bg-amber-100 text-amber-900">{row.entry.description}</span>;
+  }
+  return <span className="badge bg-sky-100 text-sky-900">Ввод: {row.entry.description}</span>;
+}
+
+function RsTab({ year, month, price }: { year: number; month: number; price: (value: number) => string }) {
+  const rows = rsMonth(year, month);
+  const total = rows.reduce((sum, row) => sum + row.amount, 0);
+
+  return (
+    <div className="space-y-4">
+      <MonthPicker year={year} month={month} query={{ tab: "rs" }} />
+      <TableCard footer={`Итого: ${price(total)}`}>
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-brand-400">
+            <tr className="border-b border-brand-100">
+              <th className={TH}>Дата</th>
+              <th className={TH}>Заказ</th>
+              <th className={TH}>Покупатель</th>
+              <th className={TH}>Телефон</th>
+              <th className={`${TH} text-right`}>Сумма</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-100">
+            {rows.length === 0 && (
+              <EmptyRow colSpan={5} text="За этот месяц поступлений по РС нет. Отметьте «Оплата по РС» в карточке заказа." />
+            )}
+            {rows.map((row) => (
+              <tr key={row.orderId}>
+                <td className={`tnum whitespace-nowrap ${TD} text-brand-500`}>{formatDay(row.date)}</td>
+                <td className={`tnum whitespace-nowrap ${TD}`}>
+                  <Link href={`/admin/orders/${row.orderId}/`} className="text-brand-700 underline">
+                    №{row.orderId}
+                  </Link>
+                </td>
+                <td className={`${TD} text-brand-900`}>{row.name}</td>
+                <td className={`tnum whitespace-nowrap ${TD} text-brand-500`}>{row.phone || "—"}</td>
+                <td className={`tnum whitespace-nowrap ${TD} text-right font-semibold text-green-800`}>
+                  {price(row.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+    </div>
+  );
+}
+
+function paymentText(payment: DebtPayment, debt: Debt): string {
+  return payment.paidCurrency !== debt.currency && payment.rate !== null
+    ? `${formatMoney(payment.paidAmount, payment.paidCurrency)} по ${payment.rate}`
+    : formatMoney(payment.amount, debt.currency);
+}
+
+function DebtAmount({ debt }: { debt: Debt }) {
+  const paid = debtPaidTotal(debt);
+  if (debt.status === "settled" || paid === 0) {
+    return (
+      <div>
+        <strong className="tnum">{formatMoney(debt.initialAmount, debt.currency)}</strong>
+        {debt.payments.length > 0 && (
+          <span className="block text-xs text-brand-400">
+            {debt.payments.map((payment) => paymentText(payment, debt)).join(" + ")}
           </span>
-          {!isCurrentMonth && (
-            <Link href={monthHref(year, month + 1)} className="btn-ghost px-3 py-2 text-sm" aria-label="Следующий месяц">
-              →
-            </Link>
-          )}
-        </nav>
-        <div className="ml-auto flex flex-wrap items-start gap-2">
-          <RefreshCrmPaymentsButton />
-          <WriteoffForm kind="in" defaultPerson={admin.login} />
-          <WriteoffForm kind="out" defaultPerson={admin.login} />
+        )}
+      </div>
+    );
+  }
+  return (
+    <div>
+      <span className="block text-xs text-brand-400">
+        Погашено: {debt.payments.map((payment) => paymentText(payment, debt)).join(" + ")} ={" "}
+        {formatMoney(paid, debt.currency)}
+      </span>
+      <strong className="tnum text-red-700">Остаток: {formatMoney(debt.remainingAmount, debt.currency)}</strong>
+    </div>
+  );
+}
+
+function DebtsTab({ archive }: { archive: boolean }) {
+  const debts = listDebts(archive);
+  const categories = expenseCategories();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <AddDebtButton categories={categories} />
+        <Link href={accountingHref({ tab: "debts", archive: archive ? undefined : "1" })} className="btn-secondary py-2 text-sm">
+          {archive ? "Активные" : "Архив"}
+        </Link>
+      </div>
+
+      <section className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-brand-400">
+              <tr className="border-b border-brand-100">
+                <th className={TH}>Тип</th>
+                <th className={TH}>За что</th>
+                <th className={TH}>Категория</th>
+                <th className={TH}>Сумма</th>
+                <th className={TH}>Создано</th>
+                <th className={TH}>{archive ? "Закрыто" : "Действия"}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-100">
+              {debts.length === 0 && <EmptyRow colSpan={6} text={archive ? "Архив пуст" : "Долгов нет"} />}
+              {debts.map((debt) => (
+                <tr key={debt.id} className="align-top">
+                  <td className={`whitespace-nowrap ${TD}`}>
+                    {debt.direction === "we_owe" ? (
+                      <span className="badge bg-orange-100 text-orange-800">Мы должны</span>
+                    ) : (
+                      <span className="badge bg-green-100 text-green-800">Нам должны</span>
+                    )}
+                  </td>
+                  <td className={`${TD} text-brand-900`}>{debt.description}</td>
+                  <td className={TD}>
+                    {debt.category ? <span className="badge bg-brand-100 text-brand-700">{debt.category}</span> : "—"}
+                  </td>
+                  <td className={`whitespace-nowrap ${TD}`}>
+                    <DebtAmount debt={debt} />
+                  </td>
+                  <td className={`tnum whitespace-nowrap ${TD} text-brand-500`}>{formatDay(debt.createdAt)}</td>
+                  <td className={`whitespace-nowrap ${TD}`}>
+                    {archive ? (
+                      <span className="tnum text-brand-500">{debt.settledAt ? formatDay(debt.settledAt) : "—"}</span>
+                    ) : (
+                      <DebtActions debt={debt} categories={categories} />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
-
-      <CrmPullNote />
-
-      <div className="grid gap-5 xl:grid-cols-2">
-        <section className="card overflow-hidden">
-          <h2 className="border-b border-brand-100 px-4 py-3 text-sm font-bold text-brand-900">
-            Поступления из CRM
-          </h2>
-          {ledger.payments.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-brand-400">За этот месяц поступлений нет.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-brand-400">
-                  <tr className="border-b border-brand-100">
-                    <th className="px-4 py-2 font-medium">Дата</th>
-                    <th className="px-4 py-2 font-medium">Заказ</th>
-                    <th className="px-4 py-2 font-medium">Сотрудник</th>
-                    <th className="px-4 py-2 font-medium">Изыматель в CRM</th>
-                    <th className="px-4 py-2 text-right font-medium">Сумма</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-100">
-                  {ledger.payments.map((payment, index) => (
-                    <tr key={`${payment.orderId}-${index}`}>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-brand-500">{formatDay(payment.paidAt)}</td>
-                      <td className="tnum whitespace-nowrap px-4 py-2">
-                        <Link href={`/admin/orders/${payment.orderId}/`} className="text-brand-700 underline">
-                          №{payment.orderId}
-                        </Link>
-                        {payment.remaining > 0 && (
-                          <span className="block text-xs text-sky-900">частично, остаток {price(payment.remaining)}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-brand-900">{payment.employeeName}</td>
-                      <td className="px-4 py-2 text-brand-500">{payment.person || "—"}</td>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-right font-semibold text-green-800">
-                        {price(payment.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">
-            Итого: {price(ledger.incomeTotal - ledger.depositTotal)}
-          </p>
-        </section>
-
-        <section className="card overflow-hidden">
-          <h2 className="border-b border-brand-100 px-4 py-3 text-sm font-bold text-brand-900">Внесения</h2>
-          {ledger.deposits.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-brand-400">За этот месяц внесений нет.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-brand-400">
-                  <tr className="border-b border-brand-100">
-                    <th className="px-4 py-2 font-medium">Дата</th>
-                    <th className="px-4 py-2 font-medium">Откуда</th>
-                    <th className="px-4 py-2 text-right font-medium">Сумма</th>
-                    <th className="px-4 py-2 font-medium">Вноситель</th>
-                    <th className="px-2 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-100">
-                  {ledger.deposits.map((deposit) => (
-                    <tr key={deposit.id}>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-brand-500">{formatDay(deposit.date)}</td>
-                      <td className="px-4 py-2 text-brand-900">{deposit.description}</td>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-right font-semibold text-green-800">
-                        {price(deposit.amount)}
-                      </td>
-                      <td className="px-4 py-2 text-brand-500">{deposit.person}</td>
-                      <td className="px-2 py-1 text-right">
-                        <DeleteWriteoffButton id={deposit.id} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">
-            Итого: {price(ledger.depositTotal)}
-          </p>
-        </section>
-
-        <section className="card overflow-hidden">
-          <h2 className="border-b border-brand-100 px-4 py-3 text-sm font-bold text-brand-900">Списания</h2>
-          {ledger.writeoffs.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-brand-400">За этот месяц списаний нет.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-brand-400">
-                  <tr className="border-b border-brand-100">
-                    <th className="px-4 py-2 font-medium">Дата</th>
-                    <th className="px-4 py-2 font-medium">Цель</th>
-                    <th className="px-4 py-2 text-right font-medium">Сумма</th>
-                    <th className="px-4 py-2 font-medium">Изыматель</th>
-                    <th className="px-2 py-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-100">
-                  {ledger.writeoffs.map((writeoff) => (
-                    <tr key={writeoff.id}>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-brand-500">{formatDay(writeoff.date)}</td>
-                      <td className="px-4 py-2 text-brand-900">{writeoff.description}</td>
-                      <td className="tnum whitespace-nowrap px-4 py-2 text-right font-semibold text-red-700">
-                        {price(writeoff.amount)}
-                      </td>
-                      <td className="px-4 py-2 text-brand-500">{writeoff.person}</td>
-                      <td className="px-2 py-1 text-right">
-                        <DeleteWriteoffButton id={writeoff.id} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="tnum border-t border-brand-100 px-4 py-3 text-right text-sm font-semibold text-brand-900">
-            Итого: {price(ledger.writeoffTotal)}
-          </p>
-        </section>
-      </div>
+      </section>
     </div>
   );
 }

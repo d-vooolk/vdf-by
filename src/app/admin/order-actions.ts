@@ -13,6 +13,7 @@ import {
   markReadyNotified,
   markReviewRequested,
   setOrderNote,
+  setOrderRs,
   setOrderStatus,
   setOrderTotal,
   updateOrderItems,
@@ -80,6 +81,24 @@ export async function setOrderNoteAction(
 ): Promise<FormState> {
   await requireAdmin();
   setOrderNote(id, String(note ?? "").trim());
+  return ok();
+}
+
+export async function setOrderRsAction(id: number, date: string | null): Promise<FormState> {
+  await requireAdmin();
+  let at: number | null = null;
+  if (date !== null) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+    if (!match) return fail(["Укажите дату поступления"]);
+    const [year, month, day] = match.slice(1).map(Number);
+    const today = new Date();
+    const isToday = year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate();
+    at = isToday ? today.getTime() : new Date(year, month - 1, day, 12).getTime();
+    if (Number.isNaN(at) || at > Date.now() + 24 * 60 * 60 * 1000) return fail(["Некорректная дата"]);
+  }
+  if (!setOrderRs(Number(id), at)) return fail(["Заказ не найден"]);
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/accounting");
   return ok();
 }
 

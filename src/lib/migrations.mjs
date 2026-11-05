@@ -790,6 +790,47 @@ export const MIGRATIONS = [
       manual    INTEGER NOT NULL DEFAULT 0,
       UNIQUE (run, engine, query)
     );
+  `,  `
+    ALTER TABLE ledger_writeoffs ADD COLUMN category TEXT NOT NULL DEFAULT '';
+    ALTER TABLE orders ADD COLUMN rs_at INTEGER;
+    CREATE INDEX orders_by_rs ON orders(rs_at) WHERE rs_at IS NOT NULL;
+
+    CREATE TABLE expense_categories (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      sort_order INTEGER
+    );
+    INSERT INTO expense_categories (name, sort_order) VALUES
+      ('Расходники', 0), ('Поставщики', 1), ('Еда в офис', 2), ('Аренда', 3),
+      ('Коммунальные услуги', 4), ('Реклама', 5), ('Инструмент и оборудование', 6),
+      ('Хозтовары', 7), ('Налоги и сборы', 8), ('Связь и интернет', 9),
+      ('Транспорт', 10), ('Прочее', 11);
+
+    CREATE TABLE debts (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      description      TEXT NOT NULL,
+      currency         TEXT NOT NULL DEFAULT 'BYN',
+      initial_amount   REAL NOT NULL,
+      remaining_amount REAL NOT NULL,
+      direction        TEXT NOT NULL,
+      status           TEXT NOT NULL DEFAULT 'active',
+      category         TEXT NOT NULL DEFAULT '',
+      created_at       INTEGER NOT NULL,
+      settled_at       INTEGER
+    );
+    CREATE INDEX debts_by_status ON debts(status, created_at DESC);
+
+    CREATE TABLE debt_payments (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      debt_id       INTEGER NOT NULL REFERENCES debts(id) ON DELETE CASCADE,
+      amount        REAL NOT NULL,
+      paid_currency TEXT NOT NULL DEFAULT 'BYN',
+      paid_amount   REAL NOT NULL,
+      rate          REAL,
+      paid_at       INTEGER NOT NULL,
+      entry_id      INTEGER UNIQUE REFERENCES ledger_writeoffs(id) ON DELETE SET NULL
+    );
+    CREATE INDEX debt_payments_by_debt ON debt_payments(debt_id, paid_at);
   `,
 ];
 

@@ -21,6 +21,8 @@ const WIPE_TABLES = [
   "customer_sessions",
   "customers",
   "sessions",
+  "debt_payments",
+  "debts",
   "ledger_writeoffs",
 ] as const;
 

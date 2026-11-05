@@ -40,36 +40,57 @@ export const MONEY_STATUSES: Array<{ id: MoneyStatus; name: string }> = [
 
 export type LedgerKind = "in" | "out";
 
-export interface Writeoff {
+export interface LedgerEntry {
   id: number;
   kind: LedgerKind;
   date: number;
   description: string;
+  category: string;
+  amount: number;
+  person: string;
+  debtId: number | null;
+}
+
+export interface LedgerEntryInput {
+  kind: LedgerKind;
+  date: number;
+  description: string;
+  category: string;
   amount: number;
   person: string;
 }
 
-export interface WriteoffInput {
-  kind: LedgerKind;
+export interface LedgerEntryUpdate {
   date: number;
   description: string;
+  category: string;
   amount: number;
-  person: string;
+}
+
+export type CashIncome =
+  | { source: "crm"; key: string; date: number; amount: number; payment: CrmPayment }
+  | { source: "entry"; key: string; date: number; amount: number; entry: LedgerEntry };
+
+export interface CashMonth {
+  income: CashIncome[];
+  expenses: LedgerEntry[];
+  incomeTotal: number;
+  expenseTotal: number;
+}
+
+export interface RsIncome {
+  orderId: number;
+  date: number;
+  name: string;
+  phone: string;
+  amount: number;
+  staff: boolean;
 }
 
 export interface CrmPullState {
   at: number;
   okAt: number | null;
   error: string | null;
-}
-
-export interface LedgerMonth {
-  payments: CrmPayment[];
-  writeoffs: Writeoff[];
-  deposits: Writeoff[];
-  incomeTotal: number;
-  depositTotal: number;
-  writeoffTotal: number;
 }
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
@@ -182,9 +203,19 @@ export function moneyStatuses(orderIds: number[]): Map<number, MoneyStatus> {
   return statuses;
 }
 
-export function ledgerMonth(year: number, month: number): LedgerMonth {
-  const from = new Date(year, month - 1, 1).getTime();
-  const to = new Date(year, month, 1).getTime();
+function monthRange(year: number, month: number): [number, number] {
+  return [new Date(year, month - 1, 1).getTime(), new Date(year, month, 1).getTime()];
+}
+
+const total = (rows: Array<{ amount: number }>) => roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
+
+const ENTRY_COLUMNS = `
+  w.id, w.kind, w.date, w.description, w.category, w.amount, w.person, dp.debt_id AS debtId`;
+
+const ENTRY_FROM = `ledger_writeoffs w LEFT JOIN debt_payments dp ON dp.entry_id = w.id`;
+
+export function cashMonth(year: number, month: number): CashMonth {
+  const [from, to] = monthRange(year, month);
   const db = getDb();
   const payments = db
     .prepare(
@@ -193,22 +224,40 @@ export function ledgerMonth(year: number, month: number): LedgerMonth {
     )
     .all(from, to) as CrmPayment[];
   const entries = db
+    .prepare(`SELECT ${ENTRY_COLUMNS} FROM ${ENTRY_FROM} WHERE w.date >= ? AND w.date < ? ORDER BY w.date, w.id`)
+    .all(from, to) as LedgerEntry[];
+  const income: CashIncome[] = [
+    ...payments.map((payment, index): CashIncome => ({
+      source: "crm",
+      key: `crm-${payment.orderId}-${index}`,
+      date: payment.paidAt,
+      amount: payment.amount,
+      payment,
+    })),
+    ...entries
+      .filter((entry) => entry.kind === "in")
+      .map((entry): CashIncome => ({ source: "entry", key: `entry-${entry.id}`, date: entry.date, amount: entry.amount, entry })),
+  ].sort((a, b) => a.date - b.date);
+  const expenses = entries.filter((entry) => entry.kind === "out");
+  return { income, expenses, incomeTotal: total(income), expenseTotal: total(expenses) };
+}
+
+export function rsMonth(year: number, month: number): RsIncome[] {
+  const [from, to] = monthRange(year, month);
+  const rows = getDb()
     .prepare(
-      `SELECT id, kind, date, description, amount, person
-       FROM ledger_writeoffs WHERE date >= ? AND date < ? ORDER BY date, id`,
+      `SELECT id, rs_at, name, phone, total, staff FROM orders
+       WHERE rs_at >= ? AND rs_at < ? AND status != 'cancelled' ORDER BY rs_at, id`,
     )
-    .all(from, to) as Writeoff[];
-  const writeoffs = entries.filter((entry) => entry.kind === "out");
-  const deposits = entries.filter((entry) => entry.kind === "in");
-  const total = (rows: Array<{ amount: number }>) => roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
-  return {
-    payments,
-    writeoffs,
-    deposits,
-    incomeTotal: roundMoney(total(payments) + total(deposits)),
-    depositTotal: total(deposits),
-    writeoffTotal: total(writeoffs),
-  };
+    .all(from, to) as Array<{ id: number; rs_at: number; name: string; phone: string; total: number; staff: number }>;
+  return rows.map((row) => ({
+    orderId: row.id,
+    date: row.rs_at,
+    name: row.name,
+    phone: row.phone,
+    amount: row.total,
+    staff: row.staff === 1,
+  }));
 }
 
 export function ledgerBalance(): number {
@@ -223,14 +272,85 @@ export function ledgerBalance(): number {
   return roundMoney(row.income - row.spent);
 }
 
-export function addWriteoff(input: WriteoffInput): void {
-  getDb()
+const normalizeCategory = (name: string) => name.trim().replace(/\s+/g, " ");
+
+export function expenseCategories(): string[] {
+  const rows = getDb()
     .prepare(
-      "INSERT INTO ledger_writeoffs (kind, date, description, amount, person, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      `SELECT name FROM expense_categories
+       ORDER BY sort_order IS NULL, sort_order, name COLLATE NOCASE`,
     )
-    .run(input.kind, input.date, input.description, roundMoney(input.amount), input.person, Date.now());
+    .all() as Array<{ name: string }>;
+  return rows.map((row) => row.name);
 }
 
-export function deleteWriteoff(id: number): void {
-  getDb().prepare("DELETE FROM ledger_writeoffs WHERE id = ?").run(id);
+export function resolveCategory(rawName: string): string {
+  const name = normalizeCategory(rawName);
+  if (!name) return "";
+  const db = getDb();
+  db.prepare("INSERT OR IGNORE INTO expense_categories (name) VALUES (?)").run(name);
+  const row = db.prepare("SELECT name FROM expense_categories WHERE name = ?").get(name) as { name: string };
+  return row.name;
+}
+
+export function getLedgerEntry(id: number): LedgerEntry | null {
+  return (
+    (getDb().prepare(`SELECT ${ENTRY_COLUMNS} FROM ${ENTRY_FROM} WHERE w.id = ?`).get(id) as LedgerEntry | undefined) ??
+    null
+  );
+}
+
+export function addLedgerEntry(input: LedgerEntryInput): number {
+  const result = getDb()
+    .prepare(
+      `INSERT INTO ledger_writeoffs (kind, date, description, category, amount, person, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      input.kind,
+      input.date,
+      input.description,
+      input.kind === "out" ? resolveCategory(input.category) : "",
+      roundMoney(input.amount),
+      input.person,
+      Date.now(),
+    );
+  return Number(result.lastInsertRowid);
+}
+
+export function updateLedgerEntry(id: number, update: LedgerEntryUpdate): string[] {
+  const entry = getLedgerEntry(id);
+  if (!entry) return ["Запись не найдена"];
+  const amount = roundMoney(update.amount);
+  if (entry.debtId !== null && amount !== entry.amount) {
+    return ["Сумму погашения долга не меняют: удалите запись — долг вернётся — и проведите погашение заново"];
+  }
+  const isPlainExpense = entry.kind === "out" && entry.debtId === null;
+  getDb()
+    .prepare("UPDATE ledger_writeoffs SET date = ?, description = ?, category = ?, amount = ? WHERE id = ?")
+    .run(
+      update.date,
+      entry.debtId === null ? update.description : entry.description,
+      isPlainExpense ? resolveCategory(update.category) : entry.category,
+      amount,
+      id,
+    );
+  return [];
+}
+
+export function deleteLedgerEntry(id: number): void {
+  const db = getDb();
+  db.transaction(() => {
+    const payment = db.prepare("SELECT id, debt_id, amount FROM debt_payments WHERE entry_id = ?").get(id) as
+      | { id: number; debt_id: number; amount: number }
+      | undefined;
+    if (payment) {
+      db.prepare(
+        `UPDATE debts SET remaining_amount = ROUND(remaining_amount + ?, 2), status = 'active', settled_at = NULL
+         WHERE id = ?`,
+      ).run(payment.amount, payment.debt_id);
+      db.prepare("DELETE FROM debt_payments WHERE id = ?").run(payment.id);
+    }
+    db.prepare("DELETE FROM ledger_writeoffs WHERE id = ?").run(id);
+  })();
 }
