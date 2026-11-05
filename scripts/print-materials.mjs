@@ -105,7 +105,7 @@ ${sides.join("\n")}
 </html>`;
 }
 
-function businessCard({ logoWhite, logoTint, logoGreen, qr }) {
+function businessCard({ logoWhite, logoGreen, qr }) {
   const width = 90;
   const height = 50;
   const inset = BLEED + 4;
@@ -115,7 +115,6 @@ function businessCard({ logoWhite, logoTint, logoGreen, qr }) {
 
   const css = `
   .front { background: ${GREEN}; }
-  .front .watermark { width: 150mm; left: -14mm; top: 23mm; }
   .front .logo { position: absolute; left: 50%; top: 50%; width: 70mm; transform: translate(-50%, -50%); }
 
   .back { background: ${PAPER}; }
@@ -140,7 +139,6 @@ function businessCard({ logoWhite, logoTint, logoGreen, qr }) {
   .site { text-align: center; font-size: 9.5pt; font-weight: 800; letter-spacing: 0.02em; }`;
 
   const front = `<section class="side front">
-    <img class="watermark" src="${logoTint}" alt="">
     <img class="logo" src="${logoWhite}" alt="${shop.brand}">
   </section>`;
 
@@ -188,7 +186,7 @@ function warrantyCard({ logoWhite, logoTint, logoGreen }) {
 
   const css = `
   .front { background: ${GREEN}; color: #ffffff; }
-  .front .watermark { width: 260mm; left: -40mm; top: 104mm; }
+  .front .watermark { width: 150mm; left: 50%; bottom: -6mm; transform: translateX(-50%); }
   .front .center { position: absolute; left: ${inset}mm; right: ${inset}mm; top: 50%; transform: translateY(-58%); text-align: center; }
   .front .logo { width: 76mm; display: block; margin: 0 auto; }
   .front .divider { width: 12mm; height: 0.5mm; background: #ffffff; opacity: 0.55; margin: 7mm auto 5mm; }
@@ -196,7 +194,7 @@ function warrantyCard({ logoWhite, logoTint, logoGreen }) {
   .front .site { position: absolute; left: 0; right: 0; bottom: ${inset + 4}mm; text-align: center; font-size: 12pt; font-weight: 750; letter-spacing: 0.16em; }
 
   .back { background: ${PAPER}; }
-  .back .watermark { width: 190mm; left: 40mm; top: 6mm; opacity: 0.045; }
+  .back .watermark { width: 150mm; left: 30mm; top: 8mm; opacity: 0.045; }
   .back .band { position: absolute; left: 0; right: 0; top: 0; height: ${BLEED + 2}mm; background: ${GREEN}; }
   .back .content { position: absolute; inset: ${inset + 2}mm ${inset}mm ${inset}mm; display: flex; flex-direction: column; }
   .head { display: flex; align-items: flex-end; justify-content: space-between; }
