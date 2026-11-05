@@ -831,6 +831,16 @@ export const MIGRATIONS = [
       entry_id      INTEGER UNIQUE REFERENCES ledger_writeoffs(id) ON DELETE SET NULL
     );
     CREATE INDEX debt_payments_by_debt ON debt_payments(debt_id, paid_at);
+  `,  `
+    ALTER TABLE debt_payments ADD COLUMN capital_entry_id INTEGER REFERENCES ledger_writeoffs(id) ON DELETE SET NULL;
+    CREATE UNIQUE INDEX debt_payments_by_capital_entry ON debt_payments(capital_entry_id);
+    CREATE TABLE crm_capital_outbox (
+      ref        TEXT PRIMARY KEY,
+      payload    TEXT,
+      queued_at  INTEGER NOT NULL,
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT
+    );
   `,
 ];
 

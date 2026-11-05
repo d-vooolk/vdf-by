@@ -265,7 +265,9 @@ function PayDebtModal({ debt, onClose }: { debt: Debt; onClose: () => void }) {
   const cashNote =
     debt.direction === "we_owe"
       ? `В кассе будет расход ${formatMoney(cash, "BYN")}.`
-      : `В кассе будет приход ${formatMoney(cash, "BYN")}.`;
+      : payCurrency !== "BYN"
+        ? `Валюта уйдёт в капитал CRM: в кассе будет приход ${formatMoney(cash, "BYN")} по курсу и расход «Отчисление в капитал» на ту же сумму.`
+        : `В кассе будет приход ${formatMoney(cash, "BYN")}.`;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();

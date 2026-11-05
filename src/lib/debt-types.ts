@@ -1,3 +1,5 @@
+export const CAPITAL_TRANSFER_PREFIX = "Отчисление в капитал";
+
 export const DEBT_CURRENCIES = ["BYN", "USD", "EUR"] as const;
 
 export type DebtCurrency = (typeof DEBT_CURRENCIES)[number];
