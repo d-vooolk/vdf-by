@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { Picture } from "@/components/Picture";
 import { PriceTag } from "@/components/PriceTag";
+import { StockNote } from "@/components/StockNote";
 import { formatPrice } from "@/lib/format";
 import { pickUrl } from "@/lib/image-types";
 import { getImage } from "@/lib/images";
@@ -126,11 +127,7 @@ export function ProductCard({
         {/* mt-auto прижимает цену и кнопку к низу — карточки в сетке
             выравниваются по нижнему краю независимо от длины названия. */}
         <div className="mt-auto pt-1 sm:pt-2">
-          {inStock && product.stockQty ? (
-            <p className="tnum mb-1 text-[10px] font-medium text-green-700 sm:text-xs">
-              В наличии: {product.stockQty} шт.
-            </p>
-          ) : null}
+          {inStock && product.stockQty ? <StockNote qty={product.stockQty} /> : null}
           <div
             className={`flex flex-wrap items-baseline gap-x-1.5 sm:gap-x-2 ${
               hasOptions && inStock && priced ? "" : "mb-2 sm:mb-3"

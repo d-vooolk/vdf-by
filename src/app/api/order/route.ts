@@ -9,7 +9,7 @@ import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getActingCustomer, getCustomer, getSellerMode } from "@/lib/customer-auth";
 import { fillCustomerAddress, getCustomerById, isWholesale, type Customer } from "@/lib/customers";
 import { SELLER_MODES } from "@/lib/seller-mode";
-import { describeShortage, stockShortages, variantPrice } from "@/lib/prices";
+import { describeShortageForBuyer, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
 
@@ -183,7 +183,7 @@ function validate(
 
   const shortages = stockShortages(items);
   if (shortages.length) {
-    return { error: `Столько нет в наличии: ${shortages.map(describeShortage).join("; ")}` };
+    return { error: `Столько нет в наличии: ${shortages.map(describeShortageForBuyer).join("; ")}` };
   }
 
   const delivery = (body.delivery ?? {}) as Record<string, unknown>;

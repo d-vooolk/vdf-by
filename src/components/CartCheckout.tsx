@@ -92,6 +92,7 @@ export function CartCheckout({
   const accountStatus = useAccount((state) => state.status);
   const wholesale = useAccount((state) => state.wholesale);
   const customer = useAccount((state) => state.customer);
+  const stockVisible = useAccount((state) => state.stockVisible);
   const loadAccount = useAccount((state) => state.load);
   const signedIn = accountStatus === "customer";
   const sellerWholesale = customer?.sellerMode === "wholesale";
@@ -432,7 +433,9 @@ export function CartCheckout({
                   <li key={cut.title} className="tnum">
                     {cut.title}:{" "}
                     {cut.stock > 0
-                      ? `осталось ${cut.stock} шт., количество уменьшили`
+                      ? stockVisible
+                        ? `осталось ${cut.stock} шт., количество уменьшили`
+                        : "осталось меньше, количество уменьшили"
                       : "закончился, убрали из корзины"}
                   </li>
                 ))}

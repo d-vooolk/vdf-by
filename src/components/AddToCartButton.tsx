@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { CartIcon, MinusIcon, PlusIcon } from "@/components/icons";
 import { useWholesalePrice } from "@/store/account";
-import { lineLimit, useCart, useHydrated, type CartItem } from "@/store/cart";
+import {
+  lineLimit,
+  NO_MORE_STOCK,
+  stockLimited,
+  useCart,
+  useHydrated,
+  type CartItem,
+} from "@/store/cart";
 
 /**
  * Кнопка «В корзину», а после добавления — счётчик и ссылка в корзину.
@@ -50,6 +58,14 @@ export function AddToCartButton({
   // HTML собран на сборке, когда корзина пуста. Пока гидратация не прошла,
   // показываем кнопку — иначе React пожалуется на расхождение разметки.
   const hydrated = useHydrated();
+  const [noMoreShown, setNoMoreShown] = useState(false);
+  const outOfStock = stockLimited(item, inCart);
+  const noMore = noMoreShown && outOfStock;
+
+  const increase = () => {
+    if (outOfStock) setNoMoreShown(true);
+    else add(item, 1);
+  };
 
   if (!hydrated || inCart === 0) {
     return (
@@ -77,54 +93,64 @@ export function AddToCartButton({
    * На странице товара места хватает, там остаётся строка.
    */
   return (
-    <div
-      className={`flex w-full gap-2 ${compact ? "flex-col" : "items-stretch"}`}
-    >
+    <div className="w-full">
       <div
-        className={`flex items-center rounded-control border border-brand-200 bg-white ${
-          compact ? "w-full justify-between" : "shrink-0"
-        }`}
+        className={`flex w-full gap-2 ${compact ? "flex-col" : "items-stretch"}`}
       >
-        <button
-          type="button"
-          onClick={() => setQty(item.key, inCart - 1)}
-          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 ${
-            compact ? "px-1.5 sm:px-2.5" : "px-2.5"
+        <div
+          className={`flex items-center rounded-control border border-brand-200 bg-white ${
+            compact ? "w-full justify-between" : "shrink-0"
           }`}
-          aria-label={inCart === 1 ? "Убрать из корзины" : "Уменьшить количество"}
         >
-          <MinusIcon className="h-4 w-4" />
-        </button>
-        <span
-          className="tnum min-w-7 text-center text-sm font-semibold text-brand-900"
-          aria-live="polite"
-          aria-label={`В корзине: ${inCart}`}
-        >
-          {inCart}
-        </span>
-        <button
-          type="button"
-          onClick={() => add(item, 1)}
-          disabled={inCart >= lineLimit(item)}
-          title={inCart >= lineLimit(item) && item.stock !== undefined ? `В наличии ${item.stock} шт.` : undefined}
-          className={`py-2 text-brand-500 transition-colors hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500 ${
-            compact ? "px-1.5 sm:px-2.5" : "px-2.5"
-          }`}
-          aria-label="Увеличить количество"
-        >
-          <PlusIcon className="h-4 w-4" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setQty(item.key, inCart - 1)}
+            className={`py-2 text-brand-500 transition-colors hover:text-brand-900 ${
+              compact ? "px-1.5 sm:px-2.5" : "px-2.5"
+            }`}
+            aria-label={inCart === 1 ? "Убрать из корзины" : "Уменьшить количество"}
+          >
+            <MinusIcon className="h-4 w-4" />
+          </button>
+          <span
+            className="tnum min-w-7 text-center text-sm font-semibold text-brand-900"
+            aria-live="polite"
+            aria-label={`В корзине: ${inCart}`}
+          >
+            {inCart}
+          </span>
+          <button
+            type="button"
+            onClick={increase}
+            disabled={!outOfStock && inCart >= lineLimit(item)}
+            aria-disabled={outOfStock}
+            className={`py-2 text-brand-500 transition-colors hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500 ${
+              outOfStock ? "opacity-40" : ""
+            } ${compact ? "px-1.5 sm:px-2.5" : "px-2.5"}`}
+            aria-label="Увеличить количество"
+          >
+            <PlusIcon className="h-4 w-4" />
+          </button>
+        </div>
 
-      <Link
-        href="/cart/"
-        className={`btn-primary min-w-0 whitespace-nowrap ${
-          compact ? "w-full px-2 py-2 text-xs sm:px-3" : "flex-1 px-3 text-sm"
-        }`}
-      >
-        <CartIcon className={`h-4 w-4 shrink-0 ${compact ? "hidden sm:block" : ""}`} />
-        {compact ? "В корзину" : "Перейти в корзину"}
-      </Link>
+        <Link
+          href="/cart/"
+          className={`btn-primary min-w-0 whitespace-nowrap ${
+            compact ? "w-full px-2 py-2 text-xs sm:px-3" : "flex-1 px-3 text-sm"
+          }`}
+        >
+          <CartIcon className={`h-4 w-4 shrink-0 ${compact ? "hidden sm:block" : ""}`} />
+          {compact ? "В корзину" : "Перейти в корзину"}
+        </Link>
+      </div>
+      {noMore && (
+        <p
+          role="status"
+          className={`mt-1.5 font-medium text-amber-700 ${compact ? "text-[11px] sm:text-xs" : "text-sm"}`}
+        >
+          {NO_MORE_STOCK}
+        </p>
+      )}
     </div>
   );
 }

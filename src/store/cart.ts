@@ -55,6 +55,12 @@ interface CartState {
 
 const MAX_QTY = 99;
 
+export const NO_MORE_STOCK = "Товара больше нет";
+
+export function stockLimited(line: Pick<CartItem, "stock">, qty: number): boolean {
+  return line.stock !== undefined && qty >= line.stock;
+}
+
 export function lineLimit(line: Pick<CartItem, "stock">): number {
   return Math.min(MAX_QTY, line.stock ?? MAX_QTY);
 }

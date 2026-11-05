@@ -134,3 +134,10 @@ export function describeShortage(shortage: StockShortage): string {
     ? `${titles} — в наличии ${shortage.available} шт., а нужно ${shortage.wanted}`
     : `${titles} — закончился`;
 }
+
+export function describeShortageForBuyer(shortage: StockShortage): string {
+  const titles = shortage.titles.map((title) => `«${title}»`).join(", ");
+  return shortage.available > 0
+    ? `${titles} — столько нет, уменьшите количество`
+    : `${titles} — товара больше нет`;
+}

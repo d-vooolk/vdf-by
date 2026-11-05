@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { excludeFromAnalytics } from "./customer-auth";
+import { excludeFromAnalytics, SIGNED_IN_COOKIE } from "./customer-auth";
 import { getDb } from "./db";
 import { clearHits, isLimited, recordHit } from "./rate-limit";
 // Формат хеша описан один раз в password.mjs — оттуда же его берёт
@@ -157,6 +157,12 @@ export async function login(
   const store = await cookies();
   store.set(COOKIE, token, {
     httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(expiresAt),
+  });
+  store.set(SIGNED_IN_COOKIE, "1", {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",

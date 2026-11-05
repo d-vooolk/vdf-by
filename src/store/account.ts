@@ -19,6 +19,7 @@ interface AccountState {
   status: "unknown" | "loading" | "guest" | "customer";
   customer: AccountCustomer | null;
   wholesale: Record<string, number> | null;
+  stockVisible: boolean;
   load: (force?: boolean) => Promise<void>;
   reset: () => void;
   setSellerMode: (mode: SellerMode) => Promise<void>;
@@ -49,11 +50,12 @@ export const useAccount = create<AccountState>()((set, get) => ({
   status: "unknown",
   customer: null,
   wholesale: null,
+  stockVisible: false,
   load: async (force = false) => {
     const current = get().status;
     if (!force && (current === "loading" || current === "guest" || current === "customer")) return;
     if (!force && !signedInHint() && knownGuest()) {
-      set({ status: "guest", customer: null, wholesale: null });
+      set({ status: "guest", customer: null, wholesale: null, stockVisible: false });
       return;
     }
     set({ status: "loading" });
@@ -62,20 +64,22 @@ export const useAccount = create<AccountState>()((set, get) => ({
       const data = (await response.json()) as {
         customer: AccountCustomer | null;
         wholesale?: Record<string, number> | null;
+        stockVisible?: boolean;
       };
       rememberGuest(!data.customer);
       set({
         status: data.customer ? "customer" : "guest",
         customer: data.customer,
         wholesale: data.wholesale ?? null,
+        stockVisible: data.stockVisible === true,
       });
     } catch {
-      set({ status: "guest", customer: null, wholesale: null });
+      set({ status: "guest", customer: null, wholesale: null, stockVisible: false });
     }
   },
   reset: () => {
     rememberGuest(true);
-    set({ status: "guest", customer: null, wholesale: null });
+    set({ status: "guest", customer: null, wholesale: null, stockVisible: false });
   },
   setSellerMode: async (mode) => {
     document.cookie = `${SELLER_MODE_COOKIE}=${mode}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
@@ -89,4 +93,8 @@ export function useWholesalePrice(key: string): number | null {
 
 export function useStaffPrices(): boolean {
   return useAccount((state) => state.customer?.staff === true);
+}
+
+export function useStockVisible(): boolean {
+  return useAccount((state) => state.stockVisible);
 }
