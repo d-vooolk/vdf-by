@@ -37,8 +37,14 @@ import {
   type Selection,
   type VariantProduct,
 } from "@/lib/variant";
-import { useStaffPrices, useWholesalePrice } from "@/store/account";
-import { lineLimit, useCart, useHydrated } from "@/store/cart";
+import { useStaffPrices, useStockVisible, useWholesalePrice } from "@/store/account";
+import {
+  lineLimit,
+  NO_MORE_STOCK,
+  stockLimited,
+  useCart,
+  useHydrated,
+} from "@/store/cart";
 
 /**
  * Галерея, выбор опций и кнопка заказа.
@@ -179,6 +185,7 @@ export function ProductPurchase({
   const priced = hasPrice(variant.price);
   const wholesale = useWholesalePrice(variant.key);
   const staffPrices = useStaffPrices();
+  const stockVisible = useStockVisible();
 
   /*
    * Сколько этого варианта уже лежит в корзине.
@@ -195,6 +202,13 @@ export function ProductPurchase({
   const hydrated = useHydrated();
   const maxQty = Math.max(1, lineLimit({ stock: shownStockQty }));
   const orderQty = Math.min(qty, maxQty);
+  const [noMoreShown, setNoMoreShown] = useState(false);
+  const qtyAtStock = stockLimited({ stock: shownStockQty }, orderQty);
+  const noMore = noMoreShown && qtyAtStock;
+  const increaseQty = () => {
+    if (qtyAtStock) setNoMoreShown(true);
+    else setQty(Math.min(maxQty, orderQty + 1));
+  };
   const choosingQty = !hydrated || inCart === 0;
   const gallery = variant.images;
 
@@ -463,7 +477,7 @@ export function ProductPurchase({
             <>
               <CheckIcon className="h-4 w-4 text-green-600" />
               <span className="tnum text-green-700">
-                {shownStockQty
+                {shownStockQty && stockVisible
                   ? `В наличии: ${shownStockQty} шт., отправим сегодня`
                   : "В наличии, отправим сегодня"}
               </span>
@@ -552,9 +566,12 @@ export function ProductPurchase({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQty(Math.min(maxQty, orderQty + 1))}
-                    disabled={orderQty >= maxQty}
-                    className="p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40"
+                    onClick={increaseQty}
+                    disabled={!qtyAtStock && orderQty >= maxQty}
+                    aria-disabled={qtyAtStock}
+                    className={`p-3 text-brand-500 hover:text-brand-900 disabled:opacity-40 ${
+                      qtyAtStock ? "opacity-40" : ""
+                    }`}
                     aria-label="Увеличить количество"
                   >
                     <PlusIcon className="h-4 w-4" />
@@ -584,6 +601,11 @@ export function ProductPurchase({
                 }}
               />
             </div>
+            {noMore && (
+              <p role="status" className="-mt-2 mb-4 text-sm font-medium text-amber-700">
+                {NO_MORE_STOCK}
+              </p>
+            )}
     
             <div className="mb-6">
               <QuickOrder

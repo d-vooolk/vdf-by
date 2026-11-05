@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { MinusIcon, PlusIcon, TrashIcon } from "@/components/icons";
 import { ImagePlaceholder } from "@/components/Picture";
 import { formatPrice } from "@/lib/format";
-import { lineLimit, useCart, type CartItem } from "@/store/cart";
+import { useStockVisible } from "@/store/account";
+import { lineLimit, NO_MORE_STOCK, stockLimited, useCart, type CartItem } from "@/store/cart";
 
 /** Список позиций корзины с изменением количества и удалением. */
 export function CartLines({
@@ -17,6 +19,8 @@ export function CartLines({
 }) {
   const setQty = useCart((state) => state.setQty);
   const remove = useCart((state) => state.remove);
+  const stockVisible = useStockVisible();
+  const [noMoreKey, setNoMoreKey] = useState<string | null>(null);
 
   return (
     <ul className="card divide-y divide-brand-100">
@@ -74,17 +78,29 @@ export function CartLines({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQty(line.key, line.qty + 1)}
-                  disabled={line.qty >= lineLimit(line)}
-                  className="p-2.5 text-brand-500 hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500"
+                  onClick={() =>
+                    stockLimited(line, line.qty)
+                      ? setNoMoreKey(line.key)
+                      : setQty(line.key, line.qty + 1)
+                  }
+                  disabled={!stockLimited(line, line.qty) && line.qty >= lineLimit(line)}
+                  aria-disabled={stockLimited(line, line.qty)}
+                  className={`p-2.5 text-brand-500 hover:text-brand-900 disabled:opacity-40 disabled:hover:text-brand-500 ${
+                    stockLimited(line, line.qty) ? "opacity-40" : ""
+                  }`}
                   aria-label={`Увеличить количество: ${line.title}`}
                 >
                   <PlusIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
-              {line.stock !== undefined && line.qty >= line.stock && (
+              {stockLimited(line, line.qty) && stockVisible && (
                 <span className="text-xs text-brand-400">
                   В наличии {line.stock} шт. — это всё
+                </span>
+              )}
+              {stockLimited(line, line.qty) && !stockVisible && noMoreKey === line.key && (
+                <span role="status" className="text-xs font-medium text-amber-700">
+                  {NO_MORE_STOCK}
                 </span>
               )}
 
