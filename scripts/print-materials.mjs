@@ -170,8 +170,8 @@ function businessCard({ logoWhite, logoGreen, qr }) {
 }
 
 function warrantyCard({ logoWhite, logoTint, logoGreen }) {
-  const width = 103;
-  const height = 146;
+  const width = 105;
+  const height = 148;
   const inset = BLEED + 7;
   const rules = warrantyRules.map((rule) => `<li>${rule}</li>`).join("");
   const fields = warrantyFields
@@ -246,7 +246,7 @@ function warrantyCard({ logoWhite, logoTint, logoGreen }) {
     </div>
   </section>`;
 
-  return { width, height, css, sides: [front, back], name: "garantiynyy-talon-vdf-103x146" };
+  return { width, height, css, sides: [front, back], name: "garantiynyy-talon-vdf-a6-105x148" };
 }
 
 function chrome(args) {
