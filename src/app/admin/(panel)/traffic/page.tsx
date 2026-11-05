@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { hiddenInLiteMode } from "@/lib/lite-mode";
 import {
   Change,
   DailyBars,
@@ -44,6 +45,7 @@ function rangeLabel(range: TrafficRange): string {
 }
 
 export default async function TrafficPage({ searchParams }: PageProps) {
+  hiddenInLiteMode();
   const params = await searchParams;
   const custom = parseRange(params.from, params.to);
   const preset: TrafficPreset | null = custom ? null : isPreset(params.period) ? params.period : "7";

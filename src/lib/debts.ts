@@ -1,6 +1,7 @@
 import { addLedgerEntry, resolveCategory } from "./accounting";
 import { capitalRef, queueCapital } from "./crm-capital";
 import { getDb } from "./db";
+import { isLiteMode } from "./lite-mode";
 import {
   CAPITAL_TRANSFER_PREFIX,
   cashAmountInByn,
@@ -173,19 +174,23 @@ export function payDebt(id: number, input: DebtPaymentInput, person: string): st
   const foreignNote = input.currency === "BYN" ? "" : ` (${formatMoney(paid, input.currency)} по ${rate})`;
 
   const description = `${settles ? "Погашение" : "Частичное погашение"} долга — ${debt.description}`;
-  const capitalCurrency = debt.direction === "owed_to_us" && input.currency !== "BYN" ? input.currency : null;
+  const lite = isLiteMode();
+  const capitalCurrency =
+    !lite && debt.direction === "owed_to_us" && input.currency !== "BYN" ? input.currency : null;
   const toCapital = capitalCurrency !== null && rate !== null;
 
   const db = getDb();
   db.transaction(() => {
-    const entryId = addLedgerEntry({
-      kind: debt.direction === "we_owe" ? "out" : "in",
-      date: now,
-      description: `${description}${foreignNote}`,
-      category: debt.category,
-      amount: cash,
-      person,
-    });
+    const entryId = lite
+      ? null
+      : addLedgerEntry({
+          kind: debt.direction === "we_owe" ? "out" : "in",
+          date: now,
+          description: `${description}${foreignNote}`,
+          category: debt.category,
+          amount: cash,
+          person,
+        });
     const capitalEntryId = toCapital
       ? addLedgerEntry({
           kind: "out",

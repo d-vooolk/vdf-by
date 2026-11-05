@@ -10,17 +10,23 @@ import { capitalOutboxState } from "@/lib/crm-capital";
 import { getSite } from "@/lib/catalog";
 import { debtPaidTotal, formatMoney, type Debt, type DebtPayment } from "@/lib/debt-types";
 import { listDebts } from "@/lib/debts";
+import { isLiteMode } from "@/lib/lite-mode";
 import { formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Бухгалтерия" };
 
-const TABS = [
+type Tab = "cashflow" | "rs" | "debts";
+
+const FULL_TABS: Array<{ id: Tab; label: string }> = [
   { id: "cashflow", label: "Приходно-расходный" },
   { id: "rs", label: "Приход РС" },
   { id: "debts", label: "Долги" },
-] as const;
+];
 
-type Tab = (typeof TABS)[number]["id"];
+const LITE_TABS: Array<{ id: Tab; label: string }> = [
+  { id: "rs", label: "Приход" },
+  { id: "debts", label: "Долги" },
+];
 type CashView = "income" | "expenses";
 
 interface PageProps {
@@ -52,7 +58,10 @@ function formatDay(timestamp: number): string {
 export default async function AccountingPage({ searchParams }: PageProps) {
   await requireAdmin();
   const params = await searchParams;
-  const tab: Tab = TABS.some((item) => item.id === params.tab) ? (params.tab as Tab) : "cashflow";
+  const lite = isLiteMode();
+  const tabs = lite ? LITE_TABS : FULL_TABS;
+  const defaultTab = tabs[0].id;
+  const tab = tabs.find((item) => item.id === params.tab)?.id ?? defaultTab;
   const { year, month } = parseMonth(params.month);
   const monthParam = params.month && /^\d{4}-\d{2}$/.test(params.month) ? params.month : undefined;
   const site = getSite();
@@ -63,10 +72,10 @@ export default async function AccountingPage({ searchParams }: PageProps) {
       <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
 
       <nav className="flex flex-wrap gap-2 border-b border-brand-100 pb-3" aria-label="Разделы бухгалтерии">
-        {TABS.map((item) => (
+        {tabs.map((item) => (
           <Link
             key={item.id}
-            href={accountingHref({ tab: item.id === "cashflow" ? undefined : item.id, month: item.id === "debts" ? undefined : monthParam })}
+            href={accountingHref({ tab: item.id === defaultTab ? undefined : item.id, month: item.id === "debts" ? undefined : monthParam })}
             aria-current={tab === item.id ? "page" : undefined}
             className={`rounded-xl px-4 py-1.5 text-sm font-medium ${
               tab === item.id ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-700"
@@ -85,8 +94,8 @@ export default async function AccountingPage({ searchParams }: PageProps) {
           price={price}
         />
       )}
-      {tab === "rs" && <RsTab year={year} month={month} price={price} />}
-      {tab === "debts" && <DebtsTab archive={params.archive === "1"} />}
+      {tab === "rs" && <RsTab year={year} month={month} price={price} lite={lite} />}
+      {tab === "debts" && <DebtsTab archive={params.archive === "1"} lite={lite} />}
     </div>
   );
 }
@@ -277,13 +286,23 @@ function IncomeSource({ row, price }: { row: CashIncome; price: (value: number) 
   return <span className="badge bg-sky-100 text-sky-900">Ввод: {row.entry.description}</span>;
 }
 
-function RsTab({ year, month, price }: { year: number; month: number; price: (value: number) => string }) {
+function RsTab({
+  year,
+  month,
+  price,
+  lite,
+}: {
+  year: number;
+  month: number;
+  price: (value: number) => string;
+  lite: boolean;
+}) {
   const rows = rsMonth(year, month);
   const total = rows.reduce((sum, row) => sum + row.amount, 0);
 
   return (
     <div className="space-y-4">
-      <MonthPicker year={year} month={month} query={{ tab: "rs" }} />
+      <MonthPicker year={year} month={month} query={lite ? {} : { tab: "rs" }} />
       <TableCard footer={`Итого: ${price(total)}`}>
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-brand-400">
@@ -352,14 +371,14 @@ function DebtAmount({ debt }: { debt: Debt }) {
   );
 }
 
-function DebtsTab({ archive }: { archive: boolean }) {
+function DebtsTab({ archive, lite }: { archive: boolean; lite: boolean }) {
   const debts = listDebts(archive);
   const categories = expenseCategories();
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <AddDebtButton categories={categories} />
+        <AddDebtButton categories={categories} lite={lite} />
         <Link href={accountingHref({ tab: "debts", archive: archive ? undefined : "1" })} className="btn-secondary py-2 text-sm">
           {archive ? "Активные" : "Архив"}
         </Link>
@@ -401,7 +420,7 @@ function DebtsTab({ archive }: { archive: boolean }) {
                     {archive ? (
                       <span className="tnum text-brand-500">{debt.settledAt ? formatDay(debt.settledAt) : "—"}</span>
                     ) : (
-                      <DebtActions debt={debt} categories={categories} />
+                      <DebtActions debt={debt} categories={categories} lite={lite} />
                     )}
                   </td>
                 </tr>

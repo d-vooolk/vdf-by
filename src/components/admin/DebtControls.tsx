@@ -73,7 +73,7 @@ function Segmented<T extends string>({
   );
 }
 
-export function AddDebtButton({ categories }: { categories: string[] }) {
+export function AddDebtButton({ categories, lite }: { categories: string[]; lite: boolean }) {
   const [open, setOpen] = useState(false);
   const { pending, problems, run } = useSubmit();
   const [description, setDescription] = useState("");
@@ -156,7 +156,7 @@ export function AddDebtButton({ categories }: { categories: string[] }) {
               />
             </div>
             {companyOwes && (
-              <Field label="Категория" required hint="Погашения уйдут в расход кассы с этой категорией">
+              <Field label="Категория" required hint={lite ? undefined : "Погашения уйдут в расход кассы с этой категорией"}>
                 <CategoryInput value={category} onChange={setCategory} categories={categories} />
               </Field>
             )}
@@ -211,7 +211,7 @@ function EditDebtModal({ debt, categories, onClose }: { debt: Debt; categories: 
   );
 }
 
-function PayDebtModal({ debt, onClose }: { debt: Debt; onClose: () => void }) {
+function PayDebtModal({ debt, lite, onClose }: { debt: Debt; lite: boolean; onClose: () => void }) {
   const { pending, problems, run } = useSubmit();
   const [payCurrency, setPayCurrency] = useState<DebtCurrency>(debt.currency);
   const [amount, setAmount] = useState<number | null>(debt.remainingAmount);
@@ -321,7 +321,7 @@ function PayDebtModal({ debt, onClose }: { debt: Debt; onClose: () => void }) {
               Долг уменьшится на <strong>{formatMoney(Math.min(reduce, remaining), debt.currency)}</strong>
             </p>
           )}
-          {cash > 0 && <p className="mt-1.5 text-xs text-brand-400">{cashNote}</p>}
+          {cash > 0 && !lite && <p className="mt-1.5 text-xs text-brand-400">{cashNote}</p>}
         </div>
         {tooMuch && (
           <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -339,7 +339,7 @@ function PayDebtModal({ debt, onClose }: { debt: Debt; onClose: () => void }) {
   );
 }
 
-export function DebtActions({ debt, categories }: { debt: Debt; categories: string[] }) {
+export function DebtActions({ debt, categories, lite }: { debt: Debt; categories: string[]; lite: boolean }) {
   const [modal, setModal] = useState<"pay" | "edit" | null>(null);
   const [confirming, setConfirming] = useState(false);
   const { pending, problems, run } = useSubmit();
@@ -388,7 +388,7 @@ export function DebtActions({ debt, categories }: { debt: Debt; categories: stri
           </button>
         ))}
       {problems.length > 0 && <span className="w-full text-xs text-red-700">{problems.join("; ")}</span>}
-      {modal === "pay" && <PayDebtModal debt={debt} onClose={close} />}
+      {modal === "pay" && <PayDebtModal debt={debt} lite={lite} onClose={close} />}
       {modal === "edit" && <EditDebtModal debt={debt} categories={categories} onClose={close} />}
     </span>
   );

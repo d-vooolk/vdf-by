@@ -4,6 +4,7 @@ import { recordCrmPull, replaceCrmStates } from "./accounting";
 import type { CapitalOutboxRow } from "./crm-capital";
 import { getDb } from "./db";
 import { env } from "./env.mjs";
+import { isLiteMode } from "./lite-mode";
 import type { OrderItem } from "./order-types";
 
 const SEND_LIMIT = 50;
@@ -223,7 +224,7 @@ async function flushCapital(config: { url: string; key: string }): Promise<void>
 }
 
 async function exchangeWithCrm(): Promise<CrmSyncReport> {
-  const config = crmConfig();
+  const config = isLiteMode() ? null : crmConfig();
   if (!config) {
     return { configured: false, sent: 0, failed: 0, left: queuedCount(), payments: null, paymentsError: null };
   }

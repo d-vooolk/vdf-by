@@ -4,14 +4,17 @@ import {
   ChartIcon,
   ClockIcon,
   DocumentIcon,
+  DownloadIcon,
   FolderIcon,
   GearIcon,
+  GridIcon,
   HeadlightIcon,
   HomeIcon,
   ImagePlusIcon,
   ListIcon,
   PackageIcon,
   SparkIcon,
+  SparkleListIcon,
   TrashIcon,
   UserIcon,
   WalletIcon,
@@ -32,12 +35,14 @@ export interface NavLink {
 export interface NavGroup {
   label: string;
   links: NavLink[];
+  icon?: NavLink["icon"];
 }
 
 export const NAV: Array<NavLink | NavGroup> = [
   { href: "/admin/", label: "Сводка", exact: true, also: ["/admin/traffic/", "/admin/seo/"], icon: HomeIcon },
   {
     label: "Товары",
+    icon: GridIcon,
     links: [
       { href: "/admin/products/", label: "Все товары", icon: PackageIcon },
       { href: "/admin/categories/", label: "Категории", icon: FolderIcon },
@@ -47,19 +52,21 @@ export const NAV: Array<NavLink | NavGroup> = [
     ],
   },
   { href: "/admin/orders/", label: "Заказы", badge: "orders", icon: CartIcon },
+  { href: "/admin/accounting/", label: "Бухгалтерия", icon: WalletIcon },
   { href: "/admin/service-requests/", label: "Установка", badge: "service", icon: WrenchIcon },
   { href: "/admin/customers/", label: "Покупатели", badge: "customers", icon: UserIcon },
   { href: "/admin/waitlist/", label: "Лист ожидания", badge: "waitlist", icon: ClockIcon },
-  { href: "/admin/accounting/", label: "Бухгалтерия", icon: WalletIcon },
   { href: "/admin/articles/", label: "Статьи", icon: DocumentIcon },
   {
     label: "Импорт",
+    icon: DownloadIcon,
     links: [
       { href: "/admin/vdf-prices/", label: "Курсы и цены", icon: ChartIcon },
     ],
   },
   {
     label: "Справочник",
+    icon: SparkleListIcon,
     links: [
       { href: "/admin/cars/", label: "Автомобили", icon: CarIcon },
       { href: "/admin/unused-photos/", label: "Неиспользуемые фото", icon: TrashIcon },
@@ -76,7 +83,7 @@ export const NAV_LINKS: NavLink[] = NAV.flatMap((item) => (isGroup(item) ? item.
 
 const MOBILE_SECTIONS: Array<{ label: string; hrefs: string[] }> = [
   { label: "Главное", hrefs: ["/admin/"] },
-  { label: "Продажи", hrefs: ["/admin/orders/", "/admin/service-requests/", "/admin/customers/", "/admin/waitlist/", "/admin/accounting/"] },
+  { label: "Продажи", hrefs: ["/admin/orders/", "/admin/accounting/", "/admin/service-requests/", "/admin/customers/", "/admin/waitlist/"] },
   {
     label: "Товары",
     hrefs: ["/admin/products/", "/admin/categories/", "/admin/frame-types/", "/admin/incomplete/", "/admin/out-of-stock/"],
