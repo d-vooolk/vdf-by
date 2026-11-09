@@ -37,7 +37,7 @@ import {
   type Selection,
   type VariantProduct,
 } from "@/lib/variant";
-import { useStaffPrices, useStockVisible, useWholesalePrice } from "@/store/account";
+import { useAccount, useStaffPrices, useStockVisible, useWholesalePrice } from "@/store/account";
 import {
   lineLimit,
   NO_MORE_STOCK,
@@ -184,6 +184,7 @@ export function ProductPurchase({
   const shownStockQty = variantStockQty(product, variant);
   const priced = hasPrice(variant.price);
   const wholesale = useWholesalePrice(variant.key);
+  const signedIn = useAccount((state) => state.status === "customer");
   const staffPrices = useStaffPrices();
   const stockVisible = useStockVisible();
 
@@ -607,29 +608,31 @@ export function ProductPurchase({
               </p>
             )}
     
-            <div className="mb-6">
-              <QuickOrder
-                orderEndpoint={orderEndpoint}
-                deliveryId={quickDeliveryId}
-                pickupId={quickPickupId}
-                shipping={quickShipping}
-                currencySymbol={currencySymbol}
-                disabled={!variant.inStock}
-                qty={orderQty}
-                currency={currency}
-                phone={phone}
-                phoneHref={phoneHref}
-                item={{
-                  key: variant.key,
-                  productId: product.id,
-                  slug: product.slug,
-                  title: product.title,
-                  options: variant.label,
-                  sku: variant.sku,
-                  price: wholesale ?? variant.price,
-                }}
-              />
-            </div>
+            {signedIn && (
+              <div className="mb-6">
+                <QuickOrder
+                  orderEndpoint={orderEndpoint}
+                  deliveryId={quickDeliveryId}
+                  pickupId={quickPickupId}
+                  shipping={quickShipping}
+                  currencySymbol={currencySymbol}
+                  disabled={!variant.inStock}
+                  qty={orderQty}
+                  currency={currency}
+                  phone={phone}
+                  phoneHref={phoneHref}
+                  item={{
+                    key: variant.key,
+                    productId: product.id,
+                    slug: product.slug,
+                    title: product.title,
+                    options: variant.label,
+                    sku: variant.sku,
+                    price: wholesale ?? variant.price,
+                  }}
+                />
+              </div>
+            )}
           </>
         )}
 

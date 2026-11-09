@@ -9,7 +9,9 @@ import {
   setCustomerSeller,
   setCustomerStaff,
   setWholesaleStatus,
+  setWholesaleTier,
 } from "@/lib/customers";
+import { toWholesaleTier, type WholesaleTier } from "@/lib/wholesale-tiers";
 import {
   getSmsSettings,
   renderTemplate,
@@ -22,11 +24,13 @@ import { fail, type FormState, ok } from "./form-state";
 export async function setWholesaleStatusAction(
   customerId: number,
   status: "approved" | "rejected" | "none",
+  tier?: WholesaleTier,
 ): Promise<FormState> {
   await requireAdmin();
   const customer = getCustomerById(customerId);
   if (!customer) return fail(["Покупатель не найден"]);
-  if (customer.staff || !setWholesaleStatus(customerId, status)) {
+  const chosenTier = status === "approved" ? toWholesaleTier(tier) : undefined;
+  if (customer.staff || !setWholesaleStatus(customerId, status, chosenTier)) {
     return fail(["Сотрудник не может быть оптовиком — сначала снимите роль сотрудника"]);
   }
   if (status === "approved" && customer.wholesaleStatus !== "approved" && smsConfigured()) {
@@ -41,6 +45,19 @@ export async function setWholesaleStatusAction(
     } catch (error) {
       console.error("[customers] SMS об опте не ушло:", (error as Error).message);
     }
+  }
+  return ok();
+}
+
+export async function setWholesaleTierAction(
+  customerId: number,
+  tier: WholesaleTier,
+): Promise<FormState> {
+  await requireAdmin();
+  const customer = getCustomerById(customerId);
+  if (!customer) return fail(["Покупатель не найден"]);
+  if (customer.staff || !setWholesaleTier(customerId, toWholesaleTier(tier))) {
+    return fail(["Сотруднику тип опта не назначается"]);
   }
   return ok();
 }

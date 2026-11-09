@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { getDb } from "./db";
 import { localPart } from "./phone";
 import type { SellerMode } from "./seller-mode";
+import { toWholesaleTier, type WholesaleTier } from "./wholesale-tiers";
 
 export type CustomerKind = "retail" | "wholesale";
 export type WholesaleStatus = "none" | "pending" | "approved" | "rejected";
@@ -23,6 +24,7 @@ export interface Customer {
   kind: CustomerKind;
   address: string;
   wholesaleStatus: WholesaleStatus;
+  wholesaleTier: WholesaleTier;
   consentAt: number;
   createdAt: number;
   lastLoginAt: number | null;
@@ -54,6 +56,7 @@ interface CustomerRow {
   kind: CustomerKind;
   address: string;
   wholesale_status: WholesaleStatus;
+  wholesale_tier: string;
   consent_at: number;
   created_at: number;
   last_login_at: number | null;
@@ -72,6 +75,7 @@ function toCustomer(row: CustomerRow): Customer {
     kind: row.kind,
     address: row.address,
     wholesaleStatus: row.wholesale_status,
+    wholesaleTier: toWholesaleTier(row.wholesale_tier),
     consentAt: row.consent_at,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
@@ -91,6 +95,7 @@ export function actingAs(customer: Customer, mode: SellerMode): Customer {
     staff: false,
     kind: wholesale ? "wholesale" : "retail",
     wholesaleStatus: wholesale ? "approved" : "none",
+    wholesaleTier: "base",
   };
 }
 
@@ -113,6 +118,10 @@ export function getCustomerById(id: number): Customer | null {
 
 export function isWholesale(customer: Customer | null): boolean {
   return customer?.wholesaleStatus === "approved" || customer?.staff === true;
+}
+
+export function wholesaleTierOf(customer: Customer | null): WholesaleTier {
+  return customer && !customer.staff ? customer.wholesaleTier : "base";
 }
 
 export type CodeCheck = { ok: true } | { ok: false; error: string; retryIn?: number };
@@ -394,10 +403,20 @@ export function countPendingWholesale(): number {
   ).n;
 }
 
-export function setWholesaleStatus(id: number, status: WholesaleStatus): boolean {
+export function setWholesaleStatus(id: number, status: WholesaleStatus, tier?: WholesaleTier): boolean {
   const result = getDb()
-    .prepare("UPDATE customers SET wholesale_status = ?, reviewed_at = ? WHERE id = ? AND staff = 0")
-    .run(status, Date.now(), id);
+    .prepare(
+      `UPDATE customers SET wholesale_status = ?, wholesale_tier = COALESCE(?, wholesale_tier), reviewed_at = ?
+        WHERE id = ? AND staff = 0`,
+    )
+    .run(status, tier ?? null, Date.now(), id);
+  return result.changes > 0;
+}
+
+export function setWholesaleTier(id: number, tier: WholesaleTier): boolean {
+  const result = getDb()
+    .prepare("UPDATE customers SET wholesale_tier = ? WHERE id = ? AND staff = 0")
+    .run(tier, id);
   return result.changes > 0;
 }
 

@@ -857,6 +857,10 @@ export const MIGRATIONS = [
     );
     CREATE INDEX business_posts_by_time ON business_posts(publish_at);
   `,
+  `
+    ALTER TABLE customers ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
+    ALTER TABLE orders ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

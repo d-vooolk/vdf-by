@@ -17,6 +17,7 @@ import {
   createCustomer,
   findCustomerByPhone,
   isWholesale,
+  wholesaleTierOf,
   issueCode,
   markCodeSent,
   phoneRecentlyVerified,
@@ -88,7 +89,7 @@ export async function GET() {
   return Response.json(
     {
       customer: publicCustomer(customer, await getSellerMode()),
-      wholesale: isWholesale(customer) ? buildWholesaleList() : null,
+      wholesale: isWholesale(customer) ? buildWholesaleList(wholesaleTierOf(customer)) : null,
     },
     noStore,
   );
