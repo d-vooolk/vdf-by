@@ -9,6 +9,8 @@
  * Тот же приём, что с картинками: image-types.ts против images.ts.
  */
 
+import type { WholesaleTier } from "./wholesale-tiers";
+
 export const ORDER_STATUSES = [
   { id: "new", name: "Новый" },
   { id: "called", name: "Созвонились" },
@@ -62,6 +64,7 @@ export interface Order {
   adminNote: string;
   staff: boolean;
   wholesale: boolean;
+  wholesaleTier: WholesaleTier;
   editedAt: number | null;
   reviewSmsAt: number | null;
   readySmsAt: number | null;

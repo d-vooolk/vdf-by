@@ -9,17 +9,21 @@ import {
   setCustomerSellerAction,
   setCustomerStaffAction,
   setWholesaleStatusAction,
+  setWholesaleTierAction,
 } from "@/app/admin/customer-actions";
+import { WHOLESALE_TIERS, type WholesaleTier } from "@/lib/wholesale-tiers";
 
 export function CustomerControls({
   id,
   status,
+  tier: initialTier,
   note: initialNote,
   staff,
   seller,
 }: {
   id: number;
   status: "none" | "pending" | "approved" | "rejected";
+  tier: WholesaleTier;
   note: string;
   staff: boolean;
   seller: boolean;
@@ -27,6 +31,7 @@ export function CustomerControls({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(initialNote);
+  const [tier, setTier] = useState(initialTier);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [problem, setProblem] = useState("");
 
@@ -40,14 +45,33 @@ export function CustomerControls({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
+        {!staff && (
+          <select
+            value={tier}
+            disabled={pending}
+            onChange={(event) => {
+              const next = event.target.value as WholesaleTier;
+              setTier(next);
+              if (status === "approved") run(() => setWholesaleTierAction(id, next));
+            }}
+            aria-label="Тип опта"
+            className="field w-auto py-1.5 text-xs"
+          >
+            {(Object.keys(WHOLESALE_TIERS) as WholesaleTier[]).map((option) => (
+              <option key={option} value={option}>
+                {WHOLESALE_TIERS[option].label}
+              </option>
+            ))}
+          </select>
+        )}
         {!staff && status !== "approved" && (
           <button
             type="button"
             disabled={pending}
-            onClick={() => run(() => setWholesaleStatusAction(id, "approved"))}
+            onClick={() => run(() => setWholesaleStatusAction(id, "approved", tier))}
             className="btn-primary px-3 py-1.5 text-xs"
           >
-            Подтвердить опт
+            {tier === "base" ? "Подтвердить опт" : `Подтвердить ${WHOLESALE_TIERS[tier].label}`}
           </button>
         )}
         {!staff && status === "pending" && (

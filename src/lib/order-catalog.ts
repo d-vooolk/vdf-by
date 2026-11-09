@@ -10,10 +10,12 @@ import {
   type Selection,
 } from "./variant";
 import { wholesaleFor } from "./wholesale";
+import type { WholesaleTier } from "./wholesale-tiers";
 
 export interface OrderBuyer {
   staff: boolean;
   wholesale: boolean;
+  wholesaleTier: WholesaleTier;
 }
 
 export interface OrderVariantOption {
@@ -40,7 +42,11 @@ function buyerPrice(
   variant: ResolvedVariant,
   buyer: OrderBuyer,
 ): number {
-  const special = buyer.staff || buyer.wholesale ? wholesaleFor(product, selection) : null;
+  const special = buyer.staff
+    ? wholesaleFor(product, selection)
+    : buyer.wholesale
+      ? wholesaleFor(product, selection, buyer.wholesaleTier)
+      : null;
   return special ?? variant.price;
 }
 

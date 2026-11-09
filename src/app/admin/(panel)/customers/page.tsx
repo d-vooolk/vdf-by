@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CustomerControls } from "@/components/admin/CustomerControls";
 import { getSite } from "@/lib/catalog";
 import { listCustomers, WHOLESALE_LABELS, type WholesaleStatus } from "@/lib/customers";
+import { WHOLESALE_TIERS } from "@/lib/wholesale-tiers";
 import { formatPrice, pluralize } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { smsConfigured } from "@/lib/sms";
@@ -130,7 +131,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                   ) : (
                     <>
                       <span className={`badge ${STATUS_TONE[customer.wholesaleStatus]}`}>
-                        {WHOLESALE_LABELS[customer.wholesaleStatus]}
+                        {customer.wholesaleStatus === "approved" && customer.wholesaleTier !== "base"
+                          ? `оптовик, ${WHOLESALE_TIERS[customer.wholesaleTier].label}`
+                          : WHOLESALE_LABELS[customer.wholesaleStatus]}
                       </span>
                       <span className="text-xs text-brand-400">
                         {customer.kind === "wholesale"
@@ -175,6 +178,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               <CustomerControls
                 id={customer.id}
                 status={customer.wholesaleStatus}
+                tier={customer.wholesaleTier}
                 note={customer.adminNote}
                 staff={customer.staff}
                 seller={customer.seller}

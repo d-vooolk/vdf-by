@@ -7,11 +7,18 @@ import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getActingCustomer, getCustomer, getSellerMode } from "@/lib/customer-auth";
-import { fillCustomerAddress, getCustomerById, isWholesale, type Customer } from "@/lib/customers";
+import {
+  fillCustomerAddress,
+  getCustomerById,
+  isWholesale,
+  wholesaleTierOf,
+  type Customer,
+} from "@/lib/customers";
 import { SELLER_MODES } from "@/lib/seller-mode";
 import { describeShortageForBuyer, stockShortages, variantPrice } from "@/lib/prices";
 import { sendTelegram } from "@/lib/telegram";
 import { buildWholesaleList, type WholesaleList } from "@/lib/wholesale";
+import { WHOLESALE_TIERS } from "@/lib/wholesale-tiers";
 
 /**
  * Приём заказа с витрины.
@@ -198,6 +205,7 @@ function validate(
    * не в форме, которую из-за третьего поля половина не дозаполняет.
    */
   const quick = body.quick === true;
+  if (quick && !account) return { error: "Быстрый заказ доступен после входа в личный кабинет" };
 
   // Стоимость доставки берём свою, из настроек, а не из запроса — по той же
   // причине, по которой не верим ценам товаров.
@@ -224,17 +232,15 @@ function validate(
     notes.push(`вес заказа ${parcel.weight} кг — стоимость доставки «${method.name}» посчитать вручную`);
   }
 
-  const quickFromGuest = quick && !account;
   const staffPurchase = quick && account?.staff === true;
   const street = clean(delivery.address, 300);
   const address =
     (city && street ? `${city}, ${street}` : street) ||
     (quick && method.requiresAddress ? (account?.address.slice(0, 300) ?? "") : "");
 
-  if (method.requiresAddress && !quickFromGuest && !staffPurchase && address.length < 5) {
+  if (method.requiresAddress && !staffPurchase && address.length < 5) {
     return { error: "Не указан адрес доставки" };
   }
-  if (quickFromGuest) notes.push("быстрый заказ со страницы товара — уточните доставку");
 
   const subtotal = Math.round(serverTotal * 100) / 100;
   const total = Math.round((serverTotal + deliveryCost) * 100) / 100;
@@ -390,9 +396,10 @@ export async function POST(request: Request) {
   const buyer = company ?? customer;
 
   const wholesaleBuyer = isWholesale(customer);
+  const wholesaleTier = wholesaleTierOf(company ?? customer);
   const { order, error } = validate(
     payload,
-    wholesaleBuyer ? buildWholesaleList() : null,
+    wholesaleBuyer ? buildWholesaleList(wholesaleTier) : null,
     buyer,
   );
   if (error || !order) {
@@ -412,7 +419,13 @@ export async function POST(request: Request) {
   let id: number;
   try {
     if (staffBuyer) order.notes.unshift("внутренняя покупка сотрудника — цены оптовые");
-    else if (wholesaleBuyer) order.notes.unshift("оптовый покупатель — цены оптовые");
+    else if (wholesaleBuyer) {
+      order.notes.unshift(
+        wholesaleTier === "base"
+          ? "оптовый покупатель — цены оптовые"
+          : `оптовый покупатель — цены «${WHOLESALE_TIERS[wholesaleTier].label}»`,
+      );
+    }
     if (sellerMode) {
       const label = SELLER_MODES.find((mode) => mode.id === sellerMode)?.label ?? sellerMode;
       order.notes.unshift(
@@ -428,6 +441,7 @@ export async function POST(request: Request) {
       customerId: buyer?.id ?? null,
       sellerId: sellerMode && signed ? signed.id : null,
       wholesale: wholesaleBuyer,
+      wholesaleTier,
       staff: staffBuyer,
     });
     id = created.id;

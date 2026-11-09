@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { productSchema, type Product } from "./schema";
+import { WHOLESALE_TIERS, type WholesaleTier } from "./wholesale-tiers";
 import { allSelections, resolveVariant, type ResolvedVariant, type Selection } from "./variant";
 
 export type WholesaleList = Record<string, number>;
@@ -21,13 +22,25 @@ function derivedFrom(
   return roundMoney(base + difference);
 }
 
-export function wholesaleFor(product: Product, selection: Selection): number | null {
-  const variant = resolveVariant(product, selection);
+function baseWholesale(product: Product, variant: ResolvedVariant): number | null {
   const own = variant.selected.find((entry) => (entry.value.wholesalePrice ?? 0) > 0)?.value
     .wholesalePrice;
   if (own === undefined) return derivedFrom(product, product.wholesalePrice, variant);
   const delta = variant.selected.reduce((sum, entry) => sum + (entry.value.priceDelta ?? 0), 0);
   return roundMoney(own + delta);
+}
+
+export function wholesaleFor(
+  product: Product,
+  selection: Selection,
+  tier: WholesaleTier = "base",
+): number | null {
+  const variant = resolveVariant(product, selection);
+  const base = baseWholesale(product, variant);
+  const markup = WHOLESALE_TIERS[tier].markupPercent;
+  if (base === null || markup === 0) return base;
+  const raised = roundMoney(base * (1 + markup / 100));
+  return variant.price > 0 ? Math.min(raised, variant.price) : raised;
 }
 
 function buildSpecialList(
@@ -51,9 +64,9 @@ function buildSpecialList(
   return list;
 }
 
-export function buildWholesaleList(): WholesaleList {
+export function buildWholesaleList(tier: WholesaleTier = "base"): WholesaleList {
   return buildSpecialList(
     `COALESCE(json_extract(data, '$.wholesalePrice'), 0) > 0 OR data LIKE '%"wholesalePrice"%'`,
-    wholesaleFor,
+    (product, selection) => wholesaleFor(product, selection, tier),
   );
 }
