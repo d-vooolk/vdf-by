@@ -123,9 +123,13 @@ export function Footer() {
       <div className="border-t border-brand-100">
         <div className="container-page flex flex-col gap-2 py-6 text-xs text-brand-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {year} {site.legalName}. Цены на сайте не являются публичной
+            © {year} {site.legalName}
+            {site.unp ? `, УНП ${site.unp}` : ""}. Цены на сайте не являются публичной
             офертой.
           </p>
+          <Link href="/vozvrat/" className="transition-colors hover:text-brand-700">
+            Возврат и обмен
+          </Link>
           <Link href="/privacy/" className="transition-colors hover:text-brand-700">
             Политика обработки персональных данных
           </Link>
