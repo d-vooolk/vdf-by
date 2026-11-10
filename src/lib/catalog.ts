@@ -349,13 +349,16 @@ export function getCategoryCounts(): Record<string, number> {
 
 const MANUFACTURER_SPEC = "производитель";
 
+const NOT_A_BRAND = /^(без бренда|без производителя|no ?name|noname|китай|china|кнр|нет|-|—)$/i;
+
+const realBrand = (value: string | undefined) =>
+  value && !isSupplierBrand(value) && !NOT_A_BRAND.test(value) ? value : undefined;
+
 export function productBrand(product: Product): string | undefined {
-  const brand = product.brand?.trim();
-  if (brand && !isSupplierBrand(brand)) return brand;
   const manufacturer = product.specs
     .find((spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC)
     ?.value.trim();
-  return manufacturer && !isSupplierBrand(manufacturer) ? manufacturer : undefined;
+  return realBrand(product.brand?.trim()) ?? realBrand(manufacturer);
 }
 
 /** Уникальные бренды произвольной выборки — для фильтра над ней. */
