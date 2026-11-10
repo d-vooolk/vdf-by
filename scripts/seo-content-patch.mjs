@@ -37,10 +37,23 @@ const say = (line) => {
 
 const readProduct = db.prepare("SELECT id, title, data FROM products WHERE slug = ?");
 const writeProduct = db.prepare("UPDATE products SET title = ?, data = ?, updated_at = ? WHERE id = ?");
+const writeProductSlug = db.prepare("UPDATE products SET slug = ? WHERE id = ?");
+const slugTaken = db.prepare("SELECT 1 FROM products WHERE slug = ?");
+const writeRedirect = db.prepare(
+  `INSERT INTO redirects (from_path, to_path, created_at) VALUES (?, ?, ?)
+   ON CONFLICT(from_path) DO UPDATE SET to_path = excluded.to_path, created_at = excluded.created_at`,
+);
+const retargetRedirects = db.prepare("UPDATE redirects SET to_path = ? WHERE to_path = ?");
+const dropRedirect = db.prepare("DELETE FROM redirects WHERE from_path = ?");
 const readArticle = db.prepare("SELECT id, title, data FROM articles WHERE slug = ?");
 const insertDraft = db.prepare(
   `INSERT INTO articles (slug, title, status, data, created_at, updated_at, published_at)
    VALUES (?, ?, 'draft', ?, ?, ?, NULL)`,
+);
+const readArticleStatus = db.prepare("SELECT status FROM articles WHERE slug = ?");
+const publishArticle = db.prepare(
+  `UPDATE articles SET status = 'published', published_at = COALESCE(published_at, ?), updated_at = ?
+   WHERE slug = ? AND status = 'draft'`,
 );
 const readSite = db.prepare("SELECT value FROM settings WHERE key = 'site'");
 const writeSite = db.prepare("UPDATE settings SET value = ? WHERE key = 'site'");
@@ -109,6 +122,16 @@ function planProduct(spec) {
   const data = JSON.parse(row.data);
   applyFields(data, spec, spec.slug);
   if (data.seoTitle && data.seoTitle.length > 70) problems.push(`${spec.slug}: title ${data.seoTitle.length} знаков`);
+  let newSlug = null;
+  if (spec.newSlug && spec.newSlug !== spec.slug) {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(spec.newSlug)) problems.push(`${spec.slug}: недопустимый адрес ${spec.newSlug}`);
+    else if (slugTaken.get(spec.newSlug)) problems.push(`${spec.slug}: адрес ${spec.newSlug} уже занят`);
+    else {
+      newSlug = spec.newSlug;
+      if ("slug" in data) data.slug = newSlug;
+      say(`${spec.slug}: адрес → /product/${newSlug}/ (с переадресацией 308)`);
+    }
+  }
 
   const cars = { remove: [], add: [] };
   for (const carPath of spec.cars?.remove ?? []) {
@@ -127,8 +150,8 @@ function planProduct(spec) {
   }
 
   const changed = JSON.stringify(data) !== row.data;
-  if (!changed && !cars.remove.length && !cars.add.length) return null;
-  return { id: row.id, title: data.title, data: changed ? data : null, cars };
+  if (!changed && !newSlug && !cars.remove.length && !cars.add.length) return null;
+  return { id: row.id, slug: spec.slug, newSlug, title: data.title, data: changed ? data : null, cars };
 }
 
 function planArticle(spec) {
@@ -175,8 +198,8 @@ function planSite() {
   }
   const data = JSON.parse(row.value);
   for (const [field, value] of Object.entries(CONTENT.site)) {
-    if (data[field] === value) continue;
-    say(`настройки сайта: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${value}`);
+    if (JSON.stringify(data[field] ?? null) === JSON.stringify(value)) continue;
+    say(`настройки сайта: ${field}\n    было: ${JSON.stringify(data[field] ?? null)}\n    стало: ${JSON.stringify(value)}`);
     data[field] = value;
   }
   if (data.description && data.description.length > 165) {
@@ -207,6 +230,13 @@ const products = (CONTENT.products ?? []).map(planProduct).filter(Boolean);
 const articles = (CONTENT.articles ?? []).map(planArticle).filter(Boolean);
 const drafts = (CONTENT.drafts ?? []).map(planDraft).filter(Boolean);
 const site = planSite();
+const publish = (CONTENT.publish ?? []).filter((slug) => {
+  const row = readArticleStatus.get(slug);
+  if (!row) problems.push(`нет статьи ${slug} для публикации`);
+  else if (row.status === "published") say(`статья ${slug} уже опубликована`);
+  else say(`публикация статьи ${slug}`);
+  return row?.status === "draft";
+});
 
 if (problems.length) {
   console.log(`\nОшибки:\n${problems.map((line) => `- ${line}`).join("\n")}`);
@@ -215,7 +245,7 @@ if (problems.length) {
 
 if (!apply) {
   console.log(
-    `\nПроверка: товаров к записи ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, настройки сайта ${site ? "меняются" : "без изменений"}. Ничего не записано — запустите с --apply.`,
+    `\nПроверка: товаров к записи ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, к публикации ${publish.length}, настройки сайта ${site ? "меняются" : "без изменений"}. Ничего не записано — запустите с --apply.`,
   );
   process.exit(0);
 }
@@ -228,14 +258,23 @@ say(`копия базы: ${path.relative(ROOT, backupFile)}`);
 db.transaction(() => {
   for (const product of products) {
     if (product.data) writeProduct.run(product.title, JSON.stringify(product.data), now, product.id);
+    if (product.newSlug) {
+      const from = `/product/${product.slug}/`;
+      const to = `/product/${product.newSlug}/`;
+      writeProductSlug.run(product.newSlug, product.id);
+      dropRedirect.run(to);
+      retargetRedirects.run(to, from);
+      writeRedirect.run(from, to, now);
+    }
     for (const id of product.cars.remove) removeCar.run(product.id, id);
     for (const id of product.cars.add) addCar.run(product.id, id);
   }
   for (const article of articles) writeArticle.run(article.data.title, JSON.stringify(article.data), now, article.id);
   for (const draft of drafts) insertDraft.run(draft.slug, draft.title, JSON.stringify(draft.data), now, now);
   if (site) writeSite.run(JSON.stringify(site));
+  for (const slug of publish) publishArticle.run(now, now, slug);
   if (products.length || site) bump.run("counter:catalog");
-  if (articles.length || drafts.length) bump.run("counter:articles");
+  if (articles.length || drafts.length || publish.length) bump.run("counter:articles");
 })();
 
 await revalidate();
@@ -243,5 +282,5 @@ await revalidate();
 const reportFile = path.join(ROOT, "var", `seo-patch-${now}.txt`);
 fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
 console.log(
-  `\nГотово: товаров ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}${site ? ", настройки сайта" : ""}. Отчёт: ${path.relative(ROOT, reportFile)}`,
+  `\nГотово: товаров ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, опубликовано ${publish.length}${site ? ", настройки сайта" : ""}. Отчёт: ${path.relative(ROOT, reportFile)}`,
 );

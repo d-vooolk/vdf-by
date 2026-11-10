@@ -39,6 +39,7 @@ export function GET() {
     `- Адрес: ${[site.address.city, site.address.street].filter(Boolean).join(", ")}`,
     `- Телефон: ${site.phone}`,
     `- Email: ${site.email}`,
+    ...(site.unp ? [`- Продавец: ${site.legalName}, УНП ${site.unp}`] : []),
     `- Часы работы: ${site.workHours}`,
     `- В каталоге ${pluralize(products.length, "товар", "товара", "товаров")}${available ? `, ${available} в наличии` : ""}`,
     "- Линзы и блоки розжига проверяются на стенде перед отправкой",

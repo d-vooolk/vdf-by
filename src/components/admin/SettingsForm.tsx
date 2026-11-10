@@ -36,6 +36,7 @@ type Feature = { title: string; text: string };
 type TextKey =
   | "name"
   | "legalName"
+  | "unp"
   | "tagline"
   | "description"
   | "phone"
@@ -140,6 +141,7 @@ export function SettingsForm({ site: initial, part }: { site: Site; part: Settin
           <div>
             {text("name", "Название")}
             {text("legalName", "Юридическое название", { hint: "Для разметки и подвала" })}
+            {text("unp", "УНП", { hint: "9 цифр — в подвале, на странице контактов и возврата" })}
             {text("tagline", "Короткий слоган", { hint: "Идёт в заголовок вкладки" })}
             {text("description", "Описание сайта", { hint: "Показывается в результатах поиска", multiline: true })}
           </div>

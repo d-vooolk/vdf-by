@@ -176,6 +176,7 @@ export function organizationJsonLd() {
         "@id": storeId(),
         name: site.name,
         legalName: site.legalName,
+        ...(site.unp ? { taxID: site.unp } : {}),
         description: site.description,
         url: absoluteUrl("/"),
         telephone: site.phone,
@@ -319,6 +320,7 @@ function returnPolicy(site: Site) {
     // доставки. Этот вариант, в отличие от ReturnShippingFees, не требует
     // называть точную сумму, которой у магазина и нет.
     returnFees: "https://schema.org/ReturnFeesCustomerResponsibility",
+    merchantReturnLink: absoluteUrl("/vozvrat/"),
   };
 }
 

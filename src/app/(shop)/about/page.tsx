@@ -8,7 +8,7 @@ import {
   getRootCategories,
   getSite,
 } from "@/lib/catalog";
-import { DisclaimerText } from "@/components/DisclaimerText";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 import { pluralize } from "@/lib/format";
 import { buildMetadata } from "@/lib/seo";
 
@@ -45,7 +45,9 @@ export default function AboutPage() {
             {pluralize(categories.length, "разделе", "разделах", "разделах")}.
           </p>
 
-          <DisclaimerText className="mt-4 rounded-card border-l-4 border-accent-400 bg-brand-50 px-4 py-3 text-sm" />
+          <p data-nosnippet="" className="mt-4 rounded-card border-l-4 border-accent-400 bg-brand-50 px-4 py-3 text-sm">
+            {DISCLAIMER_FULL}
+          </p>
 
           <h2 className="mt-8 mb-3 text-xl font-semibold text-brand-900">
             Почему проверяем перед отправкой
