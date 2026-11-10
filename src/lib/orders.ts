@@ -56,6 +56,7 @@ interface OrderRow {
   review_sms_at: number | null;
   ready_sms_at: number | null;
   rs_at: number | null;
+  done_at: number | null;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -90,13 +91,14 @@ function toOrder(row: OrderRow): Order {
     reviewSmsAt: row.review_sms_at,
     readySmsAt: row.ready_sms_at,
     rsAt: row.rs_at,
+    doneAt: row.done_at,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total, total_manual,
   currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
-  wholesale, wholesale_tier, edited_at, review_sms_at, ready_sms_at, rs_at`;
+  wholesale, wholesale_tier, edited_at, review_sms_at, ready_sms_at, rs_at, done_at`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -274,9 +276,17 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
       moves = null;
     }
 
-    db.prepare("UPDATE orders SET status = ?, stock_moves = ? WHERE id = ?").run(
+    const completedNow = status === "done" && row.status !== "done";
+    db.prepare(
+      `UPDATE orders SET status = ?, stock_moves = ?,
+         done_at = CASE WHEN ? THEN ? WHEN ? THEN done_at ELSE NULL END
+       WHERE id = ?`,
+    ).run(
       status,
       moves === null ? null : JSON.stringify(moves),
+      completedNow ? 1 : 0,
+      Date.now(),
+      status === "done" ? 1 : 0,
       id,
     );
     if (row.staff === 1 && (row.status === "done") !== (status === "done")) {

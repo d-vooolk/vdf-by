@@ -861,6 +861,10 @@ export const MIGRATIONS = [
     ALTER TABLE customers ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
     ALTER TABLE orders ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
   `,
+  `
+    ALTER TABLE orders ADD COLUMN done_at INTEGER;
+    CREATE INDEX orders_by_done ON orders(done_at) WHERE done_at IS NOT NULL;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

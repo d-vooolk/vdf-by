@@ -11,6 +11,7 @@ import { getSite } from "@/lib/catalog";
 import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
 import { isLiteMode } from "@/lib/lite-mode";
+import type { Order } from "@/lib/order-types";
 import { getOrder } from "@/lib/orders";
 import { smsConfigured } from "@/lib/sms";
 
@@ -186,11 +187,19 @@ export default async function OrderPage({ params }: PageProps) {
             smsReady={smsConfigured()}
           />
 
-          <OrderRsToggle orderId={order.id} rsAt={order.rsAt} />
+          <OrderRsToggle orderId={order.id} rsAt={order.rsAt} cashNote={cashNote(order)} />
         </div>
       </div>
     </div>
   );
+}
+
+function cashNote(order: Order): string {
+  if (order.staff) return "";
+  if (order.status === "done" && order.doneAt !== null) {
+    return `Без отметки сумма заказа — в кассе «Приходно-расходный» за ${new Date(order.doneAt).toLocaleDateString("ru-RU")}.`;
+  }
+  return "Без отметки сумма заказа попадёт в кассу «Приходно-расходный», когда заказ станет выполненным.";
 }
 
 function Row({

@@ -11,6 +11,7 @@ import {
 } from "./schema";
 import { newestProductIds, popularProductIds } from "./product-views";
 import { firstParagraph } from "./text";
+import { isSupplierBrand } from "./supplier-brand.mjs";
 import { hasAnyInStock } from "./variant";
 
 /**
@@ -350,11 +351,11 @@ const MANUFACTURER_SPEC = "производитель";
 
 export function productBrand(product: Product): string | undefined {
   const brand = product.brand?.trim();
-  if (brand) return brand;
-  const manufacturer = product.specs.find(
-    (spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC,
-  );
-  return manufacturer?.value.trim() || undefined;
+  if (brand && !isSupplierBrand(brand)) return brand;
+  const manufacturer = product.specs
+    .find((spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC)
+    ?.value.trim();
+  return manufacturer && !isSupplierBrand(manufacturer) ? manufacturer : undefined;
 }
 
 /** Уникальные бренды произвольной выборки — для фильтра над ней. */

@@ -294,6 +294,36 @@ export function ProductPurchase({
   // пальца при обычном нажатии, чтобы оно не пролистывало галерею.
   const touchStart = useRef<{ x: number; y: number; vertical: boolean | null } | null>(null);
   const [dragY, setDragY] = useState(0);
+
+  const cartItem = {
+    key: variant.key,
+    productId: product.id,
+    slug: product.slug,
+    title: product.title,
+    optionLabel: variant.label,
+    options: variant.selected.map((entry) => ({
+      groupName: entry.groupName,
+      label: entry.value.label,
+    })),
+    price: variant.price,
+    unit: product.unit,
+    sku: variant.sku,
+    imageUrl: pickUrl(mainEntry, 200),
+    stock: shownStockQty,
+  };
+
+  const orderRow = useRef<HTMLDivElement>(null);
+  const optionsBlock = useRef<HTMLDivElement>(null);
+  const [orderRowVisible, setOrderRowVisible] = useState(true);
+  useEffect(() => {
+    const node = orderRow.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => setOrderRowVisible(entry.isIntersecting));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [priced]);
+  const awaitingChoice = product.optionGroups.length > 0 && chosen === null && !search;
+  const showBuyBar = priced && variant.inStock && !orderRowVisible && !lightbox;
   const onTouchStart = (event: React.TouchEvent) => {
     touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY, vertical: null };
   };
@@ -494,6 +524,7 @@ export function ProductPurchase({
         </p>
 
         {/* Наборы опций: цоколь, сторона, цветовая температура. */}
+        <div ref={optionsBlock} className="scroll-mt-24">
         {product.optionGroups.map((group) => {
           const selectedId = selection[group.id];
           return (
@@ -532,6 +563,7 @@ export function ProductPurchase({
             </fieldset>
           );
         })}
+        </div>
 
         {variant.sku && (
           <p className="mb-5 text-xs text-brand-400">Артикул: {variant.sku}</p>
@@ -546,7 +578,7 @@ export function ProductPurchase({
 
         {priced && (
           <>
-            <div className="mb-4 flex gap-3">
+            <div ref={orderRow} className="mb-4 flex gap-3">
               {choosingQty && (
                 <div className="flex items-center rounded-xl border border-brand-200">
                   <button
@@ -584,22 +616,7 @@ export function ProductPurchase({
                 className="btn-primary flex-1"
                 disabled={!variant.inStock}
                 qty={orderQty}
-                item={{
-                  key: variant.key,
-                  productId: product.id,
-                  slug: product.slug,
-                  title: product.title,
-                  optionLabel: variant.label,
-                  options: variant.selected.map((entry) => ({
-                    groupName: entry.groupName,
-                    label: entry.value.label,
-                  })),
-                  price: variant.price,
-                  unit: product.unit,
-                  sku: variant.sku,
-                  imageUrl: pickUrl(mainEntry, 200),
-                  stock: shownStockQty,
-                }}
+                item={cartItem}
               />
             </div>
             {noMore && (
@@ -682,6 +699,32 @@ export function ProductPurchase({
           </li>
         </ul>
       </div>
+
+      {showBuyBar && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-brand-100 bg-white/95 py-2 pr-16 pl-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(0_0_0/0.06)] backdrop-blur lg:hidden">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 shrink-0">
+              <p className="tnum text-lg leading-tight font-semibold text-brand-900">
+                {formatPrice(wholesale ?? variant.price, currencySymbol)}
+              </p>
+              {variant.label && !awaitingChoice && (
+                <p className="max-w-[9rem] truncate text-xs text-brand-500">{variant.label}</p>
+              )}
+            </div>
+            {awaitingChoice ? (
+              <button
+                type="button"
+                onClick={() => optionsBlock.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="btn-primary flex-1 py-2.5 text-sm"
+              >
+                Выбрать вариант
+              </button>
+            ) : (
+              <AddToCartButton className="btn-primary flex-1 py-2.5 text-sm" qty={orderQty} item={cartItem} />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* -------------------------- Лайтбокс --------------------------- */}
       {/*
