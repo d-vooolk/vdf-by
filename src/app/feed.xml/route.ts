@@ -1,5 +1,6 @@
 import { getSite } from "@/lib/catalog";
 import { deliveryArea } from "@/lib/delivery";
+import { itemShippingPrice } from "@/lib/delivery-quote";
 import { compact, feedOffers, xml } from "@/lib/feed";
 import { schemaPrice } from "@/lib/format";
 import { absoluteUrl } from "@/lib/seo";
@@ -30,15 +31,15 @@ export function GET() {
   const methods = site.delivery.methods.filter(
     (method) => method.requiresAddress && deliveryArea(method) === "country",
   );
-  const shippingFor = (price: number) =>
+  const shippingFor = (offer: { price: number; weight: number | null; categoryId: string }) =>
     methods
       .map((method) => {
-        const free = method.freeFrom != null && price >= method.freeFrom;
+        const price = itemShippingPrice(method, offer.price, offer);
         return `
       <g:shipping>
         <g:country>${xml(site.address.country)}</g:country>
         <g:service>${xml(method.name)}</g:service>
-        <g:price>${schemaPrice(free ? 0 : method.price)} ${xml(site.currency)}</g:price>
+        <g:price>${schemaPrice(price)} ${xml(site.currency)}</g:price>
       </g:shipping>`;
       })
       .join("");
@@ -76,7 +77,7 @@ export function GET() {
           ? `<g:product_type>${xml(offer.categoryPath)}</g:product_type>`
           : ""
       }
-      ${shippingFor(offer.price)}
+      ${shippingFor(offer)}
     </item>`;
     })
     .join("");

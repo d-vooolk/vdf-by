@@ -9,6 +9,7 @@ import type { ImageEntry } from "./image-types";
 import { getImage } from "./images";
 import type { Category, DeliveryMethod, Product, Site } from "./schema";
 import { deliveryArea } from "./delivery";
+import { itemShippingPrice } from "./delivery-quote";
 import { brandSuffix, TITLE_LIMIT } from "./snippet";
 import {
   allProductImages,
@@ -278,17 +279,17 @@ function deliveryTime(method: DeliveryMethod) {
  * Порог бесплатной доставки учитывается по цене предложения: у товара
  * дороже порога стоимость доставки в разметке нулевая, как и в корзине.
  */
-function shippingDetails(site: Site, price: number) {
+function shippingDetails(site: Site, price: number, item: { weight: number | null; categoryId: string }) {
   return site.delivery.methods
     .filter((method) => method.requiresAddress && deliveryArea(method) === "country")
     .map((method) => {
       const time = deliveryTime(method);
-      const free = method.freeFrom != null && price >= method.freeFrom;
+      const rate = itemShippingPrice(method, price, item);
       return {
         "@type": "OfferShippingDetails",
         shippingRate: {
           "@type": "MonetaryAmount",
-          value: schemaPrice(free ? 0 : method.price),
+          value: schemaPrice(rate),
           currency: site.currency,
         },
         shippingDestination: {
@@ -372,9 +373,11 @@ function offerJsonLd(
     url: string;
     sku?: string | null;
     name?: string;
+    weight: number | null;
+    categoryId: string;
   },
 ) {
-  const shipping = shippingDetails(site, params.price);
+  const shipping = shippingDetails(site, params.price, params);
   const returns = returnPolicy(site);
 
   return {
@@ -432,6 +435,8 @@ export function productJsonLd(product: Product, category?: Category) {
       inStock,
       url,
       sku: product.sku,
+      weight: resolveVariant(product, {}).weight,
+      categoryId: product.categoryId,
     });
   } else if (combos.length <= VARIANT_OFFER_LIMIT) {
     offers = combos.flatMap((selection) => {
@@ -443,6 +448,8 @@ export function productJsonLd(product: Product, category?: Category) {
         inStock: variant.inStock,
         url: variantUrl(product, selection),
         sku: ownVariantSku(product, selection),
+        weight: variant.weight,
+        categoryId: product.categoryId,
       });
     });
   } else {

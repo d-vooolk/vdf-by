@@ -45,6 +45,7 @@ export interface FeedOffer {
   brand: string | null;
   sku: string | null;
   categoryId: string;
+  weight: number | null;
   /** Путь по разделам: «Лампы › Галогенные» — для типа товара в фиде. */
   categoryPath: string;
   unit: string | null;
@@ -113,6 +114,7 @@ export function feedOffers(): FeedOffer[] {
         brand: productBrand(product) ?? null,
         sku: variant.sku,
         categoryId: product.categoryId,
+        weight: variant.weight,
         categoryPath,
         unit: product.unit ?? null,
         params: [

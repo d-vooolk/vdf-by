@@ -38,6 +38,13 @@ const say = (line) => {
 const readProduct = db.prepare("SELECT id, title, data FROM products WHERE slug = ?");
 const writeProduct = db.prepare("UPDATE products SET title = ?, data = ?, updated_at = ? WHERE id = ?");
 const readArticle = db.prepare("SELECT id, title, data FROM articles WHERE slug = ?");
+const insertDraft = db.prepare(
+  `INSERT INTO articles (slug, title, status, data, created_at, updated_at, published_at)
+   VALUES (?, ?, 'draft', ?, ?, ?, NULL)`,
+);
+const readSite = db.prepare("SELECT value FROM settings WHERE key = 'site'");
+const writeSite = db.prepare("UPDATE settings SET value = ? WHERE key = 'site'");
+const ARTICLE_FIELDS = ["slug", "title", "excerpt", "body", "cover", "images", "seoTitle", "seoDescription", "faq", "topic", "notes", "keyword"];
 const writeArticle = db.prepare("UPDATE articles SET title = ?, data = ?, updated_at = ? WHERE id = ?");
 const findGeneration = db.prepare(
   `SELECT g.id FROM car_generations g
@@ -159,8 +166,47 @@ async function revalidate() {
   }
 }
 
+function planSite() {
+  if (!CONTENT.site) return null;
+  const row = readSite.get();
+  if (!row) {
+    problems.push("нет настроек сайта");
+    return null;
+  }
+  const data = JSON.parse(row.value);
+  for (const [field, value] of Object.entries(CONTENT.site)) {
+    if (data[field] === value) continue;
+    say(`настройки сайта: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${value}`);
+    data[field] = value;
+  }
+  if (data.description && data.description.length > 165) {
+    problems.push(`описание магазина ${data.description.length} знаков`);
+  }
+  return JSON.stringify(data) === row.value ? null : data;
+}
+
+function planDraft(spec) {
+  if (readArticle.get(spec.slug)) {
+    say(`статья ${spec.slug} уже есть — черновик не создаю`);
+    return null;
+  }
+  for (const field of ["slug", "title", "body"]) {
+    if (!spec[field]) problems.push(`черновик ${spec.slug ?? "?"}: нет поля ${field}`);
+  }
+  const unknown = Object.keys(spec).filter((field) => !ARTICLE_FIELDS.includes(field));
+  if (unknown.length) problems.push(`черновик ${spec.slug}: лишние поля ${unknown.join(", ")}`);
+  if (spec.seoTitle && spec.seoTitle.length > 70) problems.push(`черновик ${spec.slug}: title ${spec.seoTitle.length} знаков`);
+  if (spec.seoDescription && spec.seoDescription.length > 165) {
+    problems.push(`черновик ${spec.slug}: описание для поиска ${spec.seoDescription.length} знаков`);
+  }
+  say(`новый черновик статьи ${spec.slug}: ${spec.title}`);
+  return { slug: spec.slug, title: spec.title, data: { images: [], faq: [], ...spec } };
+}
+
 const products = (CONTENT.products ?? []).map(planProduct).filter(Boolean);
 const articles = (CONTENT.articles ?? []).map(planArticle).filter(Boolean);
+const drafts = (CONTENT.drafts ?? []).map(planDraft).filter(Boolean);
+const site = planSite();
 
 if (problems.length) {
   console.log(`\nОшибки:\n${problems.map((line) => `- ${line}`).join("\n")}`);
@@ -168,7 +214,9 @@ if (problems.length) {
 }
 
 if (!apply) {
-  console.log(`\nПроверка: товаров к записи ${products.length}, статей ${articles.length}. Ничего не записано — запустите с --apply.`);
+  console.log(
+    `\nПроверка: товаров к записи ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, настройки сайта ${site ? "меняются" : "без изменений"}. Ничего не записано — запустите с --apply.`,
+  );
   process.exit(0);
 }
 
@@ -184,12 +232,16 @@ db.transaction(() => {
     for (const id of product.cars.add) addCar.run(product.id, id);
   }
   for (const article of articles) writeArticle.run(article.data.title, JSON.stringify(article.data), now, article.id);
-  if (products.length) bump.run("counter:catalog");
-  if (articles.length) bump.run("counter:articles");
+  for (const draft of drafts) insertDraft.run(draft.slug, draft.title, JSON.stringify(draft.data), now, now);
+  if (site) writeSite.run(JSON.stringify(site));
+  if (products.length || site) bump.run("counter:catalog");
+  if (articles.length || drafts.length) bump.run("counter:articles");
 })();
 
 await revalidate();
 
 const reportFile = path.join(ROOT, "var", `seo-patch-${now}.txt`);
 fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
-console.log(`\nГотово: товаров ${products.length}, статей ${articles.length}. Отчёт: ${path.relative(ROOT, reportFile)}`);
+console.log(
+  `\nГотово: товаров ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}${site ? ", настройки сайта" : ""}. Отчёт: ${path.relative(ROOT, reportFile)}`,
+);
