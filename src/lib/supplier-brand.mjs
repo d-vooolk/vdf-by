@@ -57,6 +57,7 @@ const RULES = [
   ],
   [new RegExp(String.raw`\s+от\s+${BRAND}${AFTER}`, "g"), ""],
   [new RegExp(String.raw`(?<=[\wа-яёА-ЯЁ»")])\s+${BRAND}${AFTER}`, "g"), ""],
+  [new RegExp(String.raw`${BRAND}\s+(?=[A-ZА-Я]{1,3}\d)`, "g"), ""],
 ];
 
 function tidy(text) {

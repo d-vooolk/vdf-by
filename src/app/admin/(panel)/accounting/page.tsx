@@ -199,7 +199,7 @@ function CashflowTab({
                     {price(row.amount)}
                   </td>
                   <td className={`${TD} text-brand-500`}>
-                    {(row.source === "crm" ? row.payment.person : row.entry.person) || "—"}
+                    {(row.source === "crm" ? row.payment.person : row.source === "entry" ? row.entry.person : "") || "—"}
                   </td>
                   <td className="px-2 py-1 text-right">
                     {row.source === "entry" && <LedgerEntryActions entry={row.entry} categories={categories} />}
@@ -277,6 +277,19 @@ function IncomeSource({ row, price }: { row: CashIncome; price: (value: number) 
         {row.payment.remaining > 0 && (
           <span className="block text-xs text-sky-900">частично, остаток {price(row.payment.remaining)}</span>
         )}
+      </>
+    );
+  }
+  if (row.source === "order") {
+    return (
+      <>
+        <Link href={`/admin/orders/${row.order.orderId}/`} className="text-brand-700 underline">
+          Заказ №{row.order.orderId}
+        </Link>{" "}
+        <span className="text-brand-900">— {row.order.name || row.order.phone}</span>
+        <span className="block text-xs text-brand-400">
+          выполнен{row.order.wholesale ? " · оптовый" : ""}
+        </span>
       </>
     );
   }

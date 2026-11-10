@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { PhoneIcon, TruckIcon } from "@/components/icons";
 import { getSite } from "@/lib/catalog";
 import { buildMetadata, organizationJsonLd } from "@/lib/seo";
-import { DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { DisclaimerText } from "@/components/DisclaimerText";
 
 export function generateMetadata(): Metadata {
   const site = getSite();
@@ -122,7 +122,7 @@ export default function ContactsPage() {
           </a>{" "}
           — разберёмся вместе. Это быстрее, чем заказать не то и потом менять.
         </p>
-        <p className="mt-6 text-sm text-brand-500">{DISCLAIMER_FULL}</p>
+        <DisclaimerText className="mt-6 text-sm text-brand-500" />
       </section>
     </div>
   );

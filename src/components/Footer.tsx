@@ -8,7 +8,7 @@ import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
 import { DisclaimerHint } from "@/components/DisclaimerHint";
-import { DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { DisclaimerText } from "@/components/DisclaimerText";
 
 export function Footer() {
   const site = getSite();
@@ -134,7 +134,7 @@ export function Footer() {
           </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
-        <p className="container-page pb-6 text-xs leading-relaxed text-brand-500">{DISCLAIMER_FULL}</p>
+        <DisclaimerText className="container-page pb-6 text-xs leading-relaxed text-brand-500" />
       </div>
     </footer>
   );

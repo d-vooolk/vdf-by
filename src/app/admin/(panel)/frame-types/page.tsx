@@ -64,11 +64,6 @@ export default async function FrameTypesPage({ searchParams }: PageProps) {
             Типы рамок{" "}
             <span className="tnum text-base font-medium text-brand-400">{summaries.length}</span>
           </h1>
-          <p className="mt-1 text-sm text-brand-500">
-            Артикул товара собирается как «номер-складской номер-тип»: номер свой у каждого товара,
-            складской номер и тип общие. Себестоимость, цена, оптовая цена, вес, остаток и наличие задаются
-            для типа целиком и записываются во все товары с этим типом.
-          </p>
         </div>
         <ProductsViewSwitch view={view} scope="frame-types" />
         {categoryId && (

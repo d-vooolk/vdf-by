@@ -13,7 +13,15 @@ function dateInput(timestamp: number = Date.now()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function OrderRsToggle({ orderId, rsAt }: { orderId: number; rsAt: number | null }) {
+export function OrderRsToggle({
+  orderId,
+  rsAt,
+  cashNote,
+}: {
+  orderId: number;
+  rsAt: number | null;
+  cashNote: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [checked, setChecked] = useState(rsAt !== null);
@@ -66,7 +74,9 @@ export function OrderRsToggle({ orderId, rsAt }: { orderId: number; rsAt: number
           </span>
         </label>
       ) : (
-        <p className="mt-1 text-xs text-brand-400">Отметьте, когда оплата по заказу пришла на расчётный счёт</p>
+        <p className="mt-1 text-xs text-brand-400">
+          Отметьте, когда оплата по заказу пришла на расчётный счёт.{cashNote && ` ${cashNote}`}
+        </p>
       )}
       {problem && (
         <p role="alert" className="mt-2 text-xs text-red-700">

@@ -20,15 +20,16 @@ const sampleSize = Number(process.argv[process.argv.indexOf("--samples") + 1]) |
 const port = process.env.PORT ?? "3011";
 
 const SKIP_KEYS = new Set(["images", "videos", "image", "cover", "slug", "id", "sku", "url", "href", "src", "poster"]);
+const PRODUCT_SKIP_KEYS = new Set([...SKIP_KEYS, "title", "seoTitle"]);
 
 const db = new Database(DB_PATH, apply ? {} : { readonly: true });
 const now = Date.now();
 const changes = [];
 const leftovers = [];
 
-function cleanDeep(value, key, where) {
+function cleanDeep(value, key, where, skip = SKIP_KEYS) {
   if (typeof value === "string") {
-    if (SKIP_KEYS.has(key) || !mentionsSupplierBrand(value)) return value;
+    if (skip.has(key) || !mentionsSupplierBrand(value)) return value;
     const cleaned = stripSupplierBrand(value);
     if (cleaned !== value) changes.push({ where: `${where} ${key}`, before: value, after: cleaned });
     if (mentionsSupplierBrand(cleaned)) {
@@ -38,10 +39,10 @@ function cleanDeep(value, key, where) {
     }
     return cleaned;
   }
-  if (Array.isArray(value)) return value.map((item) => cleanDeep(item, key, where));
+  if (Array.isArray(value)) return value.map((item) => cleanDeep(item, key, where, skip));
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([childKey, child]) => [childKey, cleanDeep(child, childKey, where)]),
+      Object.entries(value).map(([childKey, child]) => [childKey, cleanDeep(child, childKey, where, skip)]),
     );
   }
   return value;
@@ -74,9 +75,8 @@ for (const row of db.prepare("SELECT id, slug, title, brand, data FROM products"
     data.specs = stripSupplierSpecs(data.specs);
     specsDropped += before - data.specs.length;
   }
-  const cleaned = cleanDeep(data, "data", where);
-  const title = cleanDeep(row.title, "title", where);
-  if ("title" in cleaned) cleaned.title = title;
+  const cleaned = cleanDeep(data, "data", where, PRODUCT_SKIP_KEYS);
+  const title = row.title;
   const slug = slugMoves.get(row.slug) ?? row.slug;
   if ("slug" in cleaned) cleaned.slug = slug;
   if (slug !== row.slug || title !== row.title || brand !== row.brand || JSON.stringify(cleaned) !== row.data) {
