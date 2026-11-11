@@ -156,3 +156,26 @@ export function carName(
   if (generation) parts.push(generation.name);
   return parts.join(" ");
 }
+
+const BODY_CODE = /\(([^)]*\d[^)]*)\)/;
+const RESTYLING_TAIL = /\s*Рестайлинг(\s+\d+)?\s*$/;
+
+export function generationBodyName(name: string): string {
+  const code = name.match(BODY_CODE);
+  if (!code) return name;
+  const restyling = name.replace(BODY_CODE, " ").match(RESTYLING_TAIL)?.[0].trim();
+  return restyling ? `${code[1]} ${restyling}` : code[1];
+}
+
+export function generationFamily(name: string): string {
+  return name.replace(RESTYLING_TAIL, "").trim();
+}
+
+export function carSearchName(
+  mark: { name: string },
+  model: { name: string },
+  generation: { name: string },
+): string {
+  const modelName = model.name.replace(/\s+серии$/i, "");
+  return [mark.name, modelName, generationBodyName(generation.name)].join(" ");
+}

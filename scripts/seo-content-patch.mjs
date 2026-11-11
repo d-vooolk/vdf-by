@@ -166,6 +166,15 @@ function planArticle(spec) {
     say(`статья ${spec.slug}: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${spec[field]}`);
     data[field] = spec[field];
   }
+  for (const [from, to] of spec.replaceInBody ?? []) {
+    if (data.body?.includes(to)) continue;
+    if (!data.body?.includes(from)) {
+      problems.push(`статья ${spec.slug}: в тексте не найдено «${from.trim()}»`);
+      continue;
+    }
+    data.body = data.body.replace(from, to);
+    say(`статья ${spec.slug}: текст — «${from.trim()}» → «${to.trim()}»`);
+  }
   if (data.seoDescription && data.seoDescription.length > 165) {
     problems.push(`статья ${spec.slug}: описание для поиска ${data.seoDescription.length} знаков`);
   }
