@@ -182,6 +182,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 note={customer.adminNote}
                 staff={customer.staff}
                 seller={customer.seller}
+                profile={{ name: customer.name, phone: customer.phone, address: customer.address }}
               />
             </li>
           ))}

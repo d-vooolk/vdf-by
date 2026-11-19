@@ -15,6 +15,19 @@ export function parseProductsView(value: string | undefined): ProductsView {
   return PRODUCTS_VIEWS.find((view) => view.id === value)?.id ?? "standard";
 }
 
+export const ORDERS_VIEW_COOKIE = "admin-orders-view";
+
+export const ORDERS_VIEWS = [
+  { id: "list", label: "Список" },
+  { id: "board", label: "Доска" },
+] as const;
+
+export type OrdersView = (typeof ORDERS_VIEWS)[number]["id"];
+
+export function parseOrdersView(value: string | undefined): OrdersView {
+  return value === "board" ? "board" : "list";
+}
+
 export const ADMIN_THEME_COOKIE = "admin-theme";
 
 export const ADMIN_THEMES = [
