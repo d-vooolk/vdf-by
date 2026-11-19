@@ -39,6 +39,16 @@ const EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
 const DRAG_THRESHOLD = 6;
 const TOUCH_HOLD_MS = 220;
 const EDGE_SCROLL = 72;
+const CLICK_AFTER_DROP_MS = 400;
+
+function swallowNextClick(): void {
+  const swallow = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  window.addEventListener("click", swallow, { capture: true, once: true });
+  window.setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), CLICK_AFTER_DROP_MS);
+}
 
 interface Drag {
   order: BoardOrder;
@@ -111,7 +121,6 @@ export function OrderBoard({
   const before = useRef<Map<number, DOMRect> | null>(null);
   const pending = useRef<Pending | null>(null);
   const dragRef = useRef<Drag | null>(null);
-  const suppressClick = useRef(false);
 
   const snapshot = (overrides?: Map<number, DOMRect>) => {
     const rects = new Map<number, DOMRect>();
@@ -213,10 +222,7 @@ export function OrderBoard({
     const left = current.x - current.offsetX;
     const top = current.y - current.offsetY;
     const lifted = `translate(${left}px, ${top}px) rotate(2deg) scale(1.03)`;
-    suppressClick.current = true;
-    window.setTimeout(() => {
-      suppressClick.current = false;
-    }, 0);
+    swallowNextClick();
 
     if (!status || status === current.order.status) {
       const home = nodes.current.get(current.order.id);
@@ -356,9 +362,6 @@ export function OrderBoard({
         draggable={false}
         onDragStart={(event) => event.preventDefault()}
         onPointerDown={(event) => onCardPointerDown(order, event)}
-        onClickCapture={(event) => {
-          if (suppressClick.current) event.preventDefault();
-        }}
         onContextMenu={(event) => {
           if (pending.current?.touch) event.preventDefault();
         }}
