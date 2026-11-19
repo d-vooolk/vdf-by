@@ -22,6 +22,15 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]["id"];
 
+export const CUSTOMER_STATUS_NAMES: Record<OrderStatus, string> = {
+  new: "Принят в работу",
+  called: "Принят в работу",
+  ready: "Готов к выдаче",
+  shipped: "Отправлен",
+  done: "Выполнен",
+  cancelled: "Отменён",
+};
+
 export function isOrderStatus(value: string): value is OrderStatus {
   return ORDER_STATUSES.some((status) => status.id === value);
 }

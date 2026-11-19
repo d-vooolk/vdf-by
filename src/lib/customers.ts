@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import { getDb } from "./db";
 import { localPart } from "./phone";
+import type { OrderStatus } from "./order-types";
 import type { SellerMode } from "./seller-mode";
 import { toWholesaleTier, type WholesaleTier } from "./wholesale-tiers";
 
@@ -309,6 +310,22 @@ export function updateCustomerProfile(
   );
 }
 
+export type CustomerEditResult = { ok: true } | { ok: false; error: string };
+
+export function editCustomer(
+  id: number,
+  changes: { name: string; phone: string; address: string },
+): CustomerEditResult {
+  const owner = findCustomerByPhone(changes.phone);
+  if (owner && owner.id !== id) {
+    return { ok: false, error: `Номер уже у покупателя «${owner.name}»` };
+  }
+  const result = getDb()
+    .prepare("UPDATE customers SET name = ?, phone = ?, address = ? WHERE id = ?")
+    .run(changes.name, changes.phone, changes.address, id);
+  return result.changes ? { ok: true } : { ok: false, error: "Покупатель не найден" };
+}
+
 export function setCookieConsent(id: number, consent: Exclude<CookieConsent, "">): void {
   getDb().prepare("UPDATE customers SET cookie_consent = ? WHERE id = ?").run(consent, id);
 }
@@ -451,7 +468,7 @@ export function deleteCustomer(id: number): void {
 export interface CustomerOrder {
   id: number;
   createdAt: number;
-  status: string;
+  status: OrderStatus;
   total: number;
   currency: string;
   deliveryName: string;
@@ -469,7 +486,7 @@ export function customerOrders(customer: Pick<Customer, "id" | "phone">): Custom
     .all(customer.id, localPart(customer.phone)) as Array<{
     id: number;
     created_at: number;
-    status: string;
+    status: OrderStatus;
     total: number;
     currency: string;
     delivery_name: string;

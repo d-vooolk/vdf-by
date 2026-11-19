@@ -69,7 +69,15 @@ export default async function AccountingPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
+        {tab === "cashflow" && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto">
+            <CrmPullNote />
+            <RefreshCrmPaymentsButton />
+          </div>
+        )}
+      </div>
 
       <nav className="flex flex-wrap gap-2 border-b border-brand-100 pb-3" aria-label="Разделы бухгалтерии">
         {tabs.map((item) => (
@@ -246,11 +254,6 @@ function CashflowTab({
       )}
 
       <CapitalOutboxNote />
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <CrmPullNote />
-        <RefreshCrmPaymentsButton />
-      </div>
     </div>
   );
 }

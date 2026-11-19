@@ -4,6 +4,7 @@ import { setServiceRequestDone } from "@/lib/service";
 import { getSite } from "@/lib/catalog";
 import {
   deleteCustomer,
+  editCustomer,
   getCustomerById,
   setCustomerNote,
   setCustomerSeller,
@@ -19,6 +20,7 @@ import {
   smsConfigured,
 } from "@/lib/sms";
 import { requireAdmin } from "@/lib/auth";
+import { normalizePhone } from "@/lib/phone";
 import { fail, type FormState, ok } from "./form-state";
 
 export async function setWholesaleStatusAction(
@@ -92,4 +94,19 @@ export async function deleteCustomerAction(customerId: number): Promise<FormStat
   await requireAdmin();
   deleteCustomer(customerId);
   return ok();
+}
+
+export async function editCustomerAction(
+  customerId: number,
+  changes: { name: string; phone: string; address: string },
+): Promise<FormState> {
+  await requireAdmin();
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const name = text(changes?.name);
+  const address = text(changes?.address);
+  const phone = normalizePhone(text(changes?.phone));
+  if (!name) return fail(["Укажите наименование"]);
+  if (!phone) return fail(["Телефон в формате +375 XX XXX-XX-XX"]);
+  const result = editCustomer(customerId, { name, phone, address });
+  return result.ok ? ok() : fail([result.error]);
 }
