@@ -77,6 +77,21 @@ export function isSidesGroup(group: Pick<OptionGroup, "id" | "name">): boolean {
   return group.id === SIDES_GROUP_ID || /^сторона$/i.test(group.name.trim());
 }
 
+export interface SideValues {
+  right: OptionValue;
+  left: OptionValue;
+  pair: OptionValue;
+}
+
+export function sideValues(group: OptionGroup): SideValues | null {
+  if (!isSidesGroup(group)) return null;
+  const find = (suffix: string) => group.values.find((value) => suffixOf(value) === suffix);
+  const right = find("R");
+  const left = find("L");
+  const pair = find(PAIR_SUFFIX);
+  return right && left && pair ? { right, left, pair } : null;
+}
+
 export function refreshSides(group: OptionGroup, base: SideBase): OptionGroup {
   return {
     ...group,

@@ -1,4 +1,5 @@
-import type { OptionValue, Product } from "./schema";
+import type { OptionGroup, OptionValue, Product } from "./schema";
+import { sideValues } from "./side-options";
 
 export type VariantProduct = Pick<
   Product,
@@ -236,27 +237,56 @@ export function countedOptionGroupIndex(product: Pick<Product, "optionGroups">):
 export function optionStockTotal(product: Pick<Product, "optionGroups">): number | null {
   const index = countedOptionGroupIndex(product);
   if (index === -1) return null;
-  return product.optionGroups[index].values.reduce(
-    (sum, value) => sum + (value.stockQty ?? 0),
+  const group = product.optionGroups[index];
+  const pair = sideValues(group)?.pair;
+  return group.values.reduce(
+    (sum, value) => (value === pair ? sum : sum + (value.stockQty ?? 0)),
     0,
   );
+}
+
+export interface SideStock {
+  right: number;
+  left: number;
+}
+
+export function sideStockOf(product: Pick<Product, "optionGroups">): SideStock | null {
+  const index = countedOptionGroupIndex(product);
+  if (index === -1) return null;
+  const sides = sideValues(product.optionGroups[index]);
+  return sides ? { right: sides.right.stockQty ?? 0, left: sides.left.stockQty ?? 0 } : null;
+}
+
+export function stockSources(group: OptionGroup, valueId: string | undefined): OptionValue[] {
+  const sides = sideValues(group);
+  if (sides && valueId === sides.pair.id) return [sides.right, sides.left];
+  const value = group.values.find((entry) => entry.id === valueId);
+  return value ? [value] : [];
+}
+
+function countedValue(value: OptionValue, stockQty: number): OptionValue {
+  const next = { ...value, stockQty };
+  delete next.inStock;
+  if (!stockedByQty(stockQty)) next.inStock = false;
+  return next;
+}
+
+export function withCountedStock(group: OptionGroup): OptionGroup {
+  const values = group.values.map((value) => countedValue(value, value.stockQty ?? 0));
+  const sides = sideValues({ ...group, values });
+  if (!sides) return { ...group, values };
+  const pairQty = Math.min(sides.right.stockQty ?? 0, sides.left.stockQty ?? 0);
+  return {
+    ...group,
+    values: values.map((value) => (value === sides.pair ? countedValue(value, pairQty) : value)),
+  };
 }
 
 export function applyOptionStock<T extends OptionStockProduct>(product: T): T {
   const index = countedOptionGroupIndex(product);
   if (index === -1) return product;
   const optionGroups = product.optionGroups.map((group, i) =>
-    i === index
-      ? {
-          ...group,
-          values: group.values.map((value) => {
-            const next = { ...value, stockQty: value.stockQty ?? 0 };
-            delete next.inStock;
-            if (!stockedByQty(next.stockQty)) next.inStock = false;
-            return next;
-          }),
-        }
-      : group,
+    i === index ? withCountedStock(group) : group,
   );
   const stockQty = optionStockTotal({ optionGroups }) ?? 0;
   return { ...product, optionGroups, stockQty, inStock: stockedByQty(stockQty) };

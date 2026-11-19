@@ -5,7 +5,14 @@ import { deepTrim } from "./text";
 import { parseOrThrow, productSchema, type Product } from "./schema";
 import type { MoneySource } from "./currency";
 import { setGroupStock, stockGroupOf } from "./shared-stock";
-import { applyOptionStock, countedOptionGroupIndex, stockedByQty } from "./variant";
+import { sideValues } from "./side-options";
+import {
+  applyOptionStock,
+  countedOptionGroupIndex,
+  sideStockOf,
+  stockedByQty,
+  type SideStock,
+} from "./variant";
 import { SaveResult, describe } from "./store";
 
 /* ------------------------------------------------------------------ */
@@ -256,6 +263,36 @@ export function setProductStockQty(id: string, qty: number | null): SaveResult {
   return { ok: true };
 }
 
+export function setProductSideStock(id: string, stock: SideStock): SaveResult {
+  const valid = (qty: number) => Number.isInteger(qty) && qty >= 0;
+  if (!valid(stock.right) || !valid(stock.left)) {
+    return { ok: false, problems: ["Количество — целое число не меньше нуля"] };
+  }
+
+  const db = getDb();
+  const row = db.prepare("SELECT data FROM products WHERE id = ?").get(id) as
+    | { data: string }
+    | undefined;
+  if (!row) return { ok: false, problems: ["Товар не найден"] };
+
+  const stored = JSON.parse(row.data) as Product;
+  const index = countedOptionGroupIndex({ optionGroups: stored.optionGroups ?? [] });
+  const sides = index === -1 ? null : sideValues(stored.optionGroups[index]);
+  if (!sides) {
+    return { ok: false, problems: ["У товара нет количества по сторонам"] };
+  }
+  sides.right.stockQty = stock.right;
+  sides.left.stockQty = stock.left;
+  const product = applyOptionStock(stored);
+
+  db.prepare(
+    "UPDATE products SET in_stock = ?, data = ?, updated_at = ? WHERE id = ?",
+  ).run(product.inStock ? 1 : 0, JSON.stringify(product), Date.now(), id);
+
+  bumpCatalogVersion();
+  return { ok: true };
+}
+
 /**
  * Свободный артикул: шесть цифр, каких нет ни у одного товара.
  *
@@ -328,6 +365,7 @@ export interface ProductBrief {
   featured: boolean;
   stockQty: number | null;
   optionStock: boolean;
+  sideStock: SideStock | null;
   priceSource: MoneySource | null;
   /** Складской номер — где товар лежит. Пусто, если не заведён. */
   storageCode: string;
@@ -386,6 +424,7 @@ export function listProducts(filter: {
               json_extract(data, '$.wholesalePrice') AS wholesale_price,
               json_extract(data, '$.costSource') AS cost_source,
               json_extract(data, '$.wholesaleSource') AS wholesale_source,
+              json_extract(data, '$.optionGroups') AS option_groups,
               EXISTS (
                 SELECT 1 FROM json_each(data, '$.optionGroups') AS g,
                               json_each(g.value, '$.values') AS v
@@ -418,6 +457,7 @@ export function listProducts(filter: {
     wholesale_price: number | null;
     cost_source: string | null;
     wholesale_source: string | null;
+    option_groups: string | null;
     option_stock: number;
   }>;
 
@@ -436,6 +476,10 @@ export function listProducts(filter: {
       featured: row.featured === 1,
       stockQty: row.stock_qty ?? null,
       optionStock: row.option_stock === 1,
+      sideStock:
+        row.option_stock === 1
+          ? sideStockOf({ optionGroups: JSON.parse(row.option_groups ?? "[]") as Product["optionGroups"] })
+          : null,
       priceSource: source(row.price_source),
       storageCode: row.storage_code ?? "",
       updatedAt: row.updated_at,

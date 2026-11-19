@@ -5,6 +5,7 @@ import {
   applyOptionStock,
   countedOptionGroupIndex,
   stockedByQty,
+  stockSources,
   type Selection,
 } from "./variant";
 
@@ -38,12 +39,12 @@ export function moveStock(moves: StockMove[], direction: 1 | -1): StockMove[] {
     const countedIndex = countedOptionGroupIndex({ optionGroups: stored.optionGroups ?? [] });
     if (countedIndex !== -1) {
       const group = stored.optionGroups[countedIndex];
-      const value = group.values.find((entry) => entry.id === selection?.[group.id]);
-      if (!value) continue;
-      const before = value.stockQty ?? 0;
-      const moved = direction === -1 ? Math.min(before, qty) : qty;
+      const sources = stockSources(group, selection?.[group.id]);
+      if (!sources.length) continue;
+      const available = Math.min(...sources.map((source) => source.stockQty ?? 0));
+      const moved = direction === -1 ? Math.min(available, qty) : qty;
       if (moved === 0) continue;
-      value.stockQty = before + direction * moved;
+      for (const source of sources) source.stockQty = (source.stockQty ?? 0) + direction * moved;
       const product = applyOptionStock(stored);
       write.run(product.inStock ? 1 : 0, JSON.stringify(product), Date.now(), productId);
       done.push({ productId, qty: moved, selection });
