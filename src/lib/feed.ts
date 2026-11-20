@@ -59,7 +59,7 @@ function plainText(value: string | undefined, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
 }
 
-function imagesFor(paths: string[]): string[] {
+export function imagesFor(paths: string[]): string[] {
   return paths
     .map((path) => bigImageUrl(getImage(path)))
     .filter((url): url is string => Boolean(url))
