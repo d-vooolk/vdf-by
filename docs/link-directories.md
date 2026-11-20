@@ -88,7 +88,7 @@
 | Bamper.by | | | | |
 | Отзовик | | | | |
 | Spr.by | | | | |
-| OpenStreetMap | | | | |
+| OpenStreetMap | 2026-11-20 | https://www.openstreetmap.org/way/1420966725 | — | опубликовано |
 | Бизнес-Информ | | | | |
 | Belpartner | | | | |
 | Orgpage.by | | | | |
