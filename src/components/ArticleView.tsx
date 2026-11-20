@@ -29,6 +29,8 @@ import { getImage } from "@/lib/images";
 import type { Category, Product } from "@/lib/schema";
 import { hasAnyInStock, hasPrice, priceRange } from "@/lib/variant";
 
+const LEAD_PRODUCTS = 3;
+
 interface ArticleViewProps {
   article: Article;
   preview?: boolean;
@@ -148,6 +150,18 @@ function InlineProducts({ products, currencySymbol }: { products: Product[]; cur
       })}
     </div>
   );
+}
+
+function pickLeadProducts(article: Article, carded: Set<string>): Product[] {
+  const chosen = article.leadProducts.length > 0;
+  const candidates = (chosen ? article.leadProducts : articleProductSlugs(article.body).filter((slug) => !carded.has(slug)))
+    .map((slug) => getProductBySlug(slug))
+    .filter((product): product is Product => Boolean(product))
+    .filter((product) => hasPrice(priceRange(product).min));
+  const ordered = chosen
+    ? candidates
+    : [...candidates.filter(hasAnyInStock), ...candidates.filter((product) => !hasAnyInStock(product))];
+  return ordered.slice(0, LEAD_PRODUCTS);
 }
 
 function SectionLink({ category }: { category: Category }) {
@@ -297,7 +311,8 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
   const carded = new Set(
     blocks.flatMap((block) => (block.type === "products" ? block.slugs : [])),
   );
-  const shownInline = new Set(carded);
+  const leadProducts = pickLeadProducts(article, carded);
+  const shownInline = new Set([...carded, ...leadProducts.map((product) => product.slug)]);
   const inlineProducts = blocks.map((block) => {
     const products: Product[] = [];
     for (const slug of blockProductSlugs(block)) {
@@ -335,6 +350,17 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
         </p>
       </header>
 
+      {article.excerpt && (
+        <p className="mt-5 text-lg leading-relaxed text-brand-800">{article.excerpt}</p>
+      )}
+
+      {leadProducts.length > 0 && (
+        <section aria-label="Товары из статьи" className="mt-5">
+          <p className="text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Товары из статьи</p>
+          <InlineProducts products={leadProducts} currencySymbol={site.currencySymbol} />
+        </section>
+      )}
+
       {cover && (
         <div className="mt-6">
           <Picture
@@ -345,10 +371,6 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
             priority
           />
         </div>
-      )}
-
-      {article.excerpt && (
-        <p className="mt-6 text-lg leading-relaxed text-brand-800">{article.excerpt}</p>
       )}
 
       {section && <SectionLink category={section} />}

@@ -57,7 +57,7 @@ const publishArticle = db.prepare(
 );
 const readSite = db.prepare("SELECT value FROM settings WHERE key = 'site'");
 const writeSite = db.prepare("UPDATE settings SET value = ? WHERE key = 'site'");
-const ARTICLE_FIELDS = ["slug", "title", "excerpt", "body", "cover", "images", "seoTitle", "seoDescription", "faq", "topic", "notes", "keyword"];
+const ARTICLE_FIELDS = ["slug", "title", "excerpt", "body", "cover", "images", "seoTitle", "seoDescription", "faq", "leadProducts", "topic", "notes", "keyword"];
 const writeArticle = db.prepare("UPDATE articles SET title = ?, data = ?, updated_at = ? WHERE id = ?");
 const findGeneration = db.prepare(
   `SELECT g.id FROM car_generations g
@@ -165,6 +165,12 @@ function planArticle(spec) {
     if (spec[field] === undefined || data[field] === spec[field]) continue;
     say(`статья ${spec.slug}: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${spec[field]}`);
     data[field] = spec[field];
+  }
+  if (spec.leadProducts && JSON.stringify(data.leadProducts ?? []) !== JSON.stringify(spec.leadProducts)) {
+    const missing = spec.leadProducts.filter((slug) => !readProduct.get(slug));
+    if (missing.length) problems.push(`статья ${spec.slug}: нет товаров ${missing.join(", ")}`);
+    say(`статья ${spec.slug}: товары под вводным абзацем\n    было: ${(data.leadProducts ?? []).join(", ") || "—"}\n    стало: ${spec.leadProducts.join(", ")}`);
+    data.leadProducts = spec.leadProducts;
   }
   for (const [from, to] of spec.replaceInBody ?? []) {
     if (data.body?.includes(to)) continue;

@@ -53,6 +53,7 @@ function toData(article: Article): ArticleData {
     seoTitle: article.seoTitle,
     seoDescription: article.seoDescription,
     faq: article.faq,
+    leadProducts: article.leadProducts,
     topic: article.topic,
     notes: article.notes,
     keyword: article.keyword,
@@ -494,6 +495,15 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
                     >
                       ссылкой
                     </button>
+                    <button
+                      type="button"
+                      disabled={draft.leadProducts.length >= 3 || draft.leadProducts.includes(product.slug)}
+                      onClick={() => patch({ leadProducts: [...draft.leadProducts, product.slug] })}
+                      title="Показать под вводным абзацем, в первом экране статьи"
+                      className="btn-ghost shrink-0 px-2 py-1 text-[11px] disabled:opacity-40"
+                    >
+                      наверх
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -508,6 +518,30 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
           rows={32}
           className="field resize-y font-mono text-[13px] leading-relaxed"
         />
+      </Section>
+
+      <Section
+        title="Товары под вводным абзацем"
+        note="До трёх товаров с ценой и наличием в первом экране статьи. Добавляются кнопкой «наверх» в «Вставить товар». Пусто — первые товары со ссылками из текста, сначала те, что в наличии."
+      >
+        {draft.leadProducts.length > 0 ? (
+          <ul className="space-y-1 text-sm">
+            {draft.leadProducts.map((slug) => (
+              <li key={slug} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-brand-700">/product/{slug}/</span>
+                <button
+                  type="button"
+                  onClick={() => patch({ leadProducts: draft.leadProducts.filter((entry) => entry !== slug) })}
+                  className="btn-ghost shrink-0 px-2 py-1 text-[11px]"
+                >
+                  убрать
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-brand-400">Выбираются автоматически.</p>
+        )}
       </Section>
 
       <Section

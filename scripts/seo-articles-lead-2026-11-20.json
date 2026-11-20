@@ -1,0 +1,20 @@
+{
+  "articles": [
+    {
+      "slug": "bi-led-ili-bi-ksenonovye-linzy-chto-postavit-v-fary",
+      "leadProducts": ["bi-led-modul-3-aozoom-a3-pro", "bi-led-modul-3-sunrise-mini", "bi-led-modul-2-5-sunrise-mini"]
+    },
+    {
+      "slug": "mozhno-li-stavit-svetodiodnye-lampy-v-reflektornye-fary",
+      "leadProducts": ["svetodiodnaya-minilinza-sunrise-h7", "svetodiodnaya-minilinza-sunrise-h4", "svetodiodnye-lampy-v-golovnoy-svet-aozoom-xo"]
+    },
+    {
+      "slug": "kak-pravilno-sobrat-faru-butilovyy-germetik",
+      "leadProducts": [
+        "germetik-dlya-far-butilovyy-ulitka-cebole",
+        "zhidkost-dlya-razbora-far-na-poliuretanovom-germetike-500-ml-tip-1",
+        "zhidkost-dlya-razbora-far-na-poliuretanovom-germetike-500-ml-tip-2"
+      ]
+    }
+  ]
+}
