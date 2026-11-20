@@ -11,6 +11,7 @@ import {
 } from "./schema";
 import { newestProductIds, popularProductIds } from "./product-views";
 import { firstParagraph } from "./text";
+import { isSupplierBrand } from "./supplier-brand.mjs";
 import { hasAnyInStock } from "./variant";
 
 /**
@@ -348,13 +349,16 @@ export function getCategoryCounts(): Record<string, number> {
 
 const MANUFACTURER_SPEC = "производитель";
 
+const NOT_A_BRAND = /^(без бренда|без производителя|no ?name|noname|китай|china|кнр|нет|-|—)$/i;
+
+const realBrand = (value: string | undefined) =>
+  value && !isSupplierBrand(value) && !NOT_A_BRAND.test(value) ? value : undefined;
+
 export function productBrand(product: Product): string | undefined {
-  const brand = product.brand?.trim();
-  if (brand) return brand;
-  const manufacturer = product.specs.find(
-    (spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC,
-  );
-  return manufacturer?.value.trim() || undefined;
+  const manufacturer = product.specs
+    .find((spec) => spec.name.trim().toLowerCase() === MANUFACTURER_SPEC)
+    ?.value.trim();
+  return realBrand(product.brand?.trim()) ?? realBrand(manufacturer);
 }
 
 /** Уникальные бренды произвольной выборки — для фильтра над ней. */

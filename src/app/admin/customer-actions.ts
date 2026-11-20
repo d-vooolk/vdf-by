@@ -4,12 +4,15 @@ import { setServiceRequestDone } from "@/lib/service";
 import { getSite } from "@/lib/catalog";
 import {
   deleteCustomer,
+  editCustomer,
   getCustomerById,
   setCustomerNote,
   setCustomerSeller,
   setCustomerStaff,
   setWholesaleStatus,
+  setWholesaleTier,
 } from "@/lib/customers";
+import { toWholesaleTier, type WholesaleTier } from "@/lib/wholesale-tiers";
 import {
   getSmsSettings,
   renderTemplate,
@@ -17,16 +20,19 @@ import {
   smsConfigured,
 } from "@/lib/sms";
 import { requireAdmin } from "@/lib/auth";
+import { normalizePhone } from "@/lib/phone";
 import { fail, type FormState, ok } from "./form-state";
 
 export async function setWholesaleStatusAction(
   customerId: number,
   status: "approved" | "rejected" | "none",
+  tier?: WholesaleTier,
 ): Promise<FormState> {
   await requireAdmin();
   const customer = getCustomerById(customerId);
   if (!customer) return fail(["Покупатель не найден"]);
-  if (customer.staff || !setWholesaleStatus(customerId, status)) {
+  const chosenTier = status === "approved" ? toWholesaleTier(tier) : undefined;
+  if (customer.staff || !setWholesaleStatus(customerId, status, chosenTier)) {
     return fail(["Сотрудник не может быть оптовиком — сначала снимите роль сотрудника"]);
   }
   if (status === "approved" && customer.wholesaleStatus !== "approved" && smsConfigured()) {
@@ -41,6 +47,19 @@ export async function setWholesaleStatusAction(
     } catch (error) {
       console.error("[customers] SMS об опте не ушло:", (error as Error).message);
     }
+  }
+  return ok();
+}
+
+export async function setWholesaleTierAction(
+  customerId: number,
+  tier: WholesaleTier,
+): Promise<FormState> {
+  await requireAdmin();
+  const customer = getCustomerById(customerId);
+  if (!customer) return fail(["Покупатель не найден"]);
+  if (customer.staff || !setWholesaleTier(customerId, toWholesaleTier(tier))) {
+    return fail(["Сотруднику тип опта не назначается"]);
   }
   return ok();
 }
@@ -75,4 +94,19 @@ export async function deleteCustomerAction(customerId: number): Promise<FormStat
   await requireAdmin();
   deleteCustomer(customerId);
   return ok();
+}
+
+export async function editCustomerAction(
+  customerId: number,
+  changes: { name: string; phone: string; address: string },
+): Promise<FormState> {
+  await requireAdmin();
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const name = text(changes?.name);
+  const address = text(changes?.address);
+  const phone = normalizePhone(text(changes?.phone));
+  if (!name) return fail(["Укажите наименование"]);
+  if (!phone) return fail(["Телефон в формате +375 XX XXX-XX-XX"]);
+  const result = editCustomer(customerId, { name, phone, address });
+  return result.ok ? ok() : fail([result.error]);
 }

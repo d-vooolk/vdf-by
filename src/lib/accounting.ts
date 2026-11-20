@@ -68,8 +68,16 @@ export interface LedgerEntryUpdate {
   amount: number;
 }
 
+export interface OrderCashIncome {
+  orderId: number;
+  name: string;
+  phone: string;
+  wholesale: boolean;
+}
+
 export type CashIncome =
   | { source: "crm"; key: string; date: number; amount: number; payment: CrmPayment }
+  | { source: "order"; key: string; date: number; amount: number; order: OrderCashIncome }
   | { source: "entry"; key: string; date: number; amount: number; entry: LedgerEntry };
 
 export interface CashMonth {
@@ -210,6 +218,8 @@ function monthRange(year: number, month: number): [number, number] {
 
 const total = (rows: Array<{ amount: number }>) => roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
 
+const CASH_ORDERS = `orders WHERE staff = 0 AND status = 'done' AND rs_at IS NULL AND done_at IS NOT NULL`;
+
 const ENTRY_COLUMNS = `
   w.id, w.kind, w.date, w.description, w.category, w.amount, w.person, dp.debt_id AS debtId`;
 
@@ -222,12 +232,18 @@ export function cashMonth(year: number, month: number): CashMonth {
   const payments = db
     .prepare(
       `SELECT ${PAYMENT_COLUMNS}
-       FROM crm_payments WHERE paid_at >= ? AND paid_at < ? ORDER BY paid_at, order_id, id`,
+       FROM crm_payments WHERE paid_at >= ? AND paid_at < ? ORDER BY paid_at DESC, order_id DESC, id DESC`,
     )
     .all(from, to) as CrmPayment[];
   const entries = db
-    .prepare(`SELECT ${ENTRY_COLUMNS} FROM ${ENTRY_FROM} WHERE w.date >= ? AND w.date < ? ORDER BY w.date, w.id`)
+    .prepare(`SELECT ${ENTRY_COLUMNS} FROM ${ENTRY_FROM} WHERE w.date >= ? AND w.date < ? ORDER BY w.date DESC, w.id DESC`)
     .all(from, to) as LedgerEntry[];
+  const orders = db
+    .prepare(
+      `SELECT id, done_at, name, phone, total, wholesale FROM ${CASH_ORDERS}
+         AND done_at >= ? AND done_at < ? ORDER BY done_at DESC, id DESC`,
+    )
+    .all(from, to) as Array<{ id: number; done_at: number; name: string; phone: string; total: number; wholesale: number }>;
   const income: CashIncome[] = [
     ...payments.map((payment, index): CashIncome => ({
       source: "crm",
@@ -236,10 +252,17 @@ export function cashMonth(year: number, month: number): CashMonth {
       amount: payment.amount,
       payment,
     })),
+    ...orders.map((order): CashIncome => ({
+      source: "order",
+      key: `order-${order.id}`,
+      date: order.done_at,
+      amount: order.total,
+      order: { orderId: order.id, name: order.name, phone: order.phone, wholesale: order.wholesale === 1 },
+    })),
     ...entries
       .filter((entry) => entry.kind === "in")
       .map((entry): CashIncome => ({ source: "entry", key: `entry-${entry.id}`, date: entry.date, amount: entry.amount, entry })),
-  ].sort((a, b) => a.date - b.date);
+  ].sort((a, b) => b.date - a.date);
   const expenses = entries.filter((entry) => entry.kind === "out");
   return { income, expenses, incomeTotal: total(income), expenseTotal: total(expenses) };
 }
@@ -249,7 +272,7 @@ export function rsMonth(year: number, month: number): RsIncome[] {
   const rows = getDb()
     .prepare(
       `SELECT id, rs_at, name, phone, total, staff FROM orders
-       WHERE rs_at >= ? AND rs_at < ? AND status != 'cancelled' ORDER BY rs_at, id`,
+       WHERE rs_at >= ? AND rs_at < ? AND status != 'cancelled' ORDER BY rs_at DESC, id DESC`,
     )
     .all(from, to) as Array<{ id: number; rs_at: number; name: string; phone: string; total: number; staff: number }>;
   return rows.map((row) => ({
@@ -267,6 +290,7 @@ export function ledgerBalance(): number {
     .prepare(
       `SELECT
          (SELECT COALESCE(SUM(amount), 0) FROM crm_payments)
+           + (SELECT COALESCE(SUM(total), 0) FROM ${CASH_ORDERS})
            + (SELECT COALESCE(SUM(amount), 0) FROM ledger_writeoffs WHERE kind = 'in') AS income,
          (SELECT COALESCE(SUM(amount), 0) FROM ledger_writeoffs WHERE kind = 'out') AS spent`,
     )

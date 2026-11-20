@@ -6,7 +6,7 @@ import { getSite } from "@/lib/catalog";
 import { getCustomer } from "@/lib/customer-auth";
 import { customerOrders } from "@/lib/customers";
 import { formatPrice } from "@/lib/format";
-import { ORDER_STATUSES } from "@/lib/order-types";
+import { CUSTOMER_STATUS_NAMES } from "@/lib/order-types";
 import { buildMetadata } from "@/lib/seo";
 
 export function generateMetadata(): Metadata {
@@ -18,7 +18,14 @@ export function generateMetadata(): Metadata {
   });
 }
 
-const STATUS_NAMES = Object.fromEntries(ORDER_STATUSES.map((status) => [status.id, status.name]));
+const CUSTOMER_STATUS_TONE: Record<string, string> = {
+  new: "bg-sky-100 text-sky-900",
+  called: "bg-sky-100 text-sky-900",
+  ready: "bg-amber-100 text-amber-900",
+  shipped: "bg-violet-100 text-violet-900",
+  done: "bg-green-100 text-green-800",
+  cancelled: "bg-red-50 text-red-700",
+};
 
 function date(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("ru-RU", {
@@ -55,8 +62,8 @@ export default async function AccountOrdersPage() {
                   <span className="text-sm font-normal text-brand-400">от {date(order.createdAt)}</span>
                 </p>
                 <p className="text-sm">
-                  <span className="badge bg-brand-100 text-brand-700">
-                    {STATUS_NAMES[order.status] ?? order.status}
+                  <span className={`badge ${CUSTOMER_STATUS_TONE[order.status] ?? "bg-brand-100 text-brand-700"}`}>
+                    {CUSTOMER_STATUS_NAMES[order.status] ?? order.status}
                   </span>
                   {order.wholesale && <span className="badge ml-1.5 bg-green-50 text-green-800">опт</span>}
                 </p>

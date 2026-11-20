@@ -69,7 +69,15 @@ export default async function AccountingPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-xl font-semibold text-brand-900">Бухгалтерия</h1>
+        {tab === "cashflow" && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:ml-auto">
+            <CrmPullNote />
+            <RefreshCrmPaymentsButton />
+          </div>
+        )}
+      </div>
 
       <nav className="flex flex-wrap gap-2 border-b border-brand-100 pb-3" aria-label="Разделы бухгалтерии">
         {tabs.map((item) => (
@@ -199,7 +207,7 @@ function CashflowTab({
                     {price(row.amount)}
                   </td>
                   <td className={`${TD} text-brand-500`}>
-                    {(row.source === "crm" ? row.payment.person : row.entry.person) || "—"}
+                    {(row.source === "crm" ? row.payment.person : row.source === "entry" ? row.entry.person : "") || "—"}
                   </td>
                   <td className="px-2 py-1 text-right">
                     {row.source === "entry" && <LedgerEntryActions entry={row.entry} categories={categories} />}
@@ -246,11 +254,6 @@ function CashflowTab({
       )}
 
       <CapitalOutboxNote />
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <CrmPullNote />
-        <RefreshCrmPaymentsButton />
-      </div>
     </div>
   );
 }
@@ -277,6 +280,19 @@ function IncomeSource({ row, price }: { row: CashIncome; price: (value: number) 
         {row.payment.remaining > 0 && (
           <span className="block text-xs text-sky-900">частично, остаток {price(row.payment.remaining)}</span>
         )}
+      </>
+    );
+  }
+  if (row.source === "order") {
+    return (
+      <>
+        <Link href={`/admin/orders/${row.order.orderId}/`} className="text-brand-700 underline">
+          Заказ №{row.order.orderId}
+        </Link>{" "}
+        <span className="text-brand-900">— {row.order.name || row.order.phone}</span>
+        <span className="block text-xs text-brand-400">
+          выполнен{row.order.wholesale ? " · оптовый" : ""}
+        </span>
       </>
     );
   }

@@ -8,7 +8,7 @@ import { getCarTree } from "@/lib/cars";
 import { categoryUrl, getRootCategories, getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
 import { DisclaimerHint } from "@/components/DisclaimerHint";
-import { DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { DisclaimerText } from "@/components/DisclaimerText";
 
 export function Footer() {
   const site = getSite();
@@ -123,9 +123,13 @@ export function Footer() {
       <div className="border-t border-brand-100">
         <div className="container-page flex flex-col gap-2 py-6 text-xs text-brand-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {year} {site.legalName}. Цены на сайте не являются публичной
+            © {year} {site.legalName}
+            {site.unp ? `, УНП ${site.unp}` : ""}. Цены на сайте не являются публичной
             офертой.
           </p>
+          <Link href="/vozvrat/" className="transition-colors hover:text-brand-700">
+            Возврат и обмен
+          </Link>
           <Link href="/privacy/" className="transition-colors hover:text-brand-700">
             Политика обработки персональных данных
           </Link>
@@ -134,7 +138,7 @@ export function Footer() {
           </Link>
           <p>Оплата при получении. Доставка по Минску и Беларуси.</p>
         </div>
-        <p className="container-page pb-6 text-xs leading-relaxed text-brand-500">{DISCLAIMER_FULL}</p>
+        <DisclaimerText className="container-page pb-6 text-xs leading-relaxed text-brand-500" />
       </div>
     </footer>
   );

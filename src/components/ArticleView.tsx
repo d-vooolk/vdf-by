@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { Faq } from "@/components/Faq";
 import { Picture } from "@/components/Picture";
@@ -16,15 +17,19 @@ import { coverOf } from "@/lib/article-photos";
 import type { Article } from "@/lib/articles";
 import {
   categoryUrl,
+  getCategoryById,
   getCategoryBySlug,
   getProductBySlug,
   getProductsInCategory,
   getSite,
   resolveSubcategory,
 } from "@/lib/catalog";
-import { pluralize } from "@/lib/format";
+import { formatPrice, pluralize } from "@/lib/format";
 import { getImage } from "@/lib/images";
 import type { Category, Product } from "@/lib/schema";
+import { hasAnyInStock, hasPrice, priceRange } from "@/lib/variant";
+
+const LEAD_PRODUCTS = 3;
 
 interface ArticleViewProps {
   article: Article;
@@ -66,17 +71,97 @@ function Inline({ text }: { text: string }) {
 }
 
 function mainSection(body: string): Category | undefined {
-  const counts = new Map<string, number>();
+  const counts = new Map<string, { category: Category; count: number }>();
+  const count = (category: Category | undefined) => {
+    if (!category) return;
+    const entry = counts.get(category.id) ?? { category, count: 0 };
+    entry.count += 1;
+    counts.set(category.id, entry);
+  };
   for (const match of body.matchAll(/\]\(\/catalog\/([a-z0-9-]+\/(?:[a-z0-9-]+\/)?)\)/g)) {
-    counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+    const [root, child] = match[1].split("/");
+    count(child ? resolveSubcategory(root, child) : getCategoryBySlug(root));
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([path]) => {
-      const [root, child] = path.split("/");
-      return child ? resolveSubcategory(root, child) : getCategoryBySlug(root);
-    })
-    .find(Boolean);
+  for (const match of body.matchAll(/\]\(\/product\/([a-z0-9-]+)\/?\)/g)) {
+    const categoryId = getProductBySlug(match[1])?.categoryId;
+    count(categoryId ? getCategoryById(categoryId) : undefined);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count)[0]?.category;
+}
+
+function blockProductSlugs(block: ArticleBlock): string[] {
+  const texts =
+    block.type === "p" || block.type === "tip"
+      ? [block.text]
+      : block.type === "ul" || block.type === "ol"
+        ? block.items
+        : [];
+  return texts.flatMap((text) =>
+    parseInline(text).flatMap((part) => {
+      const match = part.type === "link" ? part.href.match(PRODUCT_LINK) : null;
+      return match ? [match[1]] : [];
+    }),
+  );
+}
+
+function InlineProducts({ products, currencySymbol }: { products: Product[]; currencySymbol: string }) {
+  return (
+    <div className="mt-3 space-y-2">
+      {products.map((product) => {
+        const range = priceRange(product);
+        const inStock = hasAnyInStock(product);
+        const entry = getImage(product.images[0]);
+        return (
+          <Link
+            key={product.id}
+            href={`/product/${product.slug}/`}
+            prefetch={false}
+            className="card card-link flex items-center gap-3 p-2.5 pr-4"
+          >
+            {entry && (
+              <Picture
+                entry={entry}
+                alt={product.title}
+                sizes="56px"
+                className="h-14 w-14 shrink-0 rounded-lg bg-white object-contain"
+              />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="line-clamp-2 text-sm leading-snug font-semibold text-brand-900">{product.title}</span>
+              <span className="mt-0.5 block text-sm text-brand-500">
+                {hasPrice(range.min) && (
+                  <b className="tnum font-semibold text-brand-800">
+                    {range.varies ? "от " : ""}
+                    {formatPrice(range.min, currencySymbol)}
+                  </b>
+                )}
+                {hasPrice(range.min) && " · "}
+                <span className={inStock ? "text-emerald-700" : "text-brand-400"}>
+                  {inStock ? "в наличии" : "нет в наличии"}
+                </span>
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-medium text-brand-700">
+              <span className="hidden sm:inline">Смотреть </span>
+              <span aria-hidden>→</span>
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function pickLeadProducts(article: Article, carded: Set<string>): Product[] {
+  const chosen = article.leadProducts.length > 0;
+  const candidates = (chosen ? article.leadProducts : articleProductSlugs(article.body).filter((slug) => !carded.has(slug)))
+    .map((slug) => getProductBySlug(slug))
+    .filter((product): product is Product => Boolean(product))
+    .filter((product) => hasPrice(priceRange(product).min));
+  const ordered = chosen
+    ? candidates
+    : [...candidates.filter(hasAnyInStock), ...candidates.filter((product) => !hasAnyInStock(product))];
+  return ordered.slice(0, LEAD_PRODUCTS);
 }
 
 function SectionLink({ category }: { category: Category }) {
@@ -226,6 +311,19 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
   const carded = new Set(
     blocks.flatMap((block) => (block.type === "products" ? block.slugs : [])),
   );
+  const leadProducts = pickLeadProducts(article, carded);
+  const shownInline = new Set([...carded, ...leadProducts.map((product) => product.slug)]);
+  const inlineProducts = blocks.map((block) => {
+    const products: Product[] = [];
+    for (const slug of blockProductSlugs(block)) {
+      if (shownInline.has(slug) || products.length >= 3) continue;
+      const product = getProductBySlug(slug);
+      if (!product) continue;
+      shownInline.add(slug);
+      products.push(product);
+    }
+    return products;
+  });
   const mentioned = articleProductSlugs(article.body)
     .filter((slug) => !carded.has(slug))
     .map((slug) => getProductBySlug(slug))
@@ -252,6 +350,17 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
         </p>
       </header>
 
+      {article.excerpt && (
+        <p className="mt-5 text-lg leading-relaxed text-brand-800">{article.excerpt}</p>
+      )}
+
+      {leadProducts.length > 0 && (
+        <section aria-label="Товары из статьи" className="mt-5">
+          <p className="text-xs font-semibold tracking-[0.14em] text-brand-400 uppercase">Товары из статьи</p>
+          <InlineProducts products={leadProducts} currencySymbol={site.currencySymbol} />
+        </section>
+      )}
+
       {cover && (
         <div className="mt-6">
           <Picture
@@ -262,10 +371,6 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
             priority
           />
         </div>
-      )}
-
-      {article.excerpt && (
-        <p className="mt-6 text-lg leading-relaxed text-brand-800">{article.excerpt}</p>
       )}
 
       {section && <SectionLink category={section} />}
@@ -287,13 +392,12 @@ export function ArticleView({ article, preview = false }: ArticleViewProps) {
 
       <div className="mt-4 text-base leading-relaxed text-brand-600">
         {blocks.map((block, index) => (
-          <Block
-            key={index}
-            block={block}
-            title={article.title}
-            preview={preview}
-            currencySymbol={site.currencySymbol}
-          />
+          <Fragment key={index}>
+            <Block block={block} title={article.title} preview={preview} currencySymbol={site.currencySymbol} />
+            {inlineProducts[index].length > 0 && (
+              <InlineProducts products={inlineProducts[index]} currencySymbol={site.currencySymbol} />
+            )}
+          </Fragment>
         ))}
       </div>
 

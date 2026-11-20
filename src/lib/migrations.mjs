@@ -857,6 +857,16 @@ export const MIGRATIONS = [
     );
     CREATE INDEX business_posts_by_time ON business_posts(publish_at);
   `,
+  `
+    ALTER TABLE customers ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
+    ALTER TABLE orders ADD COLUMN wholesale_tier TEXT NOT NULL DEFAULT 'base';
+  `,
+  `
+    ALTER TABLE orders ADD COLUMN done_at INTEGER;
+    CREATE INDEX orders_by_done ON orders(done_at) WHERE done_at IS NOT NULL;
+  `,
+  derivePairStock,
+  deriveSideWeights,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
@@ -949,6 +959,71 @@ function composeStorageSkus(db) {
     remember.run(row.id, sku);
     product.sku = next;
     write.run(JSON.stringify(product), Date.now(), row.id);
+  }
+}
+
+function sideKind(value) {
+  const label = String(value.label ?? "");
+  if (value.id === "para" || /пара|комплект/i.test(label)) return "pair";
+  if (/прав/i.test(label)) return "right";
+  if (/лев/i.test(label)) return "left";
+  return null;
+}
+
+function derivePairStock(db) {
+  const rows = db.prepare("SELECT id, data FROM products").all();
+  const write = db.prepare("UPDATE products SET in_stock = ?, data = ? WHERE id = ?");
+
+  for (const row of rows) {
+    const product = JSON.parse(row.data);
+    const group = (product.optionGroups ?? []).find((entry) =>
+      entry.values.some((value) => value.stockQty !== undefined),
+    );
+    if (!group || !(group.id === "storona" || /^сторона$/i.test(String(group.name).trim()))) continue;
+    const find = (kind) => group.values.find((value) => sideKind(value) === kind);
+    const right = find("right");
+    const left = find("left");
+    const pair = find("pair");
+    if (!right || !left || !pair) continue;
+
+    pair.stockQty = Math.min(right.stockQty ?? 0, left.stockQty ?? 0);
+    delete pair.inStock;
+    if (pair.stockQty <= 0) pair.inStock = false;
+    product.stockQty = group.values.reduce(
+      (sum, value) => (value === pair ? sum : sum + (value.stockQty ?? 0)),
+      0,
+    );
+    product.inStock = product.stockQty > 0;
+    const data = JSON.stringify(product);
+    if (data !== row.data) write.run(product.inStock ? 1 : 0, data, row.id);
+  }
+}
+
+function deriveSideWeights(db) {
+  const rows = db.prepare("SELECT id, data FROM products").all();
+  const write = db.prepare("UPDATE products SET data = ? WHERE id = ?");
+  const round = (value) => Math.round(value * 100) / 100;
+
+  for (const row of rows) {
+    const product = JSON.parse(row.data);
+    for (const group of product.optionGroups ?? []) {
+      if (!(group.id === "storona" || /^сторона$/i.test(String(group.name).trim()))) continue;
+      const find = (kind) => group.values.find((value) => sideKind(value) === kind);
+      const right = find("right");
+      const left = find("left");
+      const pair = find("pair");
+      if (!right || !left || !pair) continue;
+
+      const unit = right.weight ?? left.weight;
+      if (unit) {
+        right.weight = round(unit);
+        left.weight = round(unit);
+      }
+      const pairUnit = unit ?? product.weight;
+      if (pairUnit) pair.weight = round(pairUnit * 2);
+    }
+    const data = JSON.stringify(product);
+    if (data !== row.data) write.run(data, row.id);
   }
 }
 

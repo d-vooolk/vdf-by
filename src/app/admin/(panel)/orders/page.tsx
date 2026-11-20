@@ -1,17 +1,53 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
+import { OrderBoard, type BoardOrder } from "@/components/admin/OrderBoard";
+import { OrdersViewSwitch } from "@/components/admin/OrdersViewSwitch";
 import { MoneyStatusBadge } from "@/components/admin/MoneyStatusBadge";
 import { OrderBulk, OrderCheckbox } from "@/components/admin/OrderBulk";
 import { OrderStatusBadge } from "@/components/admin/OrderStatusBadge";
 import { moneyStatuses } from "@/lib/accounting";
 import { getSite } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
-import { ORDER_STATUSES } from "@/lib/order-types";
+import { ORDERS_VIEW_COOKIE, parseOrdersView } from "@/lib/admin-prefs";
+import { ORDER_STATUSES, type Order } from "@/lib/order-types";
 import { listOrders, orderStatusCounts } from "@/lib/orders";
+import { smsConfigured } from "@/lib/sms";
 
 export const metadata = { title: "Заказы" };
 
 const PER_PAGE = 40;
+const BOARD_COLUMN_LIMIT = 200;
+const BOARD_DONE_LIMIT = 60;
+
+function boardOrder(order: Order): BoardOrder {
+  return {
+    id: order.id,
+    status: order.status,
+    name: order.name,
+    phone: order.phone,
+    total: order.total,
+    createdAt: order.createdAt,
+    itemsCount: order.items.length,
+    deliveryName: order.deliveryName,
+    needsCheck: order.notes.length > 0,
+    notSent: !order.telegramSent && !order.staff,
+    readySmsSent: order.readySmsAt !== null,
+  };
+}
+
+function loadBoard(staff: boolean, query: string): { orders: BoardOrder[]; doneTotal: number } {
+  const orders = ORDER_STATUSES.flatMap((entry) =>
+    listOrders({
+      status: entry.id,
+      query,
+      staff,
+      limit: entry.id === "done" ? BOARD_DONE_LIMIT : BOARD_COLUMN_LIMIT,
+    }).rows.map(boardOrder),
+  );
+  const doneTotal = listOrders({ status: "done", query, staff, limit: 0 }).total;
+  return { orders, doneTotal };
+}
 
 interface PageProps {
   searchParams: Promise<{ kind?: string; status?: string; q?: string; page?: string }>;
@@ -23,6 +59,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const query = params.q ?? "";
   const status = params.status ?? (query ? "" : "new");
   const staff = params.kind === "staff";
+  const view = parseOrdersView((await cookies()).get(ORDERS_VIEW_COOKIE)?.value);
+  const board = view === "board" ? loadBoard(staff, query) : null;
 
   const site = getSite();
   const counts = orderStatusCounts(staff);
@@ -148,21 +186,26 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold text-brand-900">
-        Заказы{" "}
-        <span className="tnum text-base font-medium text-brand-400">{total}</span>
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-brand-900">
+          Заказы{" "}
+          {!board && <span className="tnum text-base font-medium text-brand-400">{total}</span>}
+        </h1>
+        <OrdersViewSwitch view={view} />
+      </div>
 
       <nav className="flex flex-wrap gap-2" aria-label="Вид заказов">
         {kindTab("regular", "Обычные заказы")}
         {kindTab("staff", "Заказы сотрудников")}
       </nav>
 
-      <div className="flex flex-wrap gap-2">
-        {ORDER_STATUSES.map((entry) =>
-          tab(entry.id, entry.name, counts[entry.id]),
-        )}
-      </div>
+      {!board && (
+        <div className="flex flex-wrap gap-2">
+          {ORDER_STATUSES.map((entry) =>
+            tab(entry.id, entry.name, counts[entry.id]),
+          )}
+        </div>
+      )}
 
       <form method="get" className="flex flex-wrap gap-2">
         {staff && <input type="hidden" name="kind" value="staff" />}
@@ -183,7 +226,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         )}
       </form>
 
-      {rows.length === 0 ? (
+      {board ? (
+        <OrderBoard orders={board.orders} doneTotal={board.doneTotal} currencySymbol={site.currencySymbol} smsReady={smsConfigured()} />
+      ) : rows.length === 0 ? (
         <p className="card p-10 text-center text-sm text-brand-400">
           {query || status ? "Ничего не нашлось." : staff ? "Заказов сотрудников пока нет." : "Заказов пока нет."}
         </p>
@@ -193,7 +238,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         orderList
       )}
 
-      {pages > 1 && (
+      {!board && pages > 1 && (
         <nav className="flex items-center justify-center gap-2" aria-label="Страницы">
           {page > 1 && (
             <Link
