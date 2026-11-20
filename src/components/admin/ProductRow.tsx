@@ -9,6 +9,7 @@ import { CheckIcon } from "@/components/icons";
 import type { ProductsView } from "@/lib/admin-prefs";
 import { FOREIGN_CURRENCIES, type MoneySource } from "@/lib/currency";
 import { type ProductBrief } from "@/lib/product-store";
+import type { SideStock } from "@/lib/variant";
 
 /**
  * Строка списка товаров.
@@ -20,7 +21,15 @@ import { type ProductBrief } from "@/lib/product-store";
  * позиций за раз правят десяток.
  */
 
-type RowField = keyof ProductRowChanges;
+type RowField = Exclude<keyof ProductRowChanges, "sideStock">;
+type Side = keyof SideStock;
+
+const SIDES: Side[] = ["right", "left"];
+
+const SIDE_LABELS: Record<Side, string> = {
+  right: "П",
+  left: "Л",
+};
 
 const VIEW_FIELDS: Record<ProductsView, RowField[]> = {
   standard: ["stockQty"],
@@ -87,6 +96,7 @@ export function ProductRow({
    * показывает «0», и набранная поверх сотня превращается в «0100».
    */
   const [texts, setTexts] = useState<Partial<Record<RowField, string>>>({});
+  const [sideTexts, setSideTexts] = useState<Partial<Record<Side, string>>>({});
 
   // Значение могло приехать новым с сервера — например, страница
   // перерисовалась после удаления соседних позиций. Правим состояние прямо
@@ -96,12 +106,16 @@ export function ProductRow({
   if (product !== known) {
     setKnown(product);
     setTexts({});
+    setSideTexts({});
   }
 
   const textOf = (field: RowField) => texts[field] ?? storedValue(product, field);
+  const sideStock = fields.includes("stockQty") ? product.sideStock : null;
+  const sideTextOf = (side: Side) => sideTexts[side] ?? String(sideStock?.[side] ?? 0);
 
   const disabledReason = (field: RowField): string => {
     if (field === "stockQty") {
+      if (sideStock) return "Количество по сторонам";
       return product.optionStock ? "Количество считается по опциям — правится в карточке товара" : "";
     }
     return frameLocked ? "Задаётся в типе рамки" : "";
@@ -133,11 +147,25 @@ export function ProductRow({
     if (parseField(field, storedValue(product, field)) === value) continue;
     Object.assign(changes, { [field]: value });
   }
+  const parsedSides = sideStock
+    ? SIDES.map((side) => ({ side, value: parseField("stockQty", sideTextOf(side)) }))
+    : [];
+  const invalidSides = parsedSides.filter(({ value }) => value === undefined).map(({ side }) => side);
+  if (sideStock && !invalidSides.length) {
+    const next = Object.fromEntries(
+      parsedSides.map(({ side, value }) => [side, typeof value === "number" ? value : 0]),
+    ) as unknown as SideStock;
+    if (next.right !== sideStock.right || next.left !== sideStock.left) changes.sideStock = next;
+  }
   const changed = Object.keys(changes).length > 0;
+  const invalidLabels = [
+    ...invalid.map((field) => FIELD_LABELS[field]),
+    ...invalidSides.map((side) => SIDE_LABELS[side]),
+  ];
 
   const commit = () => {
-    if (invalid.length) {
-      setError(`Проверьте поля: ${invalid.map((field) => FIELD_LABELS[field]).join(", ")}`);
+    if (invalidLabels.length) {
+      setError(`Проверьте поля: ${invalidLabels.join(", ")}`);
       return;
     }
     if (!changed) return;
@@ -222,6 +250,54 @@ export function ProductRow({
         className="flex shrink-0 flex-wrap items-end gap-2"
       >
         {fields.map((field) => {
+          if (field === "stockQty" && sideStock) {
+            const pairs = Math.min(
+              ...parsedSides.map(({ side, value }) =>
+                typeof value === "number" ? value : value === null ? 0 : sideStock[side],
+              ),
+            );
+            return (
+              <Fragment key={field}>
+                {SIDES.map((side) => (
+                  <label
+                    key={side}
+                    className="block"
+                    title={`Остаток ${side === "right" ? "правых" : "левых"} на складе. Пары считаются сами`}
+                  >
+                    <span className="block text-[10px] leading-tight text-brand-400">
+                      {SIDE_LABELS[side]}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={sideTextOf(side)}
+                      placeholder="0"
+                      onChange={(event) =>
+                        setSideTexts((current) => ({ ...current, [side]: event.target.value }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setSideTexts((current) => {
+                            const next = { ...current };
+                            delete next[side];
+                            return next;
+                          });
+                        }
+                      }}
+                      aria-invalid={invalidSides.includes(side) || undefined}
+                      className="field tnum w-12 py-1.5 text-right text-sm aria-invalid:border-red-400"
+                    />
+                  </label>
+                ))}
+                <span
+                  className="tnum self-center pt-3 text-xs text-brand-400"
+                  title="Полных пар — меньшее из правых и левых"
+                >
+                  пар {pairs}
+                </span>
+              </Fragment>
+            );
+          }
           const disabled = Boolean(disabledReason(field));
           const text = disabled ? storedValue(product, field) : textOf(field);
           const suffix =
@@ -272,7 +348,7 @@ export function ProductRow({
         })}
         <button
           type="submit"
-          disabled={(!changed && !invalid.length) || pending}
+          disabled={(!changed && !invalidLabels.length) || pending}
           title="Сохранить"
           aria-label="Сохранить изменения строки"
           className="btn-primary px-2 py-1.5 disabled:opacity-30"

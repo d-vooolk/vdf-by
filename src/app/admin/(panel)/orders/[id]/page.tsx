@@ -11,6 +11,7 @@ import { getSite } from "@/lib/catalog";
 import { crmSyncState } from "@/lib/crm-sync";
 import { formatPrice } from "@/lib/format";
 import { isLiteMode } from "@/lib/lite-mode";
+import type { Order } from "@/lib/order-types";
 import { getOrder } from "@/lib/orders";
 import { smsConfigured } from "@/lib/sms";
 
@@ -104,7 +105,7 @@ export default async function OrderPage({ params }: PageProps) {
           <p className="text-sm font-semibold text-amber-900">
             Проверьте перед звонком
           </p>
-          <ul className="mt-1.5 space-y-1 text-sm text-amber-800">
+          <ul className="mt-1.5 space-y-1 text-sm break-words text-amber-800">
             {order.notes.map((note) => (
               <li key={note}>• {note}</li>
             ))}
@@ -122,7 +123,7 @@ export default async function OrderPage({ params }: PageProps) {
         </p>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* ---------------------------- Состав --------------------------- */}
         <OrderItems
           orderId={order.id}
@@ -137,7 +138,7 @@ export default async function OrderPage({ params }: PageProps) {
         />
 
         {/* ---------------------------- Клиент --------------------------- */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <section className="card p-4">
             <h2 className="mb-3 text-sm font-bold text-brand-900">Покупатель</h2>
 
@@ -170,7 +171,7 @@ export default async function OrderPage({ params }: PageProps) {
             </dl>
 
             {(order.referer || order.ip) && (
-              <p className="mt-3 border-t border-brand-100 pt-3 text-xs text-brand-300">
+              <p className="mt-3 border-t border-brand-100 pt-3 text-xs break-all text-brand-300">
                 {order.referer && <>Пришёл со страницы: {order.referer}<br /></>}
                 {order.ip && <>Адрес: {order.ip}</>}
               </p>
@@ -186,11 +187,19 @@ export default async function OrderPage({ params }: PageProps) {
             smsReady={smsConfigured()}
           />
 
-          <OrderRsToggle orderId={order.id} rsAt={order.rsAt} />
+          <OrderRsToggle orderId={order.id} rsAt={order.rsAt} cashNote={cashNote(order)} />
         </div>
       </div>
     </div>
   );
+}
+
+function cashNote(order: Order): string {
+  if (order.staff) return "";
+  if (order.status === "done" && order.doneAt !== null) {
+    return `Без отметки сумма заказа — в кассе «Приходно-расходный» за ${new Date(order.doneAt).toLocaleDateString("ru-RU")}.`;
+  }
+  return "Без отметки сумма заказа попадёт в кассу «Приходно-расходный», когда заказ станет выполненным.";
 }
 
 function Row({
@@ -203,7 +212,7 @@ function Row({
   return (
     <div>
       <dt className="text-xs text-brand-400">{label}</dt>
-      <dd className="text-brand-900">{children}</dd>
+      <dd className="break-words text-brand-900">{children}</dd>
     </div>
   );
 }

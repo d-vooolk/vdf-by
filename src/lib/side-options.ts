@@ -77,6 +77,21 @@ export function isSidesGroup(group: Pick<OptionGroup, "id" | "name">): boolean {
   return group.id === SIDES_GROUP_ID || /^сторона$/i.test(group.name.trim());
 }
 
+export interface SideValues {
+  right: OptionValue;
+  left: OptionValue;
+  pair: OptionValue;
+}
+
+export function sideValues(group: OptionGroup): SideValues | null {
+  if (!isSidesGroup(group)) return null;
+  const find = (suffix: string) => group.values.find((value) => suffixOf(value) === suffix);
+  const right = find("R");
+  const left = find("L");
+  const pair = find(PAIR_SUFFIX);
+  return right && left && pair ? { right, left, pair } : null;
+}
+
 export function refreshSides(group: OptionGroup, base: SideBase): OptionGroup {
   return {
     ...group,
@@ -90,4 +105,33 @@ export function refreshSides(group: OptionGroup, base: SideBase): OptionGroup {
       });
     }),
   };
+}
+
+export function withSideWeight(
+  group: OptionGroup,
+  unitWeight: number | null | undefined,
+  baseWeight: number | null | undefined,
+): OptionGroup {
+  const sides = sideValues(group);
+  if (!sides) return group;
+  const unit = unitWeight && unitWeight > 0 ? round(unitWeight) : undefined;
+  const pairUnit = unit ?? (baseWeight && baseWeight > 0 ? baseWeight : undefined);
+  const pairWeight = pairUnit ? round(pairUnit * 2) : undefined;
+  return {
+    ...group,
+    values: group.values.map((value) => {
+      if (value !== sides.right && value !== sides.left && value !== sides.pair) return value;
+      const next = { ...value };
+      const weight = value === sides.pair ? pairWeight : unit;
+      if (weight === undefined) delete next.weight;
+      else next.weight = weight;
+      return next;
+    }),
+  };
+}
+
+export function normalizeSideWeight(group: OptionGroup, baseWeight: number | null | undefined): OptionGroup {
+  const sides = sideValues(group);
+  if (!sides) return group;
+  return withSideWeight(group, sides.right.weight ?? sides.left.weight, baseWeight);
 }

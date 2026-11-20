@@ -18,6 +18,7 @@ import {
   reorderProducts,
   saveProduct,
   setProductPrice,
+  setProductSideStock,
   setProductStockQty,
 } from "@/lib/product-store";
 import {
@@ -30,6 +31,7 @@ import { isFrameCategory, rememberVdfArticle } from "@/lib/frame-types";
 import { buildProductSku, productSkuBase } from "@/lib/sku";
 import { frameMembershipOf, setFrameMembership } from "@/lib/frame-membership";
 import type { Product } from "@/lib/schema";
+import type { SideStock } from "@/lib/variant";
 import { productsSharingStock, setGroupStock, stockGroupOf } from "@/lib/shared-stock";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateProductsById } from "@/lib/stock-revalidate";
@@ -264,6 +266,7 @@ export interface ProductRowChanges {
   wholesalePrice?: number | null;
   storageCode?: string | null;
   stockQty?: number | null;
+  sideStock?: SideStock;
 }
 
 const ROW_MONEY_FIELDS = [
@@ -333,6 +336,11 @@ export async function saveProductRowAction(
 
   if ("stockQty" in changes) {
     const result = setProductStockQty(id, changes.stockQty ?? null);
+    if (!result.ok) return toState(result);
+  }
+
+  if (changes.sideStock) {
+    const result = setProductSideStock(id, changes.sideStock);
     if (!result.ok) return toState(result);
   }
 

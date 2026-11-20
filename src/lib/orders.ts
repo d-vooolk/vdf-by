@@ -10,6 +10,7 @@ import { orderLineFromCatalog } from "./order-catalog";
 import { describeShortage, stockShortages } from "./prices";
 import { returnToStock, takeFromStock, type StockMove } from "./stock-store";
 import { variantKey } from "./variant";
+import { toWholesaleTier, type WholesaleTier } from "./wholesale-tiers";
 
 /**
  * Заказы: приём с витрины и работа с ними в админке.
@@ -50,10 +51,12 @@ interface OrderRow {
   admin_note: string;
   staff: number;
   wholesale: number;
+  wholesale_tier: string;
   edited_at: number | null;
   review_sms_at: number | null;
   ready_sms_at: number | null;
   rs_at: number | null;
+  done_at: number | null;
 }
 
 function toOrder(row: OrderRow): Order {
@@ -83,17 +86,19 @@ function toOrder(row: OrderRow): Order {
     adminNote: row.admin_note,
     staff: row.staff === 1,
     wholesale: row.wholesale === 1,
+    wholesaleTier: toWholesaleTier(row.wholesale_tier),
     editedAt: row.edited_at,
     reviewSmsAt: row.review_sms_at,
     readySmsAt: row.ready_sms_at,
     rsAt: row.rs_at,
+    doneAt: row.done_at,
   };
 }
 
 const COLUMNS = `id, created_at, status, name, phone, phone_digits, email, consent_at, comment,
   delivery_id, delivery_name, address, delivery_cost, subtotal, total, total_manual,
   currency, items, notes, ip, referer, telegram_sent, admin_note, staff,
-  wholesale, edited_at, review_sms_at, ready_sms_at, rs_at`;
+  wholesale, wholesale_tier, edited_at, review_sms_at, ready_sms_at, rs_at, done_at`;
 
 /* ------------------------------------------------------------------ */
 /* Приём заявки                                                        */
@@ -120,6 +125,7 @@ export interface NewOrder {
   customerId?: number | null;
   sellerId?: number | null;
   wholesale?: boolean;
+  wholesaleTier?: WholesaleTier;
   staff?: boolean;
 }
 
@@ -137,11 +143,11 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       `INSERT INTO orders
          (created_at, status, name, phone, phone_digits, email, consent_at, comment,
           delivery_id, delivery_name, address, delivery_cost,
-          subtotal, total, currency, items, notes, ip, referer, customer_id, seller_id, wholesale, staff)
+          subtotal, total, currency, items, notes, ip, referer, customer_id, seller_id, wholesale, wholesale_tier, staff)
        VALUES
          (@createdAt, 'new', @name, @phone, @phoneDigits, @email, @consentAt, @comment,
           @deliveryId, @deliveryName, @address, @deliveryCost,
-          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @sellerId, @wholesale, @staff)`,
+          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @sellerId, @wholesale, @wholesaleTier, @staff)`,
     )
     .run({
       createdAt: Date.now(),
@@ -162,6 +168,7 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       customerId: order.customerId ?? null,
       sellerId: order.sellerId ?? null,
       wholesale: order.wholesale ? 1 : 0,
+      wholesaleTier: order.wholesaleTier ?? "base",
       staff: order.staff ? 1 : 0,
       notes: JSON.stringify(order.notes),
       ip: order.ip,
@@ -269,9 +276,17 @@ export function setOrderStatus(id: number, status: OrderStatus): StockMove[] {
       moves = null;
     }
 
-    db.prepare("UPDATE orders SET status = ?, stock_moves = ? WHERE id = ?").run(
+    const completedNow = status === "done" && row.status !== "done";
+    db.prepare(
+      `UPDATE orders SET status = ?, stock_moves = ?,
+         done_at = CASE WHEN ? THEN ? WHEN ? THEN done_at ELSE NULL END
+       WHERE id = ?`,
+    ).run(
       status,
       moves === null ? null : JSON.stringify(moves),
+      completedNow ? 1 : 0,
+      Date.now(),
+      status === "done" ? 1 : 0,
       id,
     );
     if (row.staff === 1 && (row.status === "done") !== (status === "done")) {
@@ -309,13 +324,14 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
   return db.transaction((): OrderEditResult => {
     const row = db
       .prepare(
-        "SELECT status, staff, wholesale, items, delivery_cost, stock_moves, total, total_manual FROM orders WHERE id = ?",
+        "SELECT status, staff, wholesale, wholesale_tier, items, delivery_cost, stock_moves, total, total_manual FROM orders WHERE id = ?",
       )
       .get(id) as
       | {
           status: string;
           staff: number;
           wholesale: number;
+          wholesale_tier: string;
           items: string;
           delivery_cost: number;
           stock_moves: string | null;
@@ -326,7 +342,11 @@ export function updateOrderItems(id: number, lines: OrderLineInput[]): OrderEdit
     if (!row) return { ok: false, problems: ["Заказ не найден"] };
 
     const current = new Map((JSON.parse(row.items) as OrderItem[]).map((item) => [item.key, item]));
-    const buyer = { staff: row.staff === 1, wholesale: row.wholesale === 1 };
+    const buyer = {
+      staff: row.staff === 1,
+      wholesale: row.wholesale === 1,
+      wholesaleTier: toWholesaleTier(row.wholesale_tier),
+    };
     const wanted = new Map<string, number>();
     for (const line of lines) {
       const qty = Math.floor(Number(line.qty) || 0);

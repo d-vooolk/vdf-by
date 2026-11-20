@@ -143,6 +143,7 @@ export async function searchOrderVariantsAction(
   return findOrderVariants(String(query ?? "").slice(0, 100), {
     staff: order.staff,
     wholesale: order.wholesale,
+    wholesaleTier: order.wholesaleTier,
   });
 }
 

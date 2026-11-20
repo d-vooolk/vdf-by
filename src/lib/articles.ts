@@ -21,6 +21,7 @@ export const articleDataSchema = z.strictObject({
   seoTitle: z.string().max(120).optional(),
   seoDescription: z.string().max(300).optional(),
   faq: z.array(faqItemSchema).max(20).default([]),
+  leadProducts: z.array(slug).max(3).default([]),
   topic: z.string().max(500).optional(),
   notes: z.string().max(4000).optional(),
   keyword: z.string().max(200).optional(),

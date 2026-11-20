@@ -21,7 +21,9 @@ import {
 } from "@/lib/car-branch";
 import {
   carName,
+  carSearchName,
   carsRoot,
+  generationFamily,
   generationUrl,
   markUrl,
   modelUrl,
@@ -35,11 +37,13 @@ import {
 import { carFaq, oemNumbers } from "@/lib/car-content";
 import { generationCopy, markWithSpelling } from "@/lib/car-page-copy";
 import { carTextParagraphs, getCarText } from "@/lib/car-texts";
+import { deliverySentence, listingAnswer } from "@/lib/direct-answer";
 import { lensesForFrames } from "@/lib/frame-lenses";
 import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
 import type { Category, Product } from "@/lib/schema";
 import { buildMetadata, itemListJsonLd, sentences } from "@/lib/seo";
+import { TITLE_SEPARATOR } from "@/lib/snippet";
 import { cheapestPrice, hasAnyInStock, priceRange } from "@/lib/variant";
 
 const THIS_YEAR = new Date().getFullYear();
@@ -52,6 +56,12 @@ function countLine(products: Product[], currencySymbol: string): string | false 
       cheapest ? `, цены от ${formatPrice(cheapest, currencySymbol)}` : ""
     }`
   );
+}
+
+function carListingAnswer(products: Product[], currencySymbol: string): string {
+  const answer = listingAnswer(products, currencySymbol);
+  if (!answer) return "";
+  return `${[answer, deliverySentence(getSite().delivery.methods, currencySymbol)].filter(Boolean).join(" ")} `;
 }
 
 function catalogItems(products: Product[]): CatalogItem[] {
@@ -281,7 +291,7 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
           {category.name} для {mark.name}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите модель, а затем поколение.
+          {carListingAnswer(products, site.currencySymbol)}Выберите модель, а затем поколение.
         </p>
       </header>
 
@@ -390,8 +400,8 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
           {category.name} для {title}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите поколение — свою машину проще узнать по фотографии, чем по
-          римским цифрам в названии.
+          {carListingAnswer(products, site.currencySymbol)}Выберите поколение — свою машину проще узнать по
+          фотографии, чем по римским цифрам в названии.
         </p>
       </header>
 
@@ -479,10 +489,16 @@ export function categoryGenerationMetadata({
   const products = getProductsForGeneration(generation.id, category.id);
   const period = years(generation, THIS_YEAR);
   const title = carName(mark, model, generation);
+  const searchName = carSearchName(mark, model, generation);
   const copy = generationCopy(category.slug);
+  const periodPart = period ? ` (${period})` : "";
+  const cheapest = cheapestPrice(products);
+  const noun = products.length === 1 && copy.single ? copy.single : category.name;
 
   return buildMetadata({
-    title: `${category.name} для ${title}${period ? ` (${period})` : ""}${copy.buyInTitle ? " купить в Минске" : ""}`,
+    title: copy.buyInTitle
+      ? `${noun} ${searchName}${periodPart}${TITLE_SEPARATOR}купить в Минске${cheapest ? `, от ${formatPrice(cheapest, site.currencySymbol)}` : ""}`
+      : `${category.name} для ${searchName}${periodPart}`,
     description: sentences(
       `${category.name} для ${title}${period ? ` ${period}` : ""} — ${copy.lead}`,
       countLine(products, site.currencySymbol),
@@ -515,6 +531,17 @@ export function CategoryGenerationView({
     (item) => item.id !== generation.id,
   );
   const fitWords = generationCopy(category.slug).fit;
+  const shownIds = new Set(products.map((product) => product.id));
+  const family = generationFamily(generation.name);
+  const twins = siblings
+    .filter((item) => fitWords && generationFamily(item.name) === family)
+    .map((item) => ({
+      generation: item,
+      products: getProductsForGeneration(item.id, category.id).filter(
+        (product) => !shownIds.has(product.id),
+      ),
+    }))
+    .filter((twin) => twin.products.length > 0);
 
   return (
     <div className="container-page pb-16">
@@ -545,12 +572,33 @@ export function CategoryGenerationView({
           <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
         )}
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          {pluralize(products.length, "позиция", "позиции", "позиций")} на это
-          поколение. Не уверены, что подойдёт — позвоните, проверим по VIN.
+          {carListingAnswer(products, site.currencySymbol)}Не уверены, что подойдёт — позвоните, проверим по VIN.
         </p>
       </header>
 
       <ProductGrid products={products} currencySymbol={site.currencySymbol} />
+
+      {twins.map((twin) => {
+        const twinPeriod = years(twin.generation, THIS_YEAR);
+        return (
+          <section key={twin.generation.id} className="mt-12">
+            <h2 className="mb-1.5 text-lg font-semibold text-brand-900">
+              <Link
+                href={generationUrl(mark.slug, model.slug, twin.generation.slug, base)}
+                className="hover:text-brand-700"
+              >
+                {category.name} для {carName(mark, model, twin.generation)}
+              </Link>
+            </h2>
+            <p className="mb-4 max-w-2xl text-sm text-brand-500">
+              {twinPeriod && <>Годы выпуска: {twinPeriod}. </>}
+              Та же модель в другой версии — сверьте год выпуска и номер на
+              корпусе фары или пришлите фото, подскажем.
+            </p>
+            <ProductGrid products={twin.products} currencySymbol={site.currencySymbol} />
+          </section>
+        );
+      })}
 
       {fitWords && (
         <GenerationFit

@@ -209,6 +209,7 @@ const deliveryMethodSchema = z.strictObject({
 export const siteSchema = z.strictObject({
   name: z.string().min(1),
   legalName: z.string().min(1),
+  unp: z.string().regex(/^\d{9}$/, "УНП — 9 цифр").optional(),
   tagline: z.string().min(1),
   description: z.string().min(1),
   url: z.string().url("url сайта должен быть полным, вида https://vdf.by"),

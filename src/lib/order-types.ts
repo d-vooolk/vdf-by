@@ -9,6 +9,8 @@
  * Тот же приём, что с картинками: image-types.ts против images.ts.
  */
 
+import type { WholesaleTier } from "./wholesale-tiers";
+
 export const ORDER_STATUSES = [
   { id: "new", name: "Новый" },
   { id: "called", name: "Созвонились" },
@@ -19,6 +21,15 @@ export const ORDER_STATUSES = [
 ] as const;
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]["id"];
+
+export const CUSTOMER_STATUS_NAMES: Record<OrderStatus, string> = {
+  new: "Принят в работу",
+  called: "Принят в работу",
+  ready: "Готов к выдаче",
+  shipped: "Отправлен",
+  done: "Выполнен",
+  cancelled: "Отменён",
+};
 
 export function isOrderStatus(value: string): value is OrderStatus {
   return ORDER_STATUSES.some((status) => status.id === value);
@@ -62,8 +73,10 @@ export interface Order {
   adminNote: string;
   staff: boolean;
   wholesale: boolean;
+  wholesaleTier: WholesaleTier;
   editedAt: number | null;
   reviewSmsAt: number | null;
   readySmsAt: number | null;
   rsAt: number | null;
+  doneAt: number | null;
 }

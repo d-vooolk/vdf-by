@@ -76,3 +76,8 @@ export function deliveryPrice(
   if (!parcel) return null;
   return tariffPrice(method.weightTariff, parcel, city);
 }
+
+export function itemShippingPrice(method: DeliveryMethod, price: number, line: Omit<ParcelLine, "qty">): number {
+  const parcel = method.weightTariff ? parcelOf([{ ...line, qty: 1 }], method.weightTariff) : null;
+  return deliveryPrice(method, price, parcel, "") ?? method.price;
+}

@@ -173,11 +173,12 @@ SHELL=/bin/bash
 CRON
 chmod 644 /etc/cron.d/vdf-business-posts
 
-echo "==> SEO-сводка: поиск каждое утро, конкуренты по понедельникам"
+echo "==> SEO-сводка: поиск каждое утро, конкуренты по понедельникам, ответы нейросетей в первую субботу месяца"
 cat > /etc/cron.d/vdf-seo <<CRON
 SHELL=/bin/bash
 20 6 * * * root curl -s -X POST --max-time 600 -H "x-cron-key: \$(cat $APP/var/cron-key)" "localhost:$PORT/api/cron/seo/?kind=search" -o $APP/var/seo-search.log
 0 5 * * 1 root curl -s -X POST --max-time 1800 -H "x-cron-key: \$(cat $APP/var/cron-key)" "localhost:$PORT/api/cron/seo/?kind=competitors" -o $APP/var/seo-competitors.log
+0 10 1-7 * * root [ "\$(date +\%u)" = 6 ] && curl -s -X POST --max-time 60 -H "x-cron-key: \$(cat $APP/var/cron-key)" "localhost:$PORT/api/cron/seo/?kind=ai" -o $APP/var/seo-ai.log
 CRON
 chmod 644 /etc/cron.d/vdf-seo
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -122,7 +123,17 @@ export default function ContactsPage() {
           </a>{" "}
           — разберёмся вместе. Это быстрее, чем заказать не то и потом менять.
         </p>
-        <p className="mt-6 text-sm text-brand-500">{DISCLAIMER_FULL}</p>
+        <p className="mt-6 text-sm text-brand-600">
+          Продавец: {site.legalName}
+          {site.unp ? `, УНП ${site.unp}` : ""}.{" "}
+          <Link href="/vozvrat/" className="font-medium text-brand-700 hover:underline">
+            Возврат и обмен
+          </Link>
+          .
+        </p>
+        <p data-nosnippet="" className="mt-3 text-sm text-brand-500">
+          {DISCLAIMER_FULL}
+        </p>
       </section>
     </div>
   );

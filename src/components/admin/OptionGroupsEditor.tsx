@@ -7,8 +7,30 @@ import { NumberInput } from "@/components/admin/form-parts";
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
 import { FOREIGN_CURRENCIES } from "@/lib/currency";
 import type { OptionGroup, OptionValue } from "@/lib/schema";
-import { isSidesGroup, refreshSides, sidesGroup, type SideBase } from "@/lib/side-options";
+import {
+  isSidesGroup,
+  refreshSides,
+  sideValues,
+  sidesGroup,
+  withSideWeight,
+  type SideBase,
+} from "@/lib/side-options";
 import { toSlug } from "@/lib/slug.mjs";
+import { withCountedStock } from "@/lib/variant";
+
+const isCounted = (group: OptionGroup) => group.values.some((item) => item.stockQty !== undefined);
+
+const withPairStock = (group: OptionGroup) =>
+  isCounted(group) && sideValues(group) ? withCountedStock(group) : group;
+
+const withoutStockQty = (group: OptionGroup): OptionGroup => ({
+  ...group,
+  values: group.values.map((item) => {
+    const next = { ...item };
+    delete next.stockQty;
+    return next;
+  }),
+});
 
 /**
  * Редактор опций товара — цоколь H7/H11/HB4 со своими ценами и галереями.
@@ -47,20 +69,22 @@ export function OptionGroupsEditor({
   const hasSides = value.some(isSidesGroup);
   const updateGroup = (index: number, patch: Partial<OptionGroup>) =>
     onChange(
-      value.map((group, i) => (i === index ? { ...group, ...patch } : group)),
+      value.map((group, i) => (i === index ? withPairStock({ ...group, ...patch }) : group)),
     );
 
   const setCounted = (index: number, counted: boolean) =>
     onChange(
-      value.map((group, i) => ({
-        ...group,
-        values: group.values.map((item) => {
-          const next = { ...item };
-          if (counted && i === index) next.stockQty = item.stockQty ?? 0;
-          else delete next.stockQty;
-          return next;
+      value.map((group, i) =>
+        withPairStock({
+          ...group,
+          values: group.values.map((item) => {
+            const next = { ...item };
+            if (counted && i === index) next.stockQty = item.stockQty ?? 0;
+            else delete next.stockQty;
+            return next;
+          }),
         }),
-      })),
+      ),
     );
 
   const moveGroup = (from: number, to: number) => {
@@ -80,7 +104,8 @@ export function OptionGroupsEditor({
       )}
 
       {value.map((group, groupIndex) => {
-        const counted = group.values.some((item) => item.stockQty !== undefined);
+        const counted = isCounted(group);
+        const sides = sideValues(group);
         return (
         <div key={groupIndex} className="rounded-card border border-brand-100">
           <div className="flex flex-wrap items-end gap-3 border-b border-brand-100 bg-brand-50 p-3">
@@ -186,6 +211,12 @@ export function OptionGroupsEditor({
           <ValuesEditor
             values={group.values}
             onChange={(values) => updateGroup(groupIndex, { values })}
+            onSideWeight={
+              sides
+                ? (weight) => updateGroup(groupIndex, withSideWeight(group, weight, sideBase.weight))
+                : undefined
+            }
+            sideIds={sides ? { pair: sides.pair.id, single: [sides.right.id, sides.left.id] } : undefined}
             folder={`${folder}/${group.id || "option"}`}
             thumbs={thumbs}
             currencySymbol={currencySymbol}
@@ -194,6 +225,7 @@ export function OptionGroupsEditor({
             baseWeight={sideBase.weight ?? null}
             isFirstGroup={groupIndex === 0}
             counted={counted}
+            derivedPairId={counted ? sides?.pair.id : undefined}
           />
         </div>
         );
@@ -218,7 +250,9 @@ export function OptionGroupsEditor({
       {!hasSides && (
         <button
           type="button"
-          onClick={() => onChange([sidesGroup(sideBase), ...value])}
+          onClick={() =>
+            onChange([withCountedStock(sidesGroup(sideBase)), ...value.map(withoutStockQty)])
+          }
           className="btn-secondary ml-2 py-2 text-sm"
         >
           + Стороны: правое, левое, пара
@@ -243,6 +277,9 @@ interface ValuesEditorProps {
   baseWeight: number | null;
   isFirstGroup: boolean;
   counted: boolean;
+  derivedPairId?: string;
+  onSideWeight?: (weight: number | undefined) => void;
+  sideIds?: { pair: string; single: string[] };
 }
 
 function derivedWholesale(
@@ -266,6 +303,9 @@ function ValuesEditor({
   baseWeight,
   isFirstGroup,
   counted,
+  derivedPairId,
+  onSideWeight,
+  sideIds,
 }: ValuesEditorProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -376,14 +416,25 @@ function ValuesEditor({
 
               <label
                 className="flex items-center gap-1.5"
-                title="Вес варианта для расчёта доставки. Пусто — вес из поля товара"
+                title={
+                  sideIds?.pair === item.id
+                    ? "Вес пары — вес одной стороны × 2, считается сам"
+                    : sideIds?.single.includes(item.id)
+                      ? "Вес одной стороны — одинаковый для правого и левого, у пары ×2"
+                      : "Вес варианта для расчёта доставки. Пусто — вес из поля товара"
+                }
               >
                 <span className="text-xs text-brand-400">вес</span>
                 <NumberInput
+                  disabled={sideIds?.pair === item.id}
                   value={item.weight ?? null}
-                  onChange={(weight) => update(index, { weight: weight && weight > 0 ? weight : undefined })}
+                  onChange={(weight) => {
+                    const next = weight && weight > 0 ? weight : undefined;
+                    if (onSideWeight && sideIds?.single.includes(item.id)) onSideWeight(next);
+                    else update(index, { weight: next });
+                  }}
                   placeholder={baseWeight ? String(baseWeight) : "—"}
-                  className="field tnum w-20 py-1.5 text-sm"
+                  className="field tnum w-20 py-1.5 text-sm disabled:bg-brand-50 disabled:text-brand-400"
                 />
                 <span className="text-xs text-brand-300">кг</span>
               </label>
@@ -391,10 +442,15 @@ function ValuesEditor({
               {counted ? (
                 <label
                   className="flex items-center gap-1.5"
-                  title="Количество этого варианта на складе, 0 — нельзя заказать"
+                  title={
+                    item.id === derivedPairId
+                      ? "Полных пар — меньшее из правых и левых, считается само"
+                      : "Количество этого варианта на складе, 0 — нельзя заказать"
+                  }
                 >
                   <NumberInput
                     integer
+                    disabled={item.id === derivedPairId}
                     value={item.stockQty ?? 0}
                     onChange={(stockQty) =>
                       update(index, {
@@ -403,7 +459,7 @@ function ValuesEditor({
                       })
                     }
                     placeholder="0"
-                    className="field tnum w-16 py-1.5 text-sm"
+                    className="field tnum w-16 py-1.5 text-sm disabled:bg-brand-50 disabled:text-brand-400"
                   />
                   <span className="text-xs text-brand-300">шт.</span>
                 </label>

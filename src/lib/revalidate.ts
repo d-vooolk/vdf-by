@@ -27,6 +27,7 @@ const SHARED = [
   "/car-tree.json",
   "/feed.xml", // фид для Google Merchant Center
   "/yml.xml", // фид для Яндекса, Onliner и Kufar
+  "/bamper.csv",
   "/llms.txt",
 ];
 

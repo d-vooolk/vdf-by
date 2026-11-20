@@ -45,7 +45,7 @@ export default function AboutPage() {
             {pluralize(categories.length, "разделе", "разделах", "разделах")}.
           </p>
 
-          <p className="mt-4 rounded-card border-l-4 border-accent-400 bg-brand-50 px-4 py-3 text-sm">
+          <p data-nosnippet="" className="mt-4 rounded-card border-l-4 border-accent-400 bg-brand-50 px-4 py-3 text-sm">
             {DISCLAIMER_FULL}
           </p>
 
@@ -109,6 +109,13 @@ export default function AboutPage() {
             </Link>
           </div>
         </div>
+
+        <p className="mt-6 text-sm text-brand-600">
+          Уже покупали у нас?{" "}
+          <Link href="/otzyv/" className="font-semibold text-brand-700 hover:underline">
+            Оставить отзыв
+          </Link>
+        </p>
       </div>
     </div>
   );

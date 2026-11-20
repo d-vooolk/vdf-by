@@ -4,6 +4,7 @@ import { stockGroupOf } from "./shared-stock";
 import {
   allSelections,
   resolveVariant,
+  stockSources,
   variantStockQty,
   type Selection,
 } from "./variant";
@@ -89,40 +90,46 @@ export function stockShortages(
   const products = new Map(getProducts().map((product) => [product.id, product]));
   const pools = new Map<string, StockShortage>();
 
-  const poolOf = (key: string) => {
+  const poolAt = (poolKey: string, available: number) => {
+    const pool = pools.get(poolKey) ?? { titles: [], available, wanted: 0 };
+    pools.set(poolKey, pool);
+    return pool;
+  };
+
+  const poolsOf = (key: string): StockShortage[] => {
     const [productId, ...parts] = key.split("|");
     const product = products.get(productId);
-    if (!product) return null;
+    if (!product) return [];
 
     const selection: Selection = Object.fromEntries(
       parts.map((part) => part.split(":") as [string, string]),
     );
     const variant = resolveVariant(product, selection);
     const available = variantStockQty(product, variant);
-    if (available === undefined) return null;
+    if (available === undefined) return [];
 
     const countedValue = variant.selected.find((entry) => entry.value.stockQty !== undefined);
-    const group = countedValue ? null : stockGroupOf(productId);
-    const poolKey = countedValue
-      ? `${productId}|${countedValue.groupId}:${countedValue.value.id}`
-      : group
-        ? `group|${group.categoryId}|${group.type}`
-        : productId;
+    const countedGroup = countedValue
+      ? product.optionGroups.find((group) => group.id === countedValue.groupId)
+      : undefined;
+    if (countedValue && countedGroup) {
+      return stockSources(countedGroup, countedValue.value.id).map((source) =>
+        poolAt(`${productId}|${countedGroup.id}:${source.id}`, source.stockQty ?? 0),
+      );
+    }
 
-    const pool = pools.get(poolKey) ?? { titles: [], available, wanted: 0 };
-    pools.set(poolKey, pool);
-    return pool;
+    const group = stockGroupOf(productId);
+    return [poolAt(group ? `group|${group.categoryId}|${group.type}` : productId, available)];
   };
 
   for (const line of lines) {
-    const pool = poolOf(line.key);
-    if (!pool) continue;
-    pool.wanted += line.qty;
-    if (!pool.titles.includes(line.title)) pool.titles.push(line.title);
+    for (const pool of poolsOf(line.key)) {
+      pool.wanted += line.qty;
+      if (!pool.titles.includes(line.title)) pool.titles.push(line.title);
+    }
   }
   for (const line of released) {
-    const pool = poolOf(line.key);
-    if (pool) pool.available += line.qty;
+    for (const pool of poolsOf(line.key)) pool.available += line.qty;
   }
 
   return [...pools.values()].filter((pool) => pool.wanted > pool.available);
