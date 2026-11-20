@@ -106,3 +106,32 @@ export function refreshSides(group: OptionGroup, base: SideBase): OptionGroup {
     }),
   };
 }
+
+export function withSideWeight(
+  group: OptionGroup,
+  unitWeight: number | null | undefined,
+  baseWeight: number | null | undefined,
+): OptionGroup {
+  const sides = sideValues(group);
+  if (!sides) return group;
+  const unit = unitWeight && unitWeight > 0 ? round(unitWeight) : undefined;
+  const pairUnit = unit ?? (baseWeight && baseWeight > 0 ? baseWeight : undefined);
+  const pairWeight = pairUnit ? round(pairUnit * 2) : undefined;
+  return {
+    ...group,
+    values: group.values.map((value) => {
+      if (value !== sides.right && value !== sides.left && value !== sides.pair) return value;
+      const next = { ...value };
+      const weight = value === sides.pair ? pairWeight : unit;
+      if (weight === undefined) delete next.weight;
+      else next.weight = weight;
+      return next;
+    }),
+  };
+}
+
+export function normalizeSideWeight(group: OptionGroup, baseWeight: number | null | undefined): OptionGroup {
+  const sides = sideValues(group);
+  if (!sides) return group;
+  return withSideWeight(group, sides.right.weight ?? sides.left.weight, baseWeight);
+}

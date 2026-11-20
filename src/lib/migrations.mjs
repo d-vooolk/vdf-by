@@ -866,6 +866,7 @@ export const MIGRATIONS = [
     CREATE INDEX orders_by_done ON orders(done_at) WHERE done_at IS NOT NULL;
   `,
   derivePairStock,
+  deriveSideWeights,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;
@@ -995,6 +996,34 @@ function derivePairStock(db) {
     product.inStock = product.stockQty > 0;
     const data = JSON.stringify(product);
     if (data !== row.data) write.run(product.inStock ? 1 : 0, data, row.id);
+  }
+}
+
+function deriveSideWeights(db) {
+  const rows = db.prepare("SELECT id, data FROM products").all();
+  const write = db.prepare("UPDATE products SET data = ? WHERE id = ?");
+  const round = (value) => Math.round(value * 100) / 100;
+
+  for (const row of rows) {
+    const product = JSON.parse(row.data);
+    for (const group of product.optionGroups ?? []) {
+      if (!(group.id === "storona" || /^сторона$/i.test(String(group.name).trim()))) continue;
+      const find = (kind) => group.values.find((value) => sideKind(value) === kind);
+      const right = find("right");
+      const left = find("left");
+      const pair = find("pair");
+      if (!right || !left || !pair) continue;
+
+      const unit = right.weight ?? left.weight;
+      if (unit) {
+        right.weight = round(unit);
+        left.weight = round(unit);
+      }
+      const pairUnit = unit ?? product.weight;
+      if (pairUnit) pair.weight = round(pairUnit * 2);
+    }
+    const data = JSON.stringify(product);
+    if (data !== row.data) write.run(data, row.id);
   }
 }
 

@@ -5,7 +5,7 @@ import { deepTrim } from "./text";
 import { parseOrThrow, productSchema, type Product } from "./schema";
 import type { MoneySource } from "./currency";
 import { setGroupStock, stockGroupOf } from "./shared-stock";
-import { sideValues } from "./side-options";
+import { normalizeSideWeight, sideValues } from "./side-options";
 import {
   applyOptionStock,
   countedOptionGroupIndex,
@@ -30,6 +30,9 @@ export function saveProduct(input: unknown, previousId?: string): SaveResult {
   }
   const product = applyOptionStock({
     ...parsed.data,
+    optionGroups: parsed.data.optionGroups.map((group) =>
+      normalizeSideWeight(group, parsed.data.weight),
+    ),
     inStock: stockedByQty(parsed.data.stockQty),
   });
   const db = getDb();
