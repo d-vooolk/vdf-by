@@ -29,6 +29,7 @@ import {
   getProductsInCollection,
   getSite,
 } from "@/lib/catalog";
+import { deliverySentence, listingAnswer } from "@/lib/direct-answer";
 import { formatPrice, pluralize } from "@/lib/format";
 import {
   clampPage,
@@ -233,6 +234,13 @@ export function CategoryView({
           {heading}
           {shown.page > 1 ? `: страница ${shown.page}` : ""}
         </h1>
+        {category.carFitment && !collection && shown.page === 1 && products.length > 0 && (
+          <p className="mt-2.5 max-w-2xl text-base text-brand-500">
+            {[listingAnswer(products, site.currencySymbol), deliverySentence(site.delivery.methods, site.currencySymbol)]
+              .filter(Boolean)
+              .join(" ")}
+          </p>
+        )}
       </header>
 
       <CollectionLinks category={category} current={collection} />

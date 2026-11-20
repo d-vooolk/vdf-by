@@ -37,6 +37,7 @@ import {
 import { carFaq, oemNumbers } from "@/lib/car-content";
 import { generationCopy, markWithSpelling } from "@/lib/car-page-copy";
 import { carTextParagraphs, getCarText } from "@/lib/car-texts";
+import { deliverySentence, listingAnswer } from "@/lib/direct-answer";
 import { lensesForFrames } from "@/lib/frame-lenses";
 import { categoryUrl, getSite } from "@/lib/catalog";
 import { formatPrice, pluralize } from "@/lib/format";
@@ -55,6 +56,12 @@ function countLine(products: Product[], currencySymbol: string): string | false 
       cheapest ? `, цены от ${formatPrice(cheapest, currencySymbol)}` : ""
     }`
   );
+}
+
+function carListingAnswer(products: Product[], currencySymbol: string): string {
+  const answer = listingAnswer(products, currencySymbol);
+  if (!answer) return "";
+  return `${[answer, deliverySentence(getSite().delivery.methods, currencySymbol)].filter(Boolean).join(" ")} `;
 }
 
 function catalogItems(products: Product[]): CatalogItem[] {
@@ -284,7 +291,7 @@ export function CategoryMarkView({ category, mark }: MarkScope) {
           {category.name} для {mark.name}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите модель, а затем поколение.
+          {carListingAnswer(products, site.currencySymbol)}Выберите модель, а затем поколение.
         </p>
       </header>
 
@@ -393,8 +400,8 @@ export function CategoryModelView({ category, mark, model }: ModelScope) {
           {category.name} для {title}
         </h1>
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          Выберите поколение — свою машину проще узнать по фотографии, чем по
-          римским цифрам в названии.
+          {carListingAnswer(products, site.currencySymbol)}Выберите поколение — свою машину проще узнать по
+          фотографии, чем по римским цифрам в названии.
         </p>
       </header>
 
@@ -565,8 +572,7 @@ export function CategoryGenerationView({
           <p className="mt-1.5 text-sm text-brand-400">Годы выпуска: {period}</p>
         )}
         <p className="mt-2.5 max-w-2xl text-base text-brand-500">
-          {pluralize(products.length, "позиция", "позиции", "позиций")} на это
-          поколение. Не уверены, что подойдёт — позвоните, проверим по VIN.
+          {carListingAnswer(products, site.currencySymbol)}Не уверены, что подойдёт — позвоните, проверим по VIN.
         </p>
       </header>
 

@@ -23,6 +23,7 @@ import {
   hasTwinTitle,
 } from "@/lib/catalog";
 import { sectionsForProductCars } from "@/lib/car-branch";
+import { deliverySentence, productAnswer } from "@/lib/direct-answer";
 import { carsRoot } from "@/lib/car-types";
 import { getFrameTypeCars, getProductCars, getProductsForSameCars } from "@/lib/cars";
 import { fitCheckMessage, getMessengers, productMessage } from "@/lib/contacts";
@@ -197,6 +198,20 @@ export default async function ProductPage({ params }: PageProps) {
       return { id, name, price: quoted ?? price, freeFrom: freeFrom ?? null };
     });
 
+  const countryMethod = site.delivery.methods.find((method) => method.area === "country");
+  const answer = category?.carFitment
+    ? productAnswer({
+        product,
+        cars,
+        currencySymbol: site.currencySymbol,
+        delivery: deliverySentence(
+          site.delivery.methods,
+          site.currencySymbol,
+          quickShipping.find((method) => method.id === countryMethod?.id)?.price,
+        ),
+      })
+    : "";
+
   return (
     <div className="container-page max-w-[1120px]">
       <Breadcrumbs
@@ -253,13 +268,14 @@ export default async function ProductPage({ params }: PageProps) {
             за чем на страницу товара и приходят. В поиске от этого ничего не
             меняется: в описание страницы первый абзац попадает через
             generateMetadata, а не из этого места вёрстки. */}
-        {product.description && (
+        {(answer || product.description) && (
           <section className="prose-shop">
             <h2 className="mb-4 text-xl font-semibold text-brand-900">Описание</h2>
-            {product.description.split("\n\n").map((paragraph, index) => (
+            {answer && <p className="text-base font-medium text-brand-900">{answer}</p>}
+            {product.description?.split("\n\n").map((paragraph, index) => (
               <p
                 key={index}
-                className={index === 0 ? "text-base text-brand-900" : undefined}
+                className={index === 0 && !answer ? "text-base text-brand-900" : undefined}
               >
                 {paragraph}
               </p>
