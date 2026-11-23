@@ -1,3 +1,4 @@
+import { bamperModel } from "./bamper-models";
 import { getProductCars } from "./cars";
 import { carSearchName, generationBodyName, generationFamily, years, type ProductCar } from "./car-types";
 import { getProducts, getSite } from "./catalog";
@@ -5,6 +6,7 @@ import { imagesFor } from "./feed";
 import type { Product } from "./schema";
 import { absoluteUrl } from "./seo";
 import { isSidesGroup, sideValues } from "./side-options";
+import { toSlug } from "./slug.mjs";
 import { defaultSelection, hasPrice, resolveVariant, sideStockOf } from "./variant";
 
 export const BAMPER_COLUMNS = [
@@ -145,11 +147,13 @@ interface ModelFit {
 function modelFits(cars: ProductCar[]): ModelFit[] {
   const fits = new Map<string, ModelFit>();
   for (const car of cars) {
-    const key = `${car.markSlug}/${car.modelSlug}`;
+    const target = bamperModel(car.markName, car.modelName, car.generationName);
+    if (!target) continue;
+    const key = toSlug(`${target.mark} ${target.model}`);
     const fit = fits.get(key) ?? {
       key,
-      mark: car.markName,
-      model: car.modelName,
+      mark: target.mark,
+      model: target.model,
       yearFrom: null,
       yearTo: null,
       bodies: [],
@@ -226,7 +230,7 @@ export function bamperRows(now: number = new Date().getFullYear()): BamperRow[] 
           .join(",");
         for (const fit of modelFits(cars)) {
           rows.push({
-            ID_EXT: `${idBase(product)}${SIDE_LETTER[offer.side]}${fit.key.replace(/[^A-Za-z0-9]/g, "")}`,
+            ID_EXT: `${idBase(product)}${SIDE_LETTER[offer.side]}${fit.key.replace(/-/g, "")}`,
             МАРКА: fit.mark,
             МОДЕЛЬ: fit.model,
             ГОД: fit.yearFrom ? String(fit.yearFrom) : "",
