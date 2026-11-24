@@ -23,6 +23,7 @@ export interface ComboOption {
   hint?: string;
   /** Ссылка на иконку — логотип марки. */
   icon?: string;
+  mark?: string;
 }
 
 interface ComboboxProps {
@@ -169,6 +170,11 @@ export function Combobox({
                     />
                   )}
                   <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  {option.mark && (
+                    <span className="shrink-0 rounded-full bg-accent-100 px-2 py-0.5 text-[11px] font-semibold text-accent-500">
+                      ● {option.mark}
+                    </span>
+                  )}
                   {option.hint && (
                     <span className="shrink-0 text-xs text-brand-400">
                       {option.hint}

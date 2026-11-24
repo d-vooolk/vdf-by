@@ -31,11 +31,12 @@ function years(option: CarOption): string | undefined {
   return `${option.year_from}–${option.year_to ?? "н.в."}`;
 }
 
-function toOptions(list: CarOption[], withYears: boolean): ComboOption[] {
+function toOptions(list: CarOption[], withYears: boolean, filled: (id: string) => boolean): ComboOption[] {
   return list.map((item) => ({
     value: item.id,
     label: item.name,
     hint: withYears ? years(item) : undefined,
+    mark: filled(item.id) ? "wiki" : undefined,
   }));
 }
 
@@ -127,6 +128,8 @@ export function AccountWiki() {
     () => new Set(entries.map((e) => `${e.markId}/${e.modelId}/${e.generationId}`)),
     [entries],
   );
+  const filledModels = useMemo(() => new Set(entries.map((e) => `${e.markId}/${e.modelId}`)), [entries]);
+  const filledMarks = useMemo(() => new Set(entries.map((e) => e.markId)), [entries]);
 
   const carName = useMemo(() => {
     const mark = marks.find((m) => m.id === markId)?.name ?? "";
@@ -162,26 +165,20 @@ export function AccountWiki() {
           <Combobox
             value={markId}
             onChange={(value) => navigate({ mark: value })}
-            options={toOptions(marks, false)}
+            options={toOptions(marks, false, (id) => filledMarks.has(id))}
             placeholder="Марка"
           />
           <Combobox
             value={modelId}
             onChange={(value) => navigate({ mark: markId, model: value })}
-            options={toOptions(models, true)}
+            options={toOptions(models, true, (id) => filledModels.has(`${markId}/${id}`))}
             placeholder="Модель"
             disabled={!markId}
           />
           <Combobox
             value={generationId}
             onChange={(value) => navigate({ mark: markId, model: modelId, generation: value })}
-            options={generations.map((g) => ({
-              value: g.id,
-              label: g.name,
-              hint: [years(g), filledKeys.has(`${markId}/${modelId}/${g.id}`) ? "есть описание" : ""]
-                .filter(Boolean)
-                .join(" · ") || undefined,
-            }))}
+            options={toOptions(generations, true, (id) => filledKeys.has(`${markId}/${modelId}/${id}`))}
             placeholder="Поколение"
             disabled={!modelId}
           />
