@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { articleImagePaths, articleLinks, articleProductSlugs } from "./article-body";
+import { ARTICLE_SECTION_IDS } from "./article-sections";
 import { bumpCounter, counterValue, getDb } from "./db";
 import { rememberRedirect } from "./redirects";
 import { faqItemSchema, imagePath, slug } from "./schema";
@@ -25,6 +26,7 @@ export const articleDataSchema = z.strictObject({
   topic: z.string().max(500).optional(),
   notes: z.string().max(4000).optional(),
   keyword: z.string().max(200).optional(),
+  section: z.enum(ARTICLE_SECTION_IDS).optional(),
   seoReview: z
     .strictObject({
       score: z.number().int().min(0).max(100),

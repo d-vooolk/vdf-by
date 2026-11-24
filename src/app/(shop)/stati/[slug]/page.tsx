@@ -6,6 +6,7 @@ import { ArticleView, formatArticleDate } from "@/components/ArticleView";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { coverOf } from "@/lib/article-photos";
+import { articleSection } from "@/lib/article-sections";
 import { articleUrl, getPublishedArticle, getPublishedArticles } from "@/lib/articles";
 import { findRedirect } from "@/lib/redirects";
 import { articleJsonLd, buildMetadata } from "@/lib/seo";
@@ -44,9 +45,13 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound();
   }
 
-  const others = getPublishedArticles()
-    .filter((entry) => entry.id !== article.id)
-    .slice(0, 4);
+  const section = articleSection(article.section);
+  const rest = getPublishedArticles().filter((entry) => entry.id !== article.id);
+  const sameSection = section ? rest.filter((entry) => entry.section === section.id) : [];
+  const others = [...sameSection, ...rest.filter((entry) => !sameSection.includes(entry))].slice(
+    0,
+    Math.max(4, Math.min(sameSection.length, 6)),
+  );
 
   return (
     <>
@@ -58,7 +63,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
       {others.length > 0 && (
         <section className="container-page mt-14 max-w-[820px] border-t border-brand-100 pt-10">
-          <h2 className="mb-5 text-xl font-semibold text-brand-900">Ещё статьи</h2>
+          <h2 className="mb-5 text-xl font-semibold text-brand-900">Читайте также</h2>
           <ul className="grid gap-4 sm:grid-cols-2">
             {others.map((entry) => (
               <li key={entry.id} className="card card-link p-4">
@@ -71,6 +76,11 @@ export default async function ArticlePage({ params }: PageProps) {
               </li>
             ))}
           </ul>
+          {section && (
+            <Link href={`/stati/#${section.id}`} className="mt-5 inline-block text-sm font-medium text-brand-700 hover:text-brand-900">
+              Все статьи раздела «{section.label}» →
+            </Link>
+          )}
         </section>
       )}
     </>

@@ -4,13 +4,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
+import sharp from "sharp";
 
 import { env } from "../src/lib/env.mjs";
+import { processImage } from "../src/lib/image-pipeline.mjs";
 import { openDatabase } from "../src/lib/migrations.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DB_PATH = env("DATABASE_PATH", path.join(ROOT, "var", "shop.db"));
 const BACKUP_DIR = env("BACKUP_DIR", path.join(ROOT, "var", "backups"));
+const IMG_DIR = path.join(ROOT, "public", "img");
 
 function arg(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -57,7 +60,13 @@ const publishArticle = db.prepare(
 );
 const readSite = db.prepare("SELECT value FROM settings WHERE key = 'site'");
 const writeSite = db.prepare("UPDATE settings SET value = ? WHERE key = 'site'");
-const ARTICLE_FIELDS = ["slug", "title", "excerpt", "body", "cover", "images", "seoTitle", "seoDescription", "faq", "leadProducts", "topic", "notes", "keyword"];
+const ARTICLE_FIELDS = ["slug", "title", "excerpt", "body", "cover", "images", "seoTitle", "seoDescription", "faq", "leadProducts", "topic", "notes", "keyword", "section"];
+const imageExists = db.prepare("SELECT 1 FROM images WHERE path = ?");
+const insertImage = db.prepare(
+  `INSERT INTO images (path, w, h, blur, sources, fallback, bytes, created_at)
+   VALUES (@path, @w, @h, @blur, @sources, @fallback, @bytes, @createdAt)`,
+);
+const coverImports = [];
 const writeArticle = db.prepare("UPDATE articles SET title = ?, data = ?, updated_at = ? WHERE id = ?");
 const findGeneration = db.prepare(
   `SELECT g.id FROM car_generations g
@@ -161,7 +170,7 @@ function planArticle(spec) {
     return null;
   }
   const data = JSON.parse(row.data);
-  for (const field of ["title", "seoTitle", "seoDescription", "excerpt"]) {
+  for (const field of ["title", "seoTitle", "seoDescription", "excerpt", "section"]) {
     if (spec[field] === undefined || data[field] === spec[field]) continue;
     say(`статья ${spec.slug}: ${field}\n    было: ${data[field] ?? "—"}\n    стало: ${spec[field]}`);
     data[field] = spec[field];
@@ -180,6 +189,18 @@ function planArticle(spec) {
     }
     data.body = data.body.replace(from, to);
     say(`статья ${spec.slug}: текст — «${from.trim()}» → «${to.trim()}»`);
+  }
+  if (spec.cover && spec.cover !== data.cover) {
+    if (spec.coverSource) {
+      const source = path.resolve(ROOT, spec.coverSource);
+      if (!fs.existsSync(source)) problems.push(`статья ${spec.slug}: нет файла обложки ${spec.coverSource}`);
+      else if (!imageExists.get(spec.cover)) coverImports.push({ path: spec.cover, source });
+    } else if (!imageExists.get(spec.cover)) {
+      problems.push(`статья ${spec.slug}: нет фото ${spec.cover}`);
+    }
+    say(`статья ${spec.slug}: обложка\n    было: ${data.cover ?? "—"}\n    стало: ${spec.cover}`);
+    data.cover = spec.cover;
+    if (!(data.images ?? []).includes(spec.cover)) data.images = [spec.cover, ...(data.images ?? [])];
   }
   for (const entry of spec.addFaq ?? []) {
     if ((data.faq ?? []).some((existing) => existing.q === entry.q)) continue;
@@ -275,7 +296,27 @@ const backupFile = path.join(BACKUP_DIR, `shop-before-seo-patch-${now}.db`);
 await db.backup(backupFile);
 say(`копия базы: ${path.relative(ROOT, backupFile)}`);
 
+sharp.cache(false);
+const covers = [];
+for (const cover of coverImports) {
+  const result = await processImage({ source: cover.source, relativePath: cover.path, outDir: IMG_DIR, sharp });
+  if (!result) throw new Error(`не картинка: ${cover.source}`);
+  covers.push({ path: cover.path, ...result });
+}
+
 db.transaction(() => {
+  for (const cover of covers) {
+    insertImage.run({
+      path: cover.path,
+      w: cover.entry.w,
+      h: cover.entry.h,
+      blur: cover.entry.blur,
+      sources: JSON.stringify(cover.entry.sources),
+      fallback: cover.entry.fallback,
+      bytes: cover.bytes,
+      createdAt: now,
+    });
+  }
   for (const product of products) {
     if (product.data) writeProduct.run(product.title, JSON.stringify(product.data), now, product.id);
     if (product.newSlug) {
@@ -295,6 +336,7 @@ db.transaction(() => {
   for (const slug of publish) publishArticle.run(now, now, slug);
   if (products.length || site) bump.run("counter:catalog");
   if (articles.length || drafts.length || publish.length) bump.run("counter:articles");
+  if (covers.length) bump.run("counter:images");
 })();
 
 await revalidate();

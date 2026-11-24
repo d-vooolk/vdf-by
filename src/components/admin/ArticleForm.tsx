@@ -28,6 +28,7 @@ import {
   productLine,
   replacePlaceholder,
 } from "@/lib/article-body";
+import { ARTICLE_SECTIONS } from "@/lib/article-sections";
 import type { Article, ArticleData, ArticleStatus } from "@/lib/articles";
 import { streamArticle } from "@/lib/article-stream";
 import { toSlug } from "@/lib/slug.mjs";
@@ -57,6 +58,7 @@ function toData(article: Article): ArticleData {
     topic: article.topic,
     notes: article.notes,
     keyword: article.keyword,
+    section: article.section,
     seoReview: article.seoReview,
   };
 }
@@ -635,6 +637,20 @@ export function ArticleForm({ article, thumbs: initialThumbs, aiReady }: Article
             rows={2}
             className="field resize-y"
           />
+        </Field>
+        <Field label="Раздел статей" hint="Статья выводится в этом разделе на странице «Статьи», внизу статьи — сначала другие статьи раздела">
+          <select
+            value={draft.section ?? ""}
+            onChange={(event) => patch({ section: (event.target.value || undefined) as ArticleData["section"] })}
+            className="field"
+          >
+            <option value="">Без раздела</option>
+            {ARTICLE_SECTIONS.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.label}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Главный поисковый запрос" hint="Только для проверки выше, на сайт не выводится">
           <input

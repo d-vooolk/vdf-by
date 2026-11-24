@@ -1,0 +1,112 @@
+{
+  "articles": [
+    {
+      "slug": "kak-vybrat-steklo-fary-i-ne-oshibitsya-s-pokoleniem-avto",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "kitayskoe-steklo-fary-vmesto-originala-huzhe-ili-net",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "polirovka-ili-zamena-stekla-fary",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "kachestvo-novyh-stekol-far-kak-proverit",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "zamena-stekla-fary-svoimi-rukami",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "iz-chego-delayut-stekla-far",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "fara-zapotevaet-posle-zameny-stekla",
+      "section": "stekla-far"
+    },
+    {
+      "slug": "svetovody-v-fare-pozhelteli-ili-ne-svetyat",
+      "section": "svetovody"
+    },
+    {
+      "slug": "svetovody-bmw-g30-x3-g01-x5-g05-zamena",
+      "section": "svetovody"
+    },
+    {
+      "slug": "zamena-svetovodov-v-farah",
+      "section": "svetovody"
+    },
+    {
+      "slug": "bi-led-ili-bi-ksenonovye-linzy-chto-postavit-v-fary",
+      "section": "linzy-i-ramki"
+    },
+    {
+      "slug": "bi-led-moduli-chto-eto-i-kak-vybrat",
+      "section": "linzy-i-ramki",
+      "replaceInBody": [
+        [
+          "повторяет геометрию штатного посадочного места.",
+          "повторяет геометрию штатного посадочного места. Как подобрать рамку под свою фару — в статье [какая переходная рамка нужна для би-LED линз](/stati/kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz/)."
+        ],
+        [
+          "Рамку подбирают по машине в разделе [переходные рамки](/catalog/perehodnye-ramki/).",
+          "Рамку подбирают по машине в разделе [переходные рамки](/catalog/perehodnye-ramki/), а как не ошибиться — разобрано в статье [какая переходная рамка нужна для би-LED линз](/stati/kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz/)."
+        ]
+      ]
+    },
+    {
+      "slug": "chto-nuzhno-dlya-ustanovki-bi-led-linz",
+      "section": "linzy-i-ramki",
+      "replaceInBody": [
+        [
+          "Рамки не универсальны.",
+          "Рамки не универсальны — подробный разбор в статье [какая переходная рамка нужна для би-LED линз](/stati/kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz/)."
+        ]
+      ]
+    },
+    {
+      "slug": "blok-linza-dlya-fary",
+      "section": "linzy-i-ramki",
+      "cover": "articles/oblozhka-blok-linza-dlya-fary.jpg",
+      "coverSource": "scripts/article-covers/blok-linza-dlya-fary.jpg"
+    },
+    {
+      "slug": "minilinzy-h4-h7-v-reflektornye-fary",
+      "section": "linzy-i-ramki",
+      "cover": "articles/oblozhka-minilinzy-h4-h7-v-reflektornye-fary.jpg",
+      "coverSource": "scripts/article-covers/minilinzy-h4-h7-v-reflektornye-fary.jpg"
+    },
+    {
+      "slug": "kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz",
+      "section": "linzy-i-ramki",
+      "cover": "articles/oblozhka-kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz.jpg",
+      "coverSource": "scripts/article-covers/kakaya-perehodnaya-ramka-nuzhna-dlya-bi-led-linz.jpg"
+    },
+    {
+      "slug": "kak-pravilno-sobrat-faru-butilovyy-germetik",
+      "section": "remont-far"
+    },
+    {
+      "slug": "chem-zamenit-zhidkost-dlya-razbora-far",
+      "section": "remont-far",
+      "cover": "articles/oblozhka-chem-zamenit-zhidkost-dlya-razbora-far.jpg",
+      "coverSource": "scripts/article-covers/chem-zamenit-zhidkost-dlya-razbora-far.jpg"
+    },
+    {
+      "slug": "remont-korpusa-fary-ili-novaya-fara",
+      "section": "remont-far"
+    },
+    {
+      "slug": "kogda-svetodiodnye-lampy-uluchshayut-svet",
+      "section": "svetodiodnye-lampy"
+    },
+    {
+      "slug": "mozhno-li-stavit-svetodiodnye-lampy-v-reflektornye-fary",
+      "section": "svetodiodnye-lampy"
+    }
+  ]
+}
