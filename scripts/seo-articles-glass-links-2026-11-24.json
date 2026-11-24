@@ -1,0 +1,30 @@
+{
+  "articles": [
+    {
+      "slug": "zamena-stekla-fary-svoimi-rukami",
+      "replaceInBody": [
+        [
+          "{{товар:steklo-dlya-fary-volvo-xc90-2006-2014}}\n\n## Что подготовить",
+          "{{товар:steklo-dlya-fary-volvo-xc90-2006-2014}}\n\nСтёкла по моделям: BMW [5 F10/F11](/product/steklo-dlya-fary-bmw-5-f10-f11-f18-2009-2017/), [5 E60/E61](/product/steklo-dlya-fary-bmw-5-e60-e61-2003-2010-s-led-resnichkoy/), [5 E39](/product/steklo-dlya-fary-bmw-5-e39-2000-2004/), [3 F30](/product/steklo-dlya-fary-bmw-3-f30-2011-2015/), [X5 E70](/product/steklo-dlya-fary-bmw-x5-e70-2006-2013/); Audi [A3](/product/steklo-dlya-fary-audi-a3-2016-2020/), [A4 B9](/product/steklo-dlya-fary-audi-a4-b9-2015-2020/), [Q3](/product/steklo-dlya-fary-audi-q3-f3-2018-2022/), [Q5](/product/steklo-dlya-fary-audi-q5-2012-2017/); Mercedes [E-class W213](/product/steklo-dlya-fary-mercedes-e-class-w213-2016-2020/), [S-class W222](/product/steklo-dlya-fary-mercedes-s-class-w222-2013-2017/); Volvo [XC90](/product/steklo-dlya-fary-volvo-xc90-2014-2022/), [S60](/product/steklo-dlya-fary-volvo-s60-2013-2018/); Volkswagen [Tiguan](/product/steklo-dlya-fary-volkswagen-tiguan-2020-2024/); Honda [Accord](/product/steklo-dlya-fary-honda-accord-x-2019-2022/), [Civic](/product/steklo-dlya-fary-honda-civic-11-fe-2020-2025/).\n\n## Что подготовить"
+        ]
+      ]
+    },
+    {
+      "slug": "kak-vybrat-steklo-fary-i-ne-oshibitsya-s-pokoleniem-avto",
+      "replaceInBody": [
+        [
+          "{{товар:steklo-dlya-fary-bmw-5-e60-e61-2003-2010-s-led-resnichkoy/}}",
+          "{{товар:steklo-dlya-fary-bmw-5-e60-e61-2003-2010-s-led-resnichkoy}}"
+        ],
+        [
+          "{{фото товара:steklo-dlya-fary-bmw-5-e39-2000-2004-s-sekciey-povorotnika-i-uplotnitelnoy-rezin/}}",
+          "{{фото товара:steklo-dlya-fary-bmw-5-e39-2000-2004-s-sekciey-povorotnika-i-uplotnitelnoy-rezin}}"
+        ],
+        [
+          "Смотрите весь раздел [Стёкла фар](/catalog/stekla-far/) — там 64 позиции под разные марки и поколения.",
+          "Ещё модели, у которых стекло меняется внутри одного кузова или поколения — сверяйте год выпуска до заказа:\n\n- **Audi A3** — [2016–2020](/product/steklo-dlya-fary-audi-a3-2016-2020/) и [2020–2022](/product/steklo-dlya-fary-audi-a3-2020-2022/).\n- **Audi Q5** — [2008–2012](/product/steklo-dlya-fary-audi-q5-2008-2012/) и [2012–2017](/product/steklo-dlya-fary-audi-q5-2012-2017/).\n- **BMW 3 F30** — [2011–2015](/product/steklo-dlya-fary-bmw-3-f30-2011-2015/) и [LED 2015–2019](/product/steklo-dlya-fary-bmw-3-f30-led-2015-2019/).\n- **Mercedes S-class W222** — [2013–2017](/product/steklo-dlya-fary-mercedes-s-class-w222-2013-2017/) и [2017–2020](/product/steklo-dlya-fary-mercedes-s-class-w222-2017-2020/).\n- **Volvo XC90** — [2006–2014](/product/steklo-dlya-fary-volvo-xc90-2006-2014/) и [2014–2022](/product/steklo-dlya-fary-volvo-xc90-2014-2022/).\n- **Volvo S60** — [2010–2013](/product/steklo-dlya-fary-volvo-s60-2010-2013/) и [2013–2018](/product/steklo-dlya-fary-volvo-s60-2013-2018/).\n- **Honda Accord** — [X, 2019–2022](/product/steklo-dlya-fary-honda-accord-x-2019-2022/) и [XI, 2022–2025](/product/steklo-dlya-fary-honda-accord-xi-2022-2025/).\n\nСмотрите весь раздел [Стёкла фар](/catalog/stekla-far/) — там больше 60 позиций под разные марки и поколения."
+        ]
+      ]
+    }
+  ]
+}
