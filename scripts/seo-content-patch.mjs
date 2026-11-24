@@ -181,6 +181,11 @@ function planArticle(spec) {
     data.body = data.body.replace(from, to);
     say(`статья ${spec.slug}: текст — «${from.trim()}» → «${to.trim()}»`);
   }
+  for (const entry of spec.addFaq ?? []) {
+    if ((data.faq ?? []).some((existing) => existing.q === entry.q)) continue;
+    data.faq = [...(data.faq ?? []), entry];
+    say(`статья ${spec.slug}: вопрос FAQ — «${entry.q}»`);
+  }
   if (data.seoDescription && data.seoDescription.length > 165) {
     problems.push(`статья ${spec.slug}: описание для поиска ${data.seoDescription.length} знаков`);
   }
