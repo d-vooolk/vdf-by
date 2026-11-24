@@ -167,10 +167,10 @@ function Overview({ snapshot }: { snapshot: SearchSnapshot }) {
         hint="к прошлой неделе"
       />
       <Tile
-        label="Яндекс: показы за 28 дней"
+        label="Яндекс: показы за 7 дней"
         value={webmaster ? formatNumber(shows(webmaster.queries)) : "—"}
         change={webmaster && <Change current={shows(webmaster.queries)} previous={shows(webmaster.previousQueries)} />}
-        hint="по 500 популярным запросам"
+        hint="к прошлой неделе, все запросы"
       />
       <Tile
         label="Яндекс: клики"
@@ -254,7 +254,7 @@ function Positions({ snapshot }: { snapshot: SearchSnapshot }) {
   return (
     <Panel
       title="Сколько запросов на каких позициях"
-      note="Число запросов со средней позицией в диапазоне: последние 28 дней и 28 дней до них"
+      note="Число запросов со средней позицией в диапазоне: у Google последние 28 дней и 28 дней до них, у Яндекса последние 7 дней и неделя до них"
     >
       {series.length ? <BucketTable labels={POSITION_BUCKETS.map((bucket) => bucket.label)} series={series} /> : <Empty />}
     </Panel>
@@ -279,7 +279,7 @@ function GoogleMovers({ data }: { data: GoogleData }) {
 function WebmasterMovers({ data }: { data: WebmasterData }) {
   const queries = movers(webmasterRows(data.queries), webmasterRows(data.previousQueries));
   return (
-    <Panel title="Яндекс: запросы — как сдвинулись позиции" note="Средняя позиция показа за 28 дней против прошлых 28">
+    <Panel title="Яндекс: запросы — как сдвинулись позиции" note="Средняя позиция показа за 7 дней против прошлой недели — Вебмастер отдаёт запросы только за 2 недели">
       <MoverTabs {...queries} keyHeader="Запрос" />
     </Panel>
   );

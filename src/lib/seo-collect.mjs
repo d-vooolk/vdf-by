@@ -125,25 +125,86 @@ async function collectGoogle(keyFile, site) {
   };
 }
 
+const ANALYTICS_PAGE = 500;
+const ANALYTICS_MAX_ROWS = 10000;
+const ANALYTICS_PERIOD_DAYS = 7;
+
+async function queryAnalyticsRows(headers, host) {
+  const rows = [];
+  for (let offset = 0; offset < ANALYTICS_MAX_ROWS; offset += ANALYTICS_PAGE) {
+    const body = await requestJson(`${host}/query-analytics/list`, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ offset, limit: ANALYTICS_PAGE, device_type_indicator: "ALL", text_indicator: "QUERY" }),
+    });
+    const page = body.text_indicator_to_statistics ?? [];
+    rows.push(...page);
+    if (page.length < ANALYTICS_PAGE || rows.length >= (body.count ?? 0)) break;
+  }
+  return rows;
+}
+
+function summarizeQuery(row, days) {
+  let shows = 0;
+  let clicks = 0;
+  let positionWeight = 0;
+  let clickPositionWeight = 0;
+  const byDate = new Map();
+  for (const stat of row.statistics ?? []) {
+    if (!days.has(stat.date)) continue;
+    const day = byDate.get(stat.date) ?? {};
+    day[stat.field] = stat.value;
+    byDate.set(stat.date, day);
+  }
+  for (const day of byDate.values()) {
+    const dayShows = day.IMPRESSIONS ?? 0;
+    const dayClicks = day.CLICKS ?? 0;
+    shows += dayShows;
+    clicks += dayClicks;
+    if (day.POSITION) {
+      positionWeight += day.POSITION * dayShows;
+      clickPositionWeight += day.POSITION * dayClicks;
+    }
+  }
+  if (!shows) return null;
+  return {
+    query_id: row.text_indicator.value,
+    query_text: row.text_indicator.value,
+    indicators: {
+      TOTAL_SHOWS: shows,
+      TOTAL_CLICKS: clicks,
+      AVG_SHOW_POSITION: positionWeight ? Math.round((positionWeight / shows) * 10) / 10 : null,
+      AVG_CLICK_POSITION: clicks && clickPositionWeight ? Math.round((clickPositionWeight / clicks) * 10) / 10 : null,
+    },
+  };
+}
+
+async function queryAnalytics(headers, host) {
+  const rows = await queryAnalyticsRows(headers, host);
+  const allDays = [...new Set(rows.flatMap((row) => (row.statistics ?? []).map((stat) => stat.date)))].sort();
+  const current = allDays.slice(-ANALYTICS_PERIOD_DAYS);
+  const previous = allDays.slice(-2 * ANALYTICS_PERIOD_DAYS, -ANALYTICS_PERIOD_DAYS);
+  const summarize = (days) => {
+    const set = new Set(days);
+    return rows
+      .map((row) => summarizeQuery(row, set))
+      .filter(Boolean)
+      .sort((a, b) => b.indicators.TOTAL_SHOWS - a.indicators.TOTAL_SHOWS);
+  };
+  const range = (days) => ({ from: days[0] ?? "", to: days.at(-1) ?? "" });
+  return {
+    dates: { current: range(current), previous: range(previous) },
+    queries: summarize(current),
+    previousQueries: summarize(previous),
+  };
+}
+
 async function collectWebmaster(token, hostId) {
   const headers = { authorization: `OAuth ${token}` };
   const api = "https://api.webmaster.yandex.net/v4";
   const { user_id: userId } = await requestJson(`${api}/user`, { headers });
   const host = `${api}/user/${userId}/hosts/${encodeURIComponent(hostId)}`;
-  const month = periods(28, 1);
   const history = periods(HISTORY_DAYS, 1).current;
-  const indicators = ["TOTAL_SHOWS", "TOTAL_CLICKS", "AVG_SHOW_POSITION", "AVG_CLICK_POSITION"];
-  const popular = (range) => {
-    const params = new URLSearchParams({
-      order_by: "TOTAL_SHOWS",
-      device_type_indicator: "ALL",
-      date_from: range.from,
-      date_to: range.to,
-      limit: "500",
-    });
-    for (const indicator of indicators) params.append("query_indicator", indicator);
-    return requestJson(`${host}/search-queries/popular?${params}`, { headers }).then((body) => body.queries ?? []);
-  };
   const queryHistoryParams = new URLSearchParams({
     device_type_indicator: "ALL",
     date_from: history.from,
@@ -153,7 +214,7 @@ async function collectWebmaster(token, hostId) {
 
   const optional = (promise, fallback) => promise.catch(() => fallback);
 
-  const [summary, diagnostics, sitemaps, userSitemaps, queries, previousQueries, events, inSearch, queryHistory] =
+  const [summary, diagnostics, sitemaps, userSitemaps, analytics, events, inSearch, queryHistory] =
     await Promise.all([
       requestJson(`${host}/summary`, { headers }),
       requestJson(`${host}/diagnostics`, { headers }).then((body) => body.problems ?? {}),
@@ -162,8 +223,7 @@ async function collectWebmaster(token, hostId) {
         requestJson(`${host}/user-added-sitemaps?limit=100`, { headers }).then((body) => body.sitemaps ?? []),
         [],
       ),
-      popular(month.current),
-      popular(month.previous),
+      queryAnalytics(headers, host),
       optional(
         requestJson(`${host}/search-urls/events/samples?limit=100`, { headers }).then((body) => body.samples ?? []),
         [],
@@ -183,7 +243,8 @@ async function collectWebmaster(token, hostId) {
       ),
     ]);
 
-  return { dates: month, summary, diagnostics, sitemaps, userSitemaps, queries, previousQueries, events, inSearch, queryHistory };
+  const { dates, queries, previousQueries } = analytics;
+  return { dates, summary, diagnostics, sitemaps, userSitemaps, queries, previousQueries, events, inSearch, queryHistory };
 }
 
 async function collectMetrika(token, counter) {

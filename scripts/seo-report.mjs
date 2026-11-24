@@ -403,7 +403,7 @@ for (const [name, result] of [["Search Console", google], ["Вебмастер",
 const today = isoDay(Date.now());
 const report = [
   `# SEO-сводка vdf.by — ${today}\n`,
-  `Сравниваются два периода по ${PERIOD_DAYS} дней. У Google данные запаздывают на ${GSC_LAG_DAYS} дня, поэтому его период сдвинут.\n`,
+  `Сравниваются два периода по ${PERIOD_DAYS} дней, у Яндекса — по 7 дней: Вебмастер отдаёт запросы только за последние 2 недели. У Google данные запаздывают на ${GSC_LAG_DAYS} дня, поэтому его период сдвинут.\n`,
   googleSection(google),
   webmasterSection(webmaster),
   metrikaSection(metrika),
