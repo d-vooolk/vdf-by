@@ -161,7 +161,7 @@ export function aiConfigured(): boolean {
   return Boolean(env("AI_API_KEY", ""));
 }
 
-export type AiLogTask = AiTask | "check" | "import" | "aiseo";
+export type AiLogTask = AiTask | "check" | "import" | "aiseo" | "crm-polish";
 
 interface Usage {
   prompt_tokens?: number;
@@ -383,10 +383,11 @@ export async function completeTraced(
   system: string,
   user: string,
   task: AiLogTask,
+  options: AiRequestOptions = {},
 ): Promise<{ text: string; trace: AiTrace }> {
   const trace = startTrace(task);
   try {
-    const response = await request(system, user, false);
+    const response = await request(system, user, false, options);
     const data = (await response.json().catch(() => ({}))) as ChatResponse;
     noteMeta(trace, data);
     if (data.error) {

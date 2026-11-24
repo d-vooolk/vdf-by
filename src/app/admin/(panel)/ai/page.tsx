@@ -18,6 +18,7 @@ const TASK_LABEL: Record<string, string> = {
   check: "Проверка",
   import: "Разбор страницы",
   aiseo: "AI-SEO",
+  "crm-polish": "Вики CRM",
 };
 
 function usd(value: number | null | undefined): string {
