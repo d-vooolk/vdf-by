@@ -316,6 +316,21 @@ function planDraft(spec) {
   return { slug: spec.slug, title: spec.title, data: { images: [], faq: [], ...spec } };
 }
 
+const productBySlug = db.prepare("SELECT 1 FROM products WHERE slug = ?");
+const readRedirect = db.prepare("SELECT to_path FROM redirects WHERE from_path = ?");
+const redirects = (CONTENT.redirects ?? []).filter(([fromSlug, toSlug]) => {
+  if (productBySlug.get(fromSlug)) {
+    problems.push(`переадресация с /product/${fromSlug}/: товар с этим адресом есть`);
+    return false;
+  }
+  if (!productBySlug.get(toSlug)) {
+    problems.push(`переадресация на /product/${toSlug}/: товара нет`);
+    return false;
+  }
+  if (readRedirect.get(`/product/${fromSlug}/`)?.to_path === `/product/${toSlug}/`) return false;
+  say(`переадресация /product/${fromSlug}/ → /product/${toSlug}/`);
+  return true;
+});
 const products = (CONTENT.products ?? []).map(planProduct).filter(Boolean);
 const articles = (CONTENT.articles ?? []).map(planArticle).filter(Boolean);
 const drafts = (CONTENT.drafts ?? []).map(planDraft).filter(Boolean);
@@ -335,7 +350,7 @@ if (problems.length) {
 
 if (!apply) {
   console.log(
-    `\nПроверка: товаров к записи ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, к публикации ${publish.length}, настройки сайта ${site ? "меняются" : "без изменений"}. Ничего не записано — запустите с --apply.`,
+    `\nПроверка: переадресаций ${redirects.length}, товаров к записи ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, к публикации ${publish.length}, настройки сайта ${site ? "меняются" : "без изменений"}. Ничего не записано — запустите с --apply.`,
   );
   process.exit(0);
 }
@@ -388,11 +403,12 @@ db.transaction(() => {
     for (const id of product.cars.remove) removeCar.run(product.id, id);
     for (const id of product.cars.add) addCar.run(product.id, id);
   }
+  for (const [fromSlug, toSlug] of redirects) writeRedirect.run(`/product/${fromSlug}/`, `/product/${toSlug}/`, now);
   for (const article of articles) writeArticle.run(article.data.title, JSON.stringify(article.data), now, article.id);
   for (const draft of drafts) insertDraft.run(draft.slug, draft.title, JSON.stringify(draft.data), now, now);
   if (site) writeSite.run(JSON.stringify(site));
   for (const slug of publish) publishArticle.run(now, now, slug);
-  if (products.length || site) bump.run("counter:catalog");
+  if (products.length || site || redirects.length) bump.run("counter:catalog");
   if (articles.length || drafts.length || publish.length) bump.run("counter:articles");
   if (covers.length) bump.run("counter:images");
 })();
@@ -402,5 +418,5 @@ await revalidate();
 const reportFile = path.join(ROOT, "var", `seo-patch-${now}.txt`);
 fs.writeFileSync(reportFile, `${log.join("\n")}\n`);
 console.log(
-  `\nГотово: товаров ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, опубликовано ${publish.length}${site ? ", настройки сайта" : ""}. Отчёт: ${path.relative(ROOT, reportFile)}`,
+  `\nГотово: переадресаций ${redirects.length}, товаров ${products.length}, статей ${articles.length}, новых черновиков ${drafts.length}, опубликовано ${publish.length}${site ? ", настройки сайта" : ""}. Отчёт: ${path.relative(ROOT, reportFile)}`,
 );

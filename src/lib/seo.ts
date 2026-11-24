@@ -336,6 +336,34 @@ function priceValidUntil(): string {
   return `${new Date().getFullYear() + 1}-12-31`;
 }
 
+function priceValidFrom(): string {
+  return `${new Date().getFullYear()}-01-01`;
+}
+
+const GOOGLE_TAXONOMY = "https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt";
+const MOTOR_VEHICLE_LIGHTING = "3318";
+const VEHICLE_REPAIR_TOOLS = "8236";
+const VEHICLE_MAINTENANCE = "913";
+const GOOGLE_CATEGORY_BY_SECTION: Record<string, string> = {
+  "oborudovanie-i-instrument": VEHICLE_REPAIR_TOOLS,
+  "dlya-razborki-far": VEHICLE_REPAIR_TOOLS,
+  "dlya-polirovki-far": VEHICLE_REPAIR_TOOLS,
+  germetik: VEHICLE_MAINTENANCE,
+  termopasta: VEHICLE_MAINTENANCE,
+  "sredstva-zaschity": VEHICLE_MAINTENANCE,
+};
+
+function productCategory(category: Category) {
+  return [
+    {
+      "@type": "CategoryCode",
+      inCodeSet: GOOGLE_TAXONOMY,
+      codeValue: GOOGLE_CATEGORY_BY_SECTION[category.id] ?? MOTOR_VEHICLE_LIGHTING,
+    },
+    category.name,
+  ];
+}
+
 /**
  * Адрес варианта: /product/hella-3r-g5/?cokol=h7&temperatura=5000k
  *
@@ -388,6 +416,7 @@ function offerJsonLd(
     ...(params.sku ? { sku: params.sku } : {}),
     price: schemaPrice(params.price),
     priceCurrency: site.currency,
+    validFrom: priceValidFrom(),
     priceValidUntil: priceValidUntil(),
     availability: params.inStock
       ? "https://schema.org/InStock"
@@ -482,7 +511,7 @@ export function productJsonLd(product: Product, category?: Category) {
     ...(images.length ? { image: images } : {}),
     ...(brand ? { brand: { "@type": "Brand", name: brand } } : {}),
     ...(product.sku ? { sku: product.sku } : {}),
-    ...(category ? { category: category.name } : {}),
+    ...(category ? { category: productCategory(category) } : {}),
     ...(product.specs.length
       ? {
           additionalProperty: product.specs.map((spec) => ({
