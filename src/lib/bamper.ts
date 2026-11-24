@@ -57,13 +57,13 @@ const KINDS: BamperKind[] = [
   {
     categoryId: "glasses",
     part: { left: "стекло фары левой", right: "стекло фары правой" },
-    noun: "новое стекло",
+    noun: "Новое стекло",
     fits: "Стекло фары подходит",
   },
   {
     categoryId: "korpusa-far",
     part: { left: "корпус фары левой", right: "корпус фары правой" },
-    noun: "новый корпус фары",
+    noun: "Новый корпус фары",
     fits: "Корпус фары подходит",
   },
 ];
@@ -202,7 +202,7 @@ function idBase(product: Product): string {
 
 function description(kind: BamperKind, side: Side, fits: string): string {
   return [
-    `Не оригинал, ${kind.noun} лучшего качества.`,
+    `${kind.noun} лучшего качества.`,
     `Сторона: ${SIDE_WORD[side]}.`,
     `${kind.fits}: ${fits}.`,
     "Любой двигатель.",
