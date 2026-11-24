@@ -228,9 +228,9 @@ export function bamperRows(now: number = new Date().getFullYear()): BamperRow[] 
         const photos = imagesFor(offer.images.length ? offer.images : product.images)
           .slice(0, PHOTO_LIMIT)
           .join(",");
-        for (const fit of modelFits(cars)) {
+        for (const [index, fit] of modelFits(cars).entries()) {
           rows.push({
-            ID_EXT: `${idBase(product)}${SIDE_LETTER[offer.side]}${fit.key.replace(/-/g, "")}`,
+            ID_EXT: `${idBase(product)}${SIDE_LETTER[offer.side]}${index ? index + 1 : ""}`,
             МАРКА: fit.mark,
             МОДЕЛЬ: fit.model,
             ГОД: fit.yearFrom ? String(fit.yearFrom) : "",
