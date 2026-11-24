@@ -208,7 +208,11 @@ FAQ, наборы фото мастерской и перенос фото из 
 
 `node scripts/seo-content-patch.mjs --content scripts/seo-….json` — у
 товаров поля (`set`: `title`, `seoTitle` и т. д.), замены в описании
-(`replaceInDescription`) и в ответах FAQ (`replaceInFaq`), характеристики (`specs`: `{ "Гарантия": "2 недели" }` —
+(`replaceInDescription`) и в FAQ (`replaceInFaq`, в вопросах и ответах) — все вхождения, удаление
+вопросов (`removeFaq`: точный текст вопроса), заглавная буква и «?» в вопросах
+(`fixFaqQuestions: true`), подписи опций (`optionLabels`: пары «было → стало»),
+удаление и порядок характеристик (`removeSpecs`, `specsOrder`), раздел
+(`set.categoryId` — колонки `category_id` и `brand` пишутся вслед за `data`), характеристики (`specs`: `{ "Гарантия": "2 недели" }` —
 заменяет значение или добавляет строку) и привязки к поколениям (`cars.remove` / `cars.add`
 путями `марка/модель/поколение`); у статей — `title`, `seoTitle`,
 `seoDescription`, `excerpt`, `leadProducts`, замены в тексте

@@ -39,7 +39,10 @@ const say = (line) => {
 };
 
 const readProduct = db.prepare("SELECT id, title, data FROM products WHERE slug = ?");
-const writeProduct = db.prepare("UPDATE products SET title = ?, data = ?, updated_at = ? WHERE id = ?");
+const writeProduct = db.prepare(
+  "UPDATE products SET title = ?, category_id = ?, brand = ?, data = ?, updated_at = ? WHERE id = ?",
+);
+const categoryExists = db.prepare("SELECT 1 FROM categories WHERE id = ?");
 const writeProductSlug = db.prepare("UPDATE products SET slug = ? WHERE id = ?");
 const slugTaken = db.prepare("SELECT 1 FROM products WHERE slug = ?");
 const writeRedirect = db.prepare(
@@ -104,21 +107,66 @@ function applyFields(data, spec, where) {
     else data.specs.push({ name, value });
   }
   for (const [from, to] of spec.replaceInFaq ?? []) {
-    const item = (data.faq ?? []).find((entry) => entry.a.includes(from));
-    if (!item) {
-      if (!(data.faq ?? []).some((entry) => entry.a.includes(to))) problems.push(`${where}: в ответах FAQ не найдено «${from}»`);
+    const items = (data.faq ?? []).filter((entry) => entry.q.includes(from) || entry.a.includes(from));
+    if (!items.length) {
+      if (!(data.faq ?? []).some((entry) => entry.q.includes(to) || entry.a.includes(to))) {
+        problems.push(`${where}: в FAQ не найдено «${from}»`);
+      }
       continue;
     }
-    item.a = item.a.replace(from, to);
-    say(`${where}: ответ «${item.q}» — «${from}» → «${to}»`);
+    for (const item of items) {
+      item.q = item.q.replaceAll(from, to);
+      item.a = item.a.replaceAll(from, to);
+      say(`${where}: FAQ «${item.q}» — «${from}» → «${to}»`);
+    }
   }
   for (const [from, to] of spec.replaceInDescription ?? []) {
     if (!data.description?.includes(from)) {
       if (!data.description?.includes(to)) problems.push(`${where}: в описании не найдено «${from.trim()}»`);
       continue;
     }
-    data.description = data.description.replace(from, to);
+    data.description = data.description.replaceAll(from, to);
     say(`${where}: описание — «${from.trim()}» → «${to.trim() || "∅"}»`);
+  }
+  for (const question of spec.removeFaq ?? []) {
+    const before = data.faq?.length ?? 0;
+    data.faq = (data.faq ?? []).filter((entry) => entry.q !== question);
+    if (data.faq.length !== before) say(`${where}: убран вопрос FAQ «${question}»`);
+  }
+  if (spec.fixFaqQuestions) {
+    for (const item of data.faq ?? []) {
+      const trimmed = item.q.trim();
+      const fixed = `${trimmed[0].toUpperCase()}${trimmed.slice(1)}${trimmed.endsWith("?") ? "" : "?"}`;
+      if (fixed === item.q) continue;
+      say(`${where}: вопрос FAQ — «${item.q}» → «${fixed}»`);
+      item.q = fixed;
+    }
+  }
+  for (const [from, to] of spec.optionLabels ?? []) {
+    const values = (data.optionGroups ?? []).flatMap((group) => group.values).filter((value) => value.label === from);
+    if (!values.length) {
+      const done = (data.optionGroups ?? []).some((group) => group.values.some((value) => value.label === to));
+      if (!done) problems.push(`${where}: нет опции «${from}»`);
+      continue;
+    }
+    for (const value of values) value.label = to;
+    say(`${where}: опция «${from}» → «${to}»`);
+  }
+  if (spec.specsOrder) {
+    const rank = (name) => {
+      const index = spec.specsOrder.indexOf(name);
+      return index < 0 ? spec.specsOrder.length : index;
+    };
+    const sorted = [...(data.specs ?? [])].sort((a, b) => rank(a.name) - rank(b.name));
+    if (sorted.some((entry, index) => entry !== data.specs[index])) {
+      data.specs = sorted;
+      say(`${where}: порядок характеристик — ${sorted.map((entry) => entry.name).join(", ")}`);
+    }
+  }
+  for (const name of spec.removeSpecs ?? []) {
+    const before = data.specs?.length ?? 0;
+    data.specs = (data.specs ?? []).filter((entry) => entry.name !== name);
+    if (data.specs.length !== before) say(`${where}: убрана характеристика «${name}»`);
   }
 }
 
@@ -130,6 +178,7 @@ function planProduct(spec) {
   }
   const data = JSON.parse(row.data);
   applyFields(data, spec, spec.slug);
+  if (data.categoryId && !categoryExists.get(data.categoryId)) problems.push(`${spec.slug}: нет раздела ${data.categoryId}`);
   if (data.seoTitle && data.seoTitle.length > 70) problems.push(`${spec.slug}: title ${data.seoTitle.length} знаков`);
   let newSlug = null;
   if (spec.newSlug && spec.newSlug !== spec.slug) {
@@ -318,7 +367,16 @@ db.transaction(() => {
     });
   }
   for (const product of products) {
-    if (product.data) writeProduct.run(product.title, JSON.stringify(product.data), now, product.id);
+    if (product.data) {
+      writeProduct.run(
+        product.title,
+        product.data.categoryId,
+        product.data.brand ?? "",
+        JSON.stringify(product.data),
+        now,
+        product.id,
+      );
+    }
     if (product.newSlug) {
       const from = `/product/${product.slug}/`;
       const to = `/product/${product.newSlug}/`;
