@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AccountNav } from "@/components/AccountNav";
 import { getCustomer } from "@/lib/customer-auth";
-import { customerOrders } from "@/lib/customers";
+import { customerOrders, isWholesale } from "@/lib/customers";
 import { formatPhone } from "@/lib/phone";
 
 export default async function CabinetLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +20,7 @@ export default async function CabinetLayout({ children }: { children: React.Reac
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
         <aside className="lg:sticky lg:top-28">
-          <AccountNav orderCount={customerOrders(customer).length} />
+          <AccountNav orderCount={customerOrders(customer).length} wiki={isWholesale(customer)} />
         </aside>
         <div className="min-w-0 space-y-6">{children}</div>
       </div>

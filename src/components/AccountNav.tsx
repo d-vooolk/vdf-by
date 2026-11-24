@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { LogOutIcon, PackageIcon, SpinnerIcon, UserIcon } from "@/components/icons";
+import { DocumentIcon, LogOutIcon, PackageIcon, SpinnerIcon, UserIcon } from "@/components/icons";
 import { useAccount } from "@/store/account";
 
 const LINKS = [
@@ -12,10 +12,12 @@ const LINKS = [
   { href: "/account/orders/", label: "Заказы", icon: PackageIcon },
 ];
 
+const WIKI_LINK = { href: "/account/wiki/", label: "WIKI", icon: DocumentIcon };
+
 const ITEM_CLASS =
   "flex shrink-0 items-center gap-2.5 rounded-control px-3 py-2.5 text-sm font-medium transition-colors";
 
-export function AccountNav({ orderCount }: { orderCount: number }) {
+export function AccountNav({ orderCount, wiki }: { orderCount: number; wiki: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
@@ -38,7 +40,7 @@ export function AccountNav({ orderCount }: { orderCount: number }) {
 
   return (
     <nav aria-label="Личный кабинет" className="card flex gap-1 overflow-x-auto p-2 lg:flex-col">
-      {LINKS.map(({ href, label, icon: Icon }) => {
+      {(wiki ? [...LINKS, WIKI_LINK] : LINKS).map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (
           <Link
