@@ -4,10 +4,10 @@ import { carSearchName, generationBodyName, generationFamily, years, type Produc
 import { getProducts, getSite } from "./catalog";
 import { imagesFor } from "./feed";
 import type { Product } from "./schema";
-import { absoluteUrl } from "./seo";
+import { absoluteUrl, variantUrl } from "./seo";
 import { isSidesGroup, sideValues } from "./side-options";
 import { toSlug } from "./slug.mjs";
-import { defaultSelection, hasPrice, resolveVariant, sideStockOf } from "./variant";
+import { defaultSelection, hasPrice, resolveVariant, sideStockOf, type Selection } from "./variant";
 
 export const BAMPER_COLUMNS = [
   "ID_EXT",
@@ -40,6 +40,7 @@ export const BAMPER_COLUMNS = [
   "EMAIL",
   "ИМЯ",
   "ФОТО",
+  "link",
 ] as const;
 
 export type BamperRow = Partial<Record<(typeof BAMPER_COLUMNS)[number], string>>;
@@ -75,6 +76,7 @@ const PHOTO_LIMIT = 10;
 
 interface SideOffer {
   side: Side;
+  selection: Selection;
   price: number;
   images: string[];
   onOrder: boolean;
@@ -98,12 +100,14 @@ function sideOffers(product: Product): SideOffer[] {
 
   if (!group || !sides) {
     const side = singleSide(product);
-    const variant = resolveVariant(product, defaultSelection(product));
+    const selection = defaultSelection(product);
+    const variant = resolveVariant(product, selection);
     if (!side || !hasPrice(variant.price)) return [];
     const qty = product.stockQty ?? null;
     return [
       {
         side,
+        selection,
         price: variant.price,
         images: variant.images,
         onOrder: !variant.inStock || qty === 0,
@@ -115,12 +119,14 @@ function sideOffers(product: Product): SideOffer[] {
   const counted = sideStockOf(product);
   return (["right", "left"] as const).flatMap((side) => {
     const value = side === "right" ? sides.right : sides.left;
-    const variant = resolveVariant(product, { ...defaultSelection(product), [group.id]: value.id });
+    const selection = { ...defaultSelection(product), [group.id]: value.id };
+    const variant = resolveVariant(product, selection);
     if (!hasPrice(variant.price)) return [];
     const qty = counted ? counted[side] : null;
     return [
       {
         side,
+        selection,
         price: variant.price,
         images: variant.images,
         onOrder: !variant.inStock || qty === 0,
@@ -244,6 +250,7 @@ export function bamperRows(now: number = new Date().getFullYear()): BamperRow[] 
             ЦЕНА: String(offer.price),
             ВАЛЮТА: currency,
             ФОТО: photos,
+            link: variantUrl(product, offer.selection),
           });
         }
       }
