@@ -11,6 +11,7 @@
     "import": "node scripts/import-data.mjs",
     "import-cars": "node scripts/import-cars.mjs",
     "bamper-models": "node scripts/bamper-models.mjs",
+    "kufar-models": "node scripts/kufar-models.mjs",
     "admin": "node scripts/admin.mjs",
     "backup": "node scripts/backup.mjs",
     "icons": "node scripts/make-icons.mjs",

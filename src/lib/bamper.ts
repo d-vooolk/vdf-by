@@ -45,16 +45,16 @@ export const BAMPER_COLUMNS = [
 
 export type BamperRow = Partial<Record<(typeof BAMPER_COLUMNS)[number], string>>;
 
-type Side = "left" | "right";
+export type Side = "left" | "right";
 
-interface BamperKind {
+export interface BamperKind {
   categoryId: string;
   part: Record<Side, string>;
   noun: string;
   fits: string;
 }
 
-const KINDS: BamperKind[] = [
+export const KINDS: BamperKind[] = [
   {
     categoryId: "glasses",
     part: { left: "стекло фары левой", right: "стекло фары правой" },
@@ -72,9 +72,9 @@ const KINDS: BamperKind[] = [
 const SIDE_LETTER: Record<Side, string> = { left: "L", right: "R" };
 const SIDE_WORD: Record<Side, string> = { left: "левая", right: "правая" };
 const OEM_SPEC = /^(oem|номер|оригинальн)/i;
-const PHOTO_LIMIT = 10;
+export const PHOTO_LIMIT = 10;
 
-interface SideOffer {
+export interface SideOffer {
   side: Side;
   selection: Selection;
   price: number;
@@ -94,7 +94,7 @@ function singleSide(product: Product): Side | null {
   return (spec && sideOfText(spec.value)) ?? sideOfText(product.title);
 }
 
-function sideOffers(product: Product): SideOffer[] {
+export function sideOffers(product: Product): SideOffer[] {
   const group = product.optionGroups.find(isSidesGroup);
   const sides = group ? sideValues(group) : null;
 
@@ -183,7 +183,7 @@ function versionOf(fit: ModelFit): string {
   return `${fit.bodies.join("/")}${period}`;
 }
 
-function fitsText(cars: ProductCar[], now: number): string {
+export function fitsText(cars: ProductCar[], now: number): string {
   const oldestFirst = [...cars].sort((a, b) => (a.yearFrom ?? 0) - (b.yearFrom ?? 0));
   const names = oldestFirst.map((car) => {
     const name = carSearchName({ name: car.markName }, { name: car.modelName }, { name: car.generationName });
@@ -193,7 +193,7 @@ function fitsText(cars: ProductCar[], now: number): string {
   return [...new Set(names)].join(", ");
 }
 
-function oemNumbers(product: Product): string {
+export function oemNumbers(product: Product): string {
   const numbers = product.specs
     .filter((spec) => OEM_SPEC.test(spec.name.trim()))
     .flatMap((spec) => spec.value.split(/[,;\s]+/))
@@ -202,11 +202,11 @@ function oemNumbers(product: Product): string {
   return [...new Set(numbers)].join(",");
 }
 
-function idBase(product: Product): string {
+export function idBase(product: Product): string {
   return (product.sku || product.id).replace(/[^A-Za-z0-9]/g, "");
 }
 
-function description(kind: BamperKind, side: Side, fits: string): string {
+export function description(kind: BamperKind, side: Side, fits: string): string {
   return [
     `${kind.noun} лучшего качества.`,
     `Сторона: ${SIDE_WORD[side]}.`,

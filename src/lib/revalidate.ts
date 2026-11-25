@@ -28,6 +28,7 @@ const SHARED = [
   "/feed.xml", // фид для Google Merchant Center
   "/yml.xml", // фид для Яндекса, Onliner и Kufar
   "/bamper.csv",
+  "/kufar.xml",
   "/llms.txt",
 ];
 
