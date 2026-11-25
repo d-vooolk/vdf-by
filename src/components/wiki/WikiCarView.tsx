@@ -32,6 +32,7 @@ export function WikiCarView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
+  const [photo, setPhoto] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(
     () =>
@@ -73,10 +74,25 @@ export function WikiCarView({
   return (
     <section className="space-y-4">
       <div className="card p-5">
-        <p className="eyebrow">Wiki</p>
-        <h2 className="mt-1 text-xl font-semibold text-brand-900">{entry ? carTitle(entry) : carName}</h2>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+          {photo !== "error" && (
+            <img
+              src={`/api/account/wiki/photo/?${carQuery(carKey)}`}
+              alt=""
+              onLoad={() => setPhoto("ready")}
+              onError={() => setPhoto("error")}
+              className={`photo-bed aspect-[105/65] w-full shrink-0 rounded-control object-cover object-[center_45%] transition-opacity duration-500 motion-reduce:transition-none sm:w-1/3 ${
+                photo === "ready" ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          )}
+          <div className="min-w-0">
+            <p className="eyebrow">Wiki</p>
+            <h2 className="mt-1 text-xl font-semibold break-words text-brand-900">{entry ? carTitle(entry) : carName}</h2>
+          </div>
+        </div>
 
-        <div className="mt-4 flex gap-1 overflow-x-auto border-b border-brand-100">
+        <div className="mt-4 flex flex-wrap gap-1 border-b border-brand-100 pb-2">
           {tabs.map((tab) => {
             const active = tab.id === current.id;
             const own = proposalOf(tab.id);
@@ -88,8 +104,8 @@ export function WikiCarView({
                   setEditing(false);
                   onSection(tab.id);
                 }}
-                className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                  active ? "border-accent-400 text-brand-900" : "border-transparent text-brand-500 hover:text-brand-800"
+                className={`flex items-center gap-1.5 rounded-control px-3 py-1.5 text-sm font-medium transition-colors ${
+                  active ? "bg-brand-100 text-brand-900" : "text-brand-500 hover:bg-brand-50 hover:text-brand-800"
                 }`}
               >
                 {tab.name}

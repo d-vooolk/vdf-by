@@ -89,6 +89,10 @@ export async function crmCars<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+export function crmCarPhoto(path: string): Promise<Response> {
+  return call(`/api/cars/photo/${path}`, null);
+}
+
 export async function crmUpload(path: string, range: string | null): Promise<Response> {
   const { url } = crmConfig();
   try {
