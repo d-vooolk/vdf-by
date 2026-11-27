@@ -14,6 +14,7 @@ import type { ProductCar } from "./car-types";
 import { getProducts, getSite } from "./catalog";
 import { imagesFor, xml } from "./feed";
 import { kufarCar } from "./kufar-models";
+import { withUtmSource } from "./order-source";
 import { variantUrl } from "./seo";
 
 const MINSK_CITY_REGION = 7;
@@ -134,7 +135,7 @@ export function kufarRecords(now: number = new Date().getFullYear()): KufarRecor
             generation: singleGeneration(fit),
             partsNumber,
             partsCode: product.sku ?? "",
-            link: variantUrl(product, offer.selection),
+            link: withUtmSource(variantUrl(product, offer.selection), "kufar"),
             photos,
           });
         }

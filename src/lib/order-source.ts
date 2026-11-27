@@ -36,3 +36,9 @@ export function sourceLabel(source: string | null): string {
   if (known) return known[1];
   return utm ? `utm: ${utm}` : host;
 }
+
+export function withUtmSource(url: string, source: string): string {
+  const link = new URL(url);
+  link.searchParams.set("utm_source", source);
+  return link.toString();
+}

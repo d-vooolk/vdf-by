@@ -4,6 +4,7 @@ import { carSearchName, generationBodyName, generationFamily, years, type Produc
 import { getProducts, getSite } from "./catalog";
 import { imagesFor } from "./feed";
 import type { Product } from "./schema";
+import { withUtmSource } from "./order-source";
 import { absoluteUrl, variantUrl } from "./seo";
 import { isSidesGroup, sideValues } from "./side-options";
 import { toSlug } from "./slug.mjs";
@@ -250,7 +251,7 @@ export function bamperRows(now: number = new Date().getFullYear()): BamperRow[] 
             ЦЕНА: String(offer.price),
             ВАЛЮТА: currency,
             ФОТО: photos,
-            link: variantUrl(product, offer.selection),
+            link: withUtmSource(variantUrl(product, offer.selection), "bamper"),
           });
         }
       }
