@@ -1,113 +1,193 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
+import { AlertIcon, CartIcon, ChartIcon, PackageIcon, WalletIcon, WrenchIcon } from "@/components/icons";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
-import { DailyBars, Panel } from "@/components/admin/SeoParts";
+import { NeonBars, NeonDelta, NeonLine, NeonTile } from "@/components/admin/NeonDash";
+import { DataTable, Empty, formatNumber, formatPercent, Panel, SectionError } from "@/components/admin/SeoParts";
 import { StockBars } from "@/components/admin/StockBars";
 import { getSite } from "@/lib/catalog";
-import { formatPrice } from "@/lib/format";
+import { checkStats, RESTOCK_SOLD_DAYS, restockCandidates, serviceStats, viewedNotBought, VIEWS_DAYS } from "@/lib/dashboard";
+import { formatPrice, plural } from "@/lib/format";
 import { isLiteMode } from "@/lib/lite-mode";
 import { orderStats, orderTimeline } from "@/lib/orders";
 import { listCategoriesBrief } from "@/lib/category-store";
 import { countOutOfStock, listProducts, stockByCategory } from "@/lib/product-store";
+import { orderSourcesReport } from "@/lib/traffic";
+
+const SOURCE_DAYS = 30;
+const ORDERS = ["заказ", "заказа", "заказов"] as const;
 
 /** Сводка: с чего начинается рабочий день — сколько новых заказов и что в каталоге. */
 export default function DashboardPage() {
   if (isLiteMode()) redirect("/admin/seo/");
   const site = getSite();
-  const stats = orderStats();
+  const { weekCounts, weekTotals } = orderStats();
   const categories = listCategoriesBrief();
   const products = listProducts({ limit: 5 });
   const outOfStock = countOutOfStock();
-  const timeline = orderTimeline();
-  const money = [site.currencySymbol, site.currencySymbol, site.currencySymbol] as const;
+  const daily = orderTimeline();
+  const check = checkStats(SOURCE_DAYS);
+  const service = serviceStats();
+  const restock = restockCandidates();
+  const viewed = viewedNotBought();
+  const [ordersNow, ordersBefore] = [weekCounts.at(-1) ?? 0, weekCounts.at(-2) ?? 0];
+  const [salesNow, salesBefore] = [weekTotals.at(-1) ?? 0, weekTotals.at(-2) ?? 0];
+  const outOfStockShare = products.total ? Math.round((outOfStock / products.total) * 100) : 0;
+  const money = (value: number) => formatPrice(Math.round(value), site.currencySymbol);
+  const productLink = (id: string, title: string) => (
+    <Link href={`/admin/products/${id}/`} className="text-brand-900 hover:underline">
+      {title}
+    </Link>
+  );
 
   return (
-    <div className="space-y-6">
+    <div className="neon-dash space-y-6">
       <div>
         <DashboardTabs active="overview" />
         <h1 className="text-xl font-semibold text-brand-900">Сводка</h1>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat
-          label="Новых заказов"
-          value={String(stats.newCount)}
-          hint={stats.newCount > 0 ? "ждут звонка" : "всё обработано"}
-          href="/admin/orders/?status=new"
-          accent={stats.newCount > 0}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <NeonTile
+          tone="cyan"
+          icon={<CartIcon />}
+          label="Заказов за неделю"
+          value={String(ordersNow)}
+          badge={<NeonDelta current={ordersNow} previous={ordersBefore} />}
+          hint={`было ${ordersBefore} за 7 дней до этого`}
+          spark={weekCounts}
+          href="/admin/orders/"
         />
-        <Stat
-          label="Заказов за сутки"
-          value={String(stats.todayCount)}
-          href="/admin/orders/?status=new"
-        />
-        <Stat
+        <NeonTile
+          tone="lime"
+          icon={<WalletIcon />}
           label="Продажи за неделю"
-          value={formatPrice(stats.weekTotal, site.currencySymbol)}
+          value={formatPrice(salesNow, site.currencySymbol)}
+          badge={<NeonDelta current={salesNow} previous={salesBefore} />}
           hint="без отменённых и сотрудников"
+          spark={weekTotals}
         />
-        <Stat
+        <NeonTile
+          tone="amber"
+          icon={<ChartIcon />}
+          label="Средний чек"
+          value={money(check.average)}
+          badge={<NeonDelta current={check.average} previous={check.previousAverage} period={`К предыдущим ${SOURCE_DAYS} дням`} />}
+          hint={`за ${SOURCE_DAYS} дней; опт — ${check.wholesaleOrders} из ${check.orders} заказов, ${formatPercent(check.wholesaleRevenueShare, 0)} выручки`}
+        />
+        <NeonTile
+          tone="violet"
+          icon={<PackageIcon />}
           label="Товаров в каталоге"
           value={String(products.total)}
           hint={`${categories.length} раздел(ов)`}
           href="/admin/products/"
         />
-        <Stat
+        <NeonTile
+          tone="pink"
+          icon={<AlertIcon />}
           label="Нет в наличии"
           value={String(outOfStock)}
-          hint="кнопки заказа у них нет"
+          hint={`${outOfStockShare}% каталога — кнопки заказа у них нет`}
           href="/admin/out-of-stock/"
+        />
+        <NeonTile
+          tone="sky"
+          icon={<WrenchIcon />}
+          label="Заявки на установку"
+          value={String(service.week)}
+          badge={<NeonDelta current={service.week} previous={service.previousWeek} />}
+          hint={service.open ? `не закрыто: ${service.open}` : "все закрыты"}
+          href="/admin/service-requests/"
         />
       </div>
 
+      <Panel title="Заказы по дням" note="Последние 30 дней, без заказов сотрудников">
+        <NeonLine points={daily} unit={ORDERS} tone="cyan" />
+      </Panel>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Заказы по дням" note="Последние 30 дней, без заказов сотрудников — как в плитке «Заказов за сутки»">
-          <DailyBars points={timeline.daily} unit={["заказ", "заказа", "заказов"]} />
+        <Panel
+          title="Откуда заказы"
+          note={`Последние ${SOURCE_DAYS} дней по Яндекс Метрике: последний значимый источник визита, в котором оформили заказ`}
+        >
+          <Suspense fallback={<Empty>Загружаю данные Метрики…</Empty>}>
+            <OrderSources ordersInShop={check.orders} money={site.currencySymbol} />
+          </Suspense>
         </Panel>
-        <Panel title="Продажи по неделям" note="Последние 12 недель, без отменённых и заказов сотрудников; неделя — с понедельника">
-          <DailyBars points={timeline.weekly} unit={money} step="week" />
+
+        <Panel title="Наличие по разделам" note="Сколько товаров каждого раздела можно заказать — к плиткам «Товаров в каталоге» и «Нет в наличии»">
+          <StockBars rows={stockByCategory()} />
         </Panel>
       </div>
 
-      <Panel title="Наличие по разделам" note="Сколько товаров каждого раздела можно заказать — к плиткам «Товаров в каталоге» и «Нет в наличии»">
-        <StockBars rows={stockByCategory()} />
-      </Panel>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel
+          title="Что заказать у поставщика"
+          note={`Товары без наличия, на которые есть спрос: ждут в листе ожидания, покупали за ${RESTOCK_SOLD_DAYS} дней, смотрели за ${VIEWS_DAYS} дней`}
+        >
+          {restock.length ? (
+            <DataTable
+              headers={["Товар", "Ждут", "Продано", "Просмотры"]}
+              rows={restock.map((row) => [
+                productLink(row.id, row.title),
+                row.waiting ? <span className="font-semibold text-red-700">{row.waiting}</span> : "—",
+                row.sold || "—",
+                formatNumber(row.views),
+              ])}
+            />
+          ) : (
+            <Empty>Спроса на товары без наличия не видно</Empty>
+          )}
+        </Panel>
 
+        <Panel
+          title="Смотрят, но не покупают"
+          note={
+            <>
+              Товары в наличии с просмотрами за {VIEWS_DAYS} дней и без единого заказа.
+              {viewed.viewsPerOrder !== null && <> В среднем по сайту 1 заказ на {formatNumber(viewed.viewsPerOrder)} просмотров товаров.</>}
+            </>
+          }
+        >
+          {viewed.rows.length ? (
+            <DataTable
+              headers={["Товар", "Цена", "Просмотры"]}
+              rows={viewed.rows.map((row) => [productLink(row.id, row.title), money(row.price), formatNumber(row.views)])}
+            />
+          ) : (
+            <Empty>Таких товаров нет</Empty>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
+async function OrderSources({ ordersInShop, money }: { ordersInShop: number; money: string }) {
+  const result = await orderSourcesReport(SOURCE_DAYS);
+  if (!result.ok) return <SectionError message={result.error} />;
+  const { sources, orders } = result.report;
 
-interface StatProps {
-  label: string;
-  value: string;
-  hint?: string;
-  href?: string;
-  accent?: boolean;
-}
-
-function Stat({ label, value, hint, href, accent }: StatProps) {
-  const body = (
+  return (
     <>
-      <p className="text-xs font-medium text-brand-400">{label}</p>
-      <p
-        className={`tnum mt-1 text-2xl font-semibold ${
-          accent ? "text-amber-600" : "text-brand-900"
-        }`}
-      >
-        {value}
+      <NeonBars
+        tone="lime"
+        rows={sources.slice(0, 8).map((source) => ({
+          label: source.name,
+          value: source.orders,
+          valueText: source.orders
+            ? `${formatNumber(source.orders)} ${plural(source.orders, ...ORDERS)} · ${formatPrice(Math.round(source.revenue), money)}`
+            : "нет заказов",
+          note: `${formatNumber(source.visits)} визитов${source.visits ? `, конверсия ${formatPercent(source.orders / source.visits)}` : ""}`,
+        }))}
+      />
+      <p className="px-4 pb-3 text-xs text-brand-400">
+        Метрика видит только посетителей, согласившихся на cookies: она насчитала {formatNumber(orders)} из {formatNumber(ordersInShop)}{" "}
+        {plural(ordersInShop, ...ORDERS)} в базе за этот период.
       </p>
-      {hint && <p className="mt-0.5 text-xs text-brand-400">{hint}</p>}
     </>
-  );
-
-  return href ? (
-    <Link href={href} className="card block p-4 transition-colors hover:bg-brand-50">
-      {body}
-    </Link>
-  ) : (
-    <div className="card p-4">{body}</div>
   );
 }

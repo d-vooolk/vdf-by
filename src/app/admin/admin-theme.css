@@ -322,3 +322,101 @@
     bottom: calc(3.75rem + 0.75rem + env(safe-area-inset-bottom));
   }
 }
+
+.neon-dash {
+  --neon-lime: #5f9e00;
+  --neon-cyan: #0891b2;
+  --neon-amber: #d97706;
+  --neon-violet: #9333ea;
+  --neon-pink: #e11d48;
+  --neon-sky: #2563eb;
+  --neon-glow: 0.3;
+  --a-chart-1: var(--neon-lime);
+  --a-chart-2: var(--neon-pink);
+}
+
+[data-admin-theme="dark"] .neon-dash {
+  --neon-lime: #a2db00;
+  --neon-cyan: #22d3ee;
+  --neon-amber: #fbbf24;
+  --neon-violet: #c084fc;
+  --neon-pink: #fb7185;
+  --neon-sky: #60a5fa;
+  --neon-glow: 0.7;
+}
+
+.neon-lime { color: var(--neon-lime); }
+.neon-cyan { color: var(--neon-cyan); }
+.neon-amber { color: var(--neon-amber); }
+.neon-violet { color: var(--neon-violet); }
+.neon-pink { color: var(--neon-pink); }
+.neon-sky { color: var(--neon-sky); }
+
+.neon-tile {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.neon-tile::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: calc(var(--neon-glow) * 0.22);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+a.neon-tile:hover {
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  transform: translateY(-2px);
+}
+
+.neon-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 11px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, currentColor calc(var(--neon-glow) * 45%), transparent);
+}
+
+.neon-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.neon-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.neon-glow {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor calc(var(--neon-glow) * 100%), transparent));
+}
+
+.neon-dot {
+  box-shadow: 0 0 10px color-mix(in srgb, currentColor calc(var(--neon-glow) * 140%), transparent);
+}
+
+.neon-average {
+  border-color: color-mix(in srgb, var(--neon-amber) 70%, transparent);
+}
+
+.neon-bar {
+  box-shadow: 0 0 10px color-mix(in srgb, currentColor calc(var(--neon-glow) * 100%), transparent);
+}
