@@ -245,6 +245,23 @@ export function optionStockTotal(product: Pick<Product, "optionGroups">): number
   );
 }
 
+export interface StockPositions {
+  total: number;
+  inStock: number;
+}
+
+export function stockPositions(product: Pick<Product, "optionGroups" | "inStock">): StockPositions {
+  const index = countedOptionGroupIndex(product);
+  if (index === -1) return { total: 1, inStock: product.inStock ? 1 : 0 };
+  const group = product.optionGroups[index];
+  const pair = sideValues(group)?.pair;
+  const counted = group.values.filter((value) => value !== pair);
+  return {
+    total: counted.length,
+    inStock: counted.filter((value) => stockedByQty(value.stockQty)).length,
+  };
+}
+
 export interface SideStock {
   right: number;
   left: number;

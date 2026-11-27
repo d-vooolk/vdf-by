@@ -11,6 +11,7 @@ import {
   countedOptionGroupIndex,
   sideStockOf,
   stockedByQty,
+  stockPositions,
   type SideStock,
 } from "./variant";
 import { SaveResult, describe } from "./store";
@@ -531,19 +532,28 @@ export interface CategoryStock {
 }
 
 export function stockByCategory(): CategoryStock[] {
-  const rows = getDb()
+  const db = getDb();
+  const rows = db
     .prepare(
-      `SELECT COALESCE(c.parent_id, c.id) AS root, COUNT(p.id) AS total, COALESCE(SUM(p.in_stock), 0) AS inStock
-         FROM products p JOIN categories c ON c.id = p.category_id
-        GROUP BY root`,
+      `SELECT COALESCE(c.parent_id, c.id) AS root, p.in_stock AS inStock, p.data AS data
+         FROM products p JOIN categories c ON c.id = p.category_id`,
     )
-    .all() as Array<{ root: string; total: number; inStock: number }>;
+    .all() as Array<{ root: string; inStock: number; data: string }>;
   const names = new Map(
-    (getDb().prepare("SELECT id, name FROM categories WHERE parent_id IS NULL").all() as Array<{ id: string; name: string }>).map(
+    (db.prepare("SELECT id, name FROM categories WHERE parent_id IS NULL").all() as Array<{ id: string; name: string }>).map(
       (row) => [row.id, row.name],
     ),
   );
-  return rows
-    .map((row) => ({ id: row.root, name: names.get(row.root) ?? row.root, total: row.total, inStock: row.inStock }))
-    .sort((a, b) => b.total - a.total);
+  const totals = new Map<string, CategoryStock>();
+  for (const row of rows) {
+    const positions = stockPositions({
+      optionGroups: (JSON.parse(row.data) as Partial<Product>).optionGroups ?? [],
+      inStock: row.inStock === 1,
+    });
+    const entry = totals.get(row.root) ?? { id: row.root, name: names.get(row.root) ?? row.root, total: 0, inStock: 0 };
+    entry.total += positions.total;
+    entry.inStock += positions.inStock;
+    totals.set(row.root, entry);
+  }
+  return [...totals.values()].sort((a, b) => b.total - a.total);
 }
