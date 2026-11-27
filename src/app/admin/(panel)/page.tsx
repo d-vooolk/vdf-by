@@ -33,7 +33,10 @@ export default function DashboardPage() {
   const sources = orderSources(SOURCE_DAYS);
   const [ordersNow, ordersBefore] = [weekCounts.at(-1) ?? 0, weekCounts.at(-2) ?? 0];
   const [salesNow, salesBefore] = [weekTotals.at(-1) ?? 0, weekTotals.at(-2) ?? 0];
-  const outOfStockShare = products.total ? Math.round((outOfStock / products.total) * 100) : 0;
+  const stock = stockByCategory();
+  const positions = stock.reduce((sum, row) => sum + row.total, 0);
+  const missingPositions = positions - stock.reduce((sum, row) => sum + row.inStock, 0);
+  const missingShare = positions ? Math.round((missingPositions / positions) * 100) : 0;
   const money = (value: number) => formatPrice(Math.round(value), site.currencySymbol);
   const productLink = (id: string, title: string) => (
     <Link href={`/admin/products/${id}/`} className="text-brand-900 hover:underline">
@@ -79,17 +82,17 @@ export default function DashboardPage() {
         <NeonTile
           tone="violet"
           icon={<PackageIcon />}
-          label="Товаров в каталоге"
-          value={String(products.total)}
-          hint={`${categories.length} раздел(ов)`}
+          label="Позиций в каталоге"
+          value={formatNumber(positions)}
+          hint={`${formatNumber(products.total)} товаров в ${categories.length} раздел(ах); стороны считаются отдельно`}
           href="/admin/products/"
         />
         <NeonTile
           tone="pink"
           icon={<AlertIcon />}
           label="Нет в наличии"
-          value={String(outOfStock)}
-          hint={`${outOfStockShare}% каталога — кнопки заказа у них нет`}
+          value={formatNumber(missingPositions)}
+          hint={`${missingShare}% позиций; целиком без наличия ${formatNumber(outOfStock)} ${plural(outOfStock, "товар", "товара", "товаров")}`}
           href="/admin/out-of-stock/"
         />
         <NeonTile
@@ -132,7 +135,7 @@ export default function DashboardPage() {
         </Panel>
 
         <Panel title="Наличие по разделам" note="Сколько позиций каждого раздела можно заказать. Опции с остатком считаются отдельно: правое и левое стекло — две позиции">
-          <StockBars rows={stockByCategory()} />
+          <StockBars rows={stock} />
         </Panel>
       </div>
 
