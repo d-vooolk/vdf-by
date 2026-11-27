@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 import { getSite } from "@/lib/catalog";
 import { clientIp } from "@/lib/client-ip";
 import { isLimited, recordHit } from "@/lib/rate-limit";
@@ -5,6 +7,7 @@ import { revalidateStockMoves } from "@/lib/stock-revalidate";
 import { deliveryPrice, parcelOf } from "@/lib/delivery-quote";
 import { formatPhone } from "@/lib/phone";
 import { envNumber } from "@/lib/env.mjs";
+import { normalizeSource, SOURCE_COOKIE } from "@/lib/order-source";
 import { createOrder, markTelegramSent, type OrderItem } from "@/lib/orders";
 import { getActingCustomer, getCustomer, getSellerMode } from "@/lib/customer-auth";
 import {
@@ -415,6 +418,7 @@ export async function POST(request: Request) {
   }
 
   const referer = request.headers.get("referer") ?? "";
+  const source = normalizeSource((await cookies()).get(SOURCE_COOKIE)?.value);
 
   let id: number;
   try {
@@ -438,6 +442,7 @@ export async function POST(request: Request) {
       ...order,
       ip,
       referer,
+      source,
       customerId: buyer?.id ?? null,
       sellerId: sellerMode && signed ? signed.id : null,
       wholesale: wholesaleBuyer,

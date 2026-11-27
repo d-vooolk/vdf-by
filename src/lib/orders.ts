@@ -122,6 +122,7 @@ export interface NewOrder {
   notes: string[];
   ip: string;
   referer: string;
+  source?: string | null;
   customerId?: number | null;
   sellerId?: number | null;
   wholesale?: boolean;
@@ -143,11 +144,11 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       `INSERT INTO orders
          (created_at, status, name, phone, phone_digits, email, consent_at, comment,
           delivery_id, delivery_name, address, delivery_cost,
-          subtotal, total, currency, items, notes, ip, referer, customer_id, seller_id, wholesale, wholesale_tier, staff)
+          subtotal, total, currency, items, notes, ip, referer, source, customer_id, seller_id, wholesale, wholesale_tier, staff)
        VALUES
          (@createdAt, 'new', @name, @phone, @phoneDigits, @email, @consentAt, @comment,
           @deliveryId, @deliveryName, @address, @deliveryCost,
-          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @customerId, @sellerId, @wholesale, @wholesaleTier, @staff)`,
+          @subtotal, @total, @currency, @items, @notes, @ip, @referer, @source, @customerId, @sellerId, @wholesale, @wholesaleTier, @staff)`,
     )
     .run({
       createdAt: Date.now(),
@@ -173,6 +174,7 @@ export function createOrder(order: NewOrder): { id: number; moved: StockMove[] }
       notes: JSON.stringify(order.notes),
       ip: order.ip,
       referer: order.referer,
+      source: order.source ?? null,
     });
 
   const id = Number(result.lastInsertRowid);

@@ -1,20 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 
 import { AlertIcon, CartIcon, ChartIcon, PackageIcon, WalletIcon, WrenchIcon } from "@/components/icons";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import { NeonBars, NeonDelta, NeonLine, NeonTile } from "@/components/admin/NeonDash";
-import { DataTable, Empty, formatNumber, formatPercent, Panel, SectionError } from "@/components/admin/SeoParts";
+import { DataTable, Empty, formatNumber, formatPercent, Panel } from "@/components/admin/SeoParts";
 import { StockBars } from "@/components/admin/StockBars";
 import { getSite } from "@/lib/catalog";
-import { checkStats, RESTOCK_SOLD_DAYS, restockCandidates, serviceStats, viewedNotBought, VIEWS_DAYS } from "@/lib/dashboard";
+import { checkStats, orderSources, RESTOCK_SOLD_DAYS, restockCandidates, serviceStats, viewedNotBought, VIEWS_DAYS } from "@/lib/dashboard";
 import { formatPrice, plural } from "@/lib/format";
 import { isLiteMode } from "@/lib/lite-mode";
 import { orderStats, orderTimeline } from "@/lib/orders";
 import { listCategoriesBrief } from "@/lib/category-store";
 import { countOutOfStock, listProducts, stockByCategory } from "@/lib/product-store";
-import { orderSourcesReport } from "@/lib/traffic";
 
 const SOURCE_DAYS = 30;
 const ORDERS = ["заказ", "заказа", "заказов"] as const;
@@ -32,6 +30,7 @@ export default function DashboardPage() {
   const service = serviceStats();
   const restock = restockCandidates();
   const viewed = viewedNotBought();
+  const sources = orderSources(SOURCE_DAYS);
   const [ordersNow, ordersBefore] = [weekCounts.at(-1) ?? 0, weekCounts.at(-2) ?? 0];
   const [salesNow, salesBefore] = [weekTotals.at(-1) ?? 0, weekTotals.at(-2) ?? 0];
   const outOfStockShare = products.total ? Math.round((outOfStock / products.total) * 100) : 0;
@@ -111,11 +110,25 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel
           title="Откуда заказы"
-          note={`Последние ${SOURCE_DAYS} дней по Яндекс Метрике: последний значимый источник визита, в котором оформили заказ`}
+          note={`Последние ${SOURCE_DAYS} дней, без заказов сотрудников: с какого сайта посетитель последний раз пришёл перед заказом`}
         >
-          <Suspense fallback={<Empty>Загружаю данные Метрики…</Empty>}>
-            <OrderSources ordersInShop={check.orders} money={site.currencySymbol} />
-          </Suspense>
+          <NeonBars
+            tone="lime"
+            empty="Заказов с известным источником пока нет"
+            rows={sources.rows.slice(0, 8).map((row) => ({
+              label: row.name,
+              value: row.orders,
+              valueText: `${formatNumber(row.orders)} ${plural(row.orders, ...ORDERS)}`,
+              note: `${money(row.revenue)} без отменённых`,
+            }))}
+          />
+          <p className="px-4 pb-3 text-xs text-brand-400">
+            {sources.trackedSince
+              ? `Источник записывается в заказ с ${new Date(sources.trackedSince).toLocaleDateString("ru-RU", { timeZone: "Europe/Minsk" })}.`
+              : "Источник записывается в заказы, оформленные после обновления сайта."}
+            {sources.unknown &&
+              ` Без источника: ${formatNumber(sources.unknown.orders)} ${plural(sources.unknown.orders, ...ORDERS)} на ${money(sources.unknown.revenue)} — оформлены раньше.`}
+          </p>
         </Panel>
 
         <Panel title="Наличие по разделам" note="Сколько товаров каждого раздела можно заказать — к плиткам «Товаров в каталоге» и «Нет в наличии»">
@@ -163,31 +176,5 @@ export default function DashboardPage() {
         </Panel>
       </div>
     </div>
-  );
-}
-
-async function OrderSources({ ordersInShop, money }: { ordersInShop: number; money: string }) {
-  const result = await orderSourcesReport(SOURCE_DAYS);
-  if (!result.ok) return <SectionError message={result.error} />;
-  const { sources, orders } = result.report;
-
-  return (
-    <>
-      <NeonBars
-        tone="lime"
-        rows={sources.slice(0, 8).map((source) => ({
-          label: source.name,
-          value: source.orders,
-          valueText: source.orders
-            ? `${formatNumber(source.orders)} ${plural(source.orders, ...ORDERS)} · ${formatPrice(Math.round(source.revenue), money)}`
-            : "нет заказов",
-          note: `${formatNumber(source.visits)} визитов${source.visits ? `, конверсия ${formatPercent(source.orders / source.visits)}` : ""}`,
-        }))}
-      />
-      <p className="px-4 pb-3 text-xs text-brand-400">
-        Метрика видит только посетителей, согласившихся на cookies: она насчитала {formatNumber(orders)} из {formatNumber(ordersInShop)}{" "}
-        {plural(ordersInShop, ...ORDERS)} в базе за этот период.
-      </p>
-    </>
   );
 }

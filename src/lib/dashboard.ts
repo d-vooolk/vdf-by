@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { sourceLabel, UNKNOWN_SOURCE_LABEL } from "./order-source";
 import type { OrderItem } from "./order-types";
 import { productViewCounts } from "./product-views";
 
@@ -147,4 +148,44 @@ export function serviceStats(): ServiceStats {
     )
     .get(now - 7 * DAY_MS, now - 14 * DAY_MS, now - 7 * DAY_MS) as { week: number | null; previousWeek: number | null; open: number | null };
   return { week: row.week ?? 0, previousWeek: row.previousWeek ?? 0, open: row.open ?? 0 };
+}
+
+export interface SourceRow {
+  name: string;
+  orders: number;
+  revenue: number;
+}
+
+export interface SourceStats {
+  rows: SourceRow[];
+  unknown: SourceRow | null;
+  trackedSince: number | null;
+}
+
+export function orderSources(days = 30): SourceStats {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT source, COUNT(*) AS orders, SUM(CASE WHEN status != 'cancelled' THEN total ELSE 0 END) AS revenue
+         FROM orders WHERE created_at >= ? AND staff = 0 GROUP BY source`,
+    )
+    .all(Date.now() - days * DAY_MS) as Array<{ source: string | null; orders: number; revenue: number }>;
+  const merged = new Map<string, SourceRow>();
+  for (const row of rows) {
+    const name = sourceLabel(row.source);
+    const entry = merged.get(name) ?? { name, orders: 0, revenue: 0 };
+    entry.orders += row.orders;
+    entry.revenue += row.revenue;
+    merged.set(name, entry);
+  }
+  const first = db.prepare("SELECT MIN(created_at) AS at FROM orders WHERE source IS NOT NULL").get() as { at: number | null };
+
+  const unknown = merged.get(UNKNOWN_SOURCE_LABEL) ?? null;
+  merged.delete(UNKNOWN_SOURCE_LABEL);
+
+  return {
+    rows: [...merged.values()].sort((a, b) => b.orders - a.orders || b.revenue - a.revenue),
+    unknown,
+    trackedSince: first.at,
+  };
 }

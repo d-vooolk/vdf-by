@@ -4,6 +4,7 @@ import { FloatingContacts } from "@/components/FloatingContacts";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { ListingTrailKeeper } from "@/components/ListingTrail";
+import { SourceKeeper } from "@/components/SourceKeeper";
 import { getSite } from "@/lib/catalog";
 import { getChannels } from "@/lib/contacts";
 
@@ -45,6 +46,7 @@ export default function ShopLayout({
       <Analytics />
       <CookieBanner />
       <ListingTrailKeeper />
+      <SourceKeeper />
     </div>
   );
 }

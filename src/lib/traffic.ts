@@ -91,7 +91,7 @@ function previousRange(range: TrafficRange): TrafficRange {
 }
 
 interface MetrikaBody {
-  data?: Array<{ dimensions: Array<{ name?: string | null; id?: string | null }>; metrics: number[] }>;
+  data?: Array<{ dimensions: Array<{ name?: string }>; metrics: number[] }>;
   totals?: number[];
   message?: string;
   errors?: Array<{ message?: string }>;
@@ -123,16 +123,13 @@ function toTotals(values: number[] | undefined): TrafficTotals {
 
 const SESSION_METRICS = "ym:s:visits,ym:s:users,ym:s:pageviews";
 
-function readToken(): string {
+async function buildReport(range: TrafficRange): Promise<TrafficReport> {
+  let token: string;
   try {
-    return fs.readFileSync(YANDEX_TOKEN_FILE, "utf8").trim();
+    token = fs.readFileSync(YANDEX_TOKEN_FILE, "utf8").trim();
   } catch {
     throw new Error("нет токена Яндекса (var/yandex-token.txt), тот же, что для раздела SEO");
   }
-}
-
-async function buildReport(range: TrafficRange): Promise<TrafficReport> {
-  const token = readToken();
   const previous = previousRange(range);
   const [daily, previousTotals, pages] = await Promise.all([
     stat(token, range, { metrics: SESSION_METRICS, dimensions: "ym:s:date", sort: "ym:s:date", limit: "1000" }),
@@ -174,63 +171,6 @@ export async function trafficReport(range: TrafficRange): Promise<TrafficResult>
     return { ok: true, report: await entry.report };
   } catch (error) {
     cache.delete(key);
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-export interface OrderSource {
-  name: string;
-  visits: number;
-  orders: number;
-  revenue: number;
-}
-
-export interface OrderSourcesReport {
-  range: TrafficRange;
-  sources: OrderSource[];
-  orders: number;
-}
-
-export type OrderSourcesResult = { ok: true; report: OrderSourcesReport } | { ok: false; error: string };
-
-async function buildOrderSources(range: TrafficRange): Promise<OrderSourcesReport> {
-  const body = await stat(readToken(), range, {
-    metrics: "ym:s:visits,ym:s:ecommercePurchases,ym:s:ecommerceRevenue",
-    dimensions: "ym:s:lastsignTrafficSource,ym:s:lastsignSourceEngine",
-    limit: "500",
-  });
-  const merged = new Map<string, OrderSource>();
-  for (const row of body.data ?? []) {
-    const [kind, engine] = row.dimensions;
-    if (kind?.id === "internal") continue;
-    const name = engine?.name || kind?.name || "Не определён";
-    const source = merged.get(name) ?? { name, visits: 0, orders: 0, revenue: 0 };
-    source.visits += row.metrics[0] ?? 0;
-    source.orders += row.metrics[1] ?? 0;
-    source.revenue += row.metrics[2] ?? 0;
-    merged.set(name, source);
-  }
-  const sources = [...merged.values()].sort((a, b) => b.orders - a.orders || b.revenue - a.revenue || b.visits - a.visits);
-  return { range, sources, orders: sources.reduce((sum, source) => sum + source.orders, 0) };
-}
-
-const sourcesCache = new Map<string, { at: number; report: Promise<OrderSourcesReport> }>();
-
-export async function orderSourcesReport(days = 30): Promise<OrderSourcesResult> {
-  const today = minskDay();
-  const range = { from: shiftDay(today, -(days - 1)), to: today };
-  const key = `${range.from}:${range.to}`;
-  const now = Date.now();
-  for (const [entryKey, entry] of sourcesCache) if (now - entry.at > CACHE_MS) sourcesCache.delete(entryKey);
-  let entry = sourcesCache.get(key);
-  if (!entry) {
-    entry = { at: now, report: buildOrderSources(range) };
-    sourcesCache.set(key, entry);
-  }
-  try {
-    return { ok: true, report: await entry.report };
-  } catch (error) {
-    sourcesCache.delete(key);
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

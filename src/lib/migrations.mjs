@@ -867,6 +867,9 @@ export const MIGRATIONS = [
   `,
   derivePairStock,
   deriveSideWeights,
+  `
+    ALTER TABLE orders ADD COLUMN source TEXT;
+  `,
 ];
 
 const FRAME_TYPE = /^\d[0-9A-Z]{0,9}$/;

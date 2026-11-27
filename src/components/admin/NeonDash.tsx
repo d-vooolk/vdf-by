@@ -215,8 +215,8 @@ export interface NeonBarRow {
   note?: string;
 }
 
-export function NeonBars({ rows, tone }: { rows: NeonBarRow[]; tone: NeonTone }) {
-  if (!rows.length) return <Empty />;
+export function NeonBars({ rows, tone, empty }: { rows: NeonBarRow[]; tone: NeonTone; empty?: string }) {
+  if (!rows.length) return <Empty>{empty}</Empty>;
   const max = Math.max(...rows.map((row) => row.value), 1);
 
   return (
